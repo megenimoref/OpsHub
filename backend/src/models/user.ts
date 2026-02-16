@@ -7,6 +7,8 @@ class User extends Model {
   public email!: string;
   public password!: string;
   public role!: 'admin' | 'staff';
+  public totpSecret!: string | null;
+  public totpEnabled!: boolean;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -38,6 +40,16 @@ User.init(
       type: DataTypes.ENUM('admin', 'staff'),
       defaultValue: 'staff',
       allowNull: false,
+    },
+    totpSecret: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null,
+    },
+    totpEnabled: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
   },
   {

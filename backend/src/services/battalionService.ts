@@ -175,6 +175,79 @@ export async function listBattalions(): Promise<string[]> {
   }
 }
 
+export interface PersonDashboard {
+  name: string;
+  total: number;
+  byBattalion: { battalion: string; count: number }[];
+  byStatus: { status: string; count: number }[];
+  todayCount: number;
+}
+
+export async function getDashboardData(people: string[]): Promise<PersonDashboard[]> {
+  // Get all battalion DB names
+  const conn = await mysql.createConnection(dbConfig);
+  let dbNames: string[] = [];
+  try {
+    const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+    );
+    dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+  } finally {
+    await conn.end();
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // For each person, aggregate across all battalions
+  const results: PersonDashboard[] = await Promise.all(
+    people.map(async (person) => {
+      let total = 0;
+      let todayCount = 0;
+      const battalionCounts: Record<string, number> = {};
+      const statusCounts: Record<string, number> = {};
+
+      for (const dbName of dbNames) {
+        const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+        try {
+          const [rows] = await c.execute<mysql.RowDataPacket[]>(
+            `SELECT request_status, contact_date FROM soldiers WHERE contact_by = ?`,
+            [person]
+          );
+          const shortName = dbName.replace(/^battalion_/, '');
+          if (rows.length > 0) {
+            battalionCounts[shortName] = (battalionCounts[shortName] || 0) + rows.length;
+          }
+          for (const row of rows) {
+            total++;
+            const status = (row.request_status as string)?.trim() || 'לא מוגדר';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+            if (row.contact_date && (row.contact_date as string).startsWith(today)) {
+              todayCount++;
+            }
+          }
+        } finally {
+          await c.end();
+        }
+      }
+
+      return {
+        name: person,
+        total,
+        todayCount,
+        byBattalion: Object.entries(battalionCounts)
+          .map(([battalion, count]) => ({ battalion, count }))
+          .sort((a, b) => b.count - a.count),
+        byStatus: Object.entries(statusCounts)
+          .map(([status, count]) => ({ status, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5),
+      };
+    })
+  );
+
+  return results;
+}
+
 export async function getSoldiersFromBattalion(battalionName: string): Promise<SoldierRow[]> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
@@ -217,11 +290,12 @@ export async function updateSoldier(
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
+    const READONLY_FIELDS = new Set(['id', 'created_at', 'updated_at']);
     const fields = Object.keys(data)
-      .filter((k) => k !== 'id')
+      .filter((k) => !READONLY_FIELDS.has(k))
       .map((k) => (k === 'rank' ? `\`rank\` = ?` : `${k} = ?`));
     const values = Object.keys(data)
-      .filter((k) => k !== 'id')
+      .filter((k) => !READONLY_FIELDS.has(k))
       .map((k) => (data as any)[k]);
     if (fields.length === 0) return;
     await conn.execute(

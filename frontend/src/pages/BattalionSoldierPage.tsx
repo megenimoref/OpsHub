@@ -30,7 +30,11 @@ interface Soldier {
   notes: string;
 }
 
-const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean }[] = [
+const CONTACT_BY_OPTIONS = ['שלומי אזולאי', 'כוכב אבשלום', 'נמרוד סער', 'לילך', 'נטאלי'];
+
+const TODAY = new Date().toISOString().split('T')[0];
+
+const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean; options?: string[]; datePicker?: boolean }[] = [
   { key: 'personal_number', label: 'מספר אישי' },
   { key: 'last_name', label: 'שם משפחה' },
   { key: 'first_name', label: 'שם פרטי' },
@@ -38,7 +42,7 @@ const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean }[]
   { key: 'rank', label: 'דרגה' },
   { key: 'company', label: 'פלוגה' },
   { key: 'department', label: 'מחלקה' },
-  { key: 'student_2026', label: 'סטודנט 2026' },
+  { key: 'student_2026', label: 'סטודנט 2026', options: ['לא', 'כן'] },
   { key: 'attached', label: 'מסופח' },
   { key: 'request_status', label: 'סטטוס פנייה' },
   { key: 'marital_status', label: 'מצב משפחתי' },
@@ -47,8 +51,8 @@ const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean }[]
   { key: 'spouse', label: 'בן/בת זוג' },
   { key: 'spouse_phone', label: 'טלפון בן/בת זוג' },
   { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
-  { key: 'contact_by', label: 'מי יצרה קשר' },
-  { key: 'contact_date', label: 'תאריך קשר' },
+  { key: 'contact_by', label: 'מי יצרה קשר', options: CONTACT_BY_OPTIONS },
+  { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
   { key: 'contact_with', label: 'מול מי נוצר קשר' },
   { key: 'employment_status', label: 'סטטוס תעסוקתי' },
   { key: 'welfare_fund', label: 'קרן סיוע', multiline: true },
@@ -88,7 +92,11 @@ export const BattalionSoldierPage: React.FC = () => {
         params: { personal_number: personalNumber.trim() },
       });
       setSoldier(res.data.soldier);
-      setFormData(res.data.soldier);
+      setFormData({
+        ...res.data.soldier,
+        contact_date: res.data.soldier.contact_date || TODAY,
+        student_2026: res.data.soldier.student_2026 || 'לא',
+      });
     } catch (err: any) {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');
     } finally {
@@ -197,10 +205,28 @@ export const BattalionSoldierPage: React.FC = () => {
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FIELD_LABELS.map(({ key, label, multiline }) => (
+            {FIELD_LABELS.map(({ key, label, multiline, options, datePicker }) => (
               <div key={key} className={multiline ? 'sm:col-span-2' : ''}>
                 <label className="block text-xs font-medium text-gray-400 mb-1">{label}</label>
-                {multiline ? (
+                {datePicker ? (
+                  <input
+                    type="date"
+                    value={(formData[key] as string) || TODAY}
+                    onChange={(e) => handleChange(key, e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                ) : options ? (
+                  <select
+                    value={(formData[key] as string) || ''}
+                    onChange={(e) => handleChange(key, e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">-- בחר --</option>
+                    {options.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : multiline ? (
                   <textarea
                     value={(formData[key] as string) || ''}
                     onChange={(e) => handleChange(key, e.target.value)}

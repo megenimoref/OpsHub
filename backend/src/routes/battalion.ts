@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware } from '../middleware/auth';
-import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, updateSoldierHandler } from '../controllers/battalionController';
+import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, updateSoldierHandler, getDashboard } from '../controllers/battalionController';
 
 const router = Router();
 
@@ -23,6 +23,7 @@ const upload = multer({
 });
 
 router.get('/list', authMiddleware, getBattalions);
+router.get('/dashboard', authMiddleware, getDashboard);
 router.get('/:name/soldiers', authMiddleware, getBattalionSoldiers);
 router.get('/:name/soldiers/search', authMiddleware, searchSoldier);
 router.put('/:name/soldiers/:id', authMiddleware, updateSoldierHandler);
