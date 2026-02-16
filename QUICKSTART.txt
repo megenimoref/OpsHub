@@ -1,0 +1,197 @@
+================================================================================
+                    CRM APPLICATION - QUICK REFERENCE
+================================================================================
+
+1. INITIAL SETUP (First Time Only)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Install Node.js 18+
+  • Go to: https://nodejs.org/
+  • Download LTS version
+  • Run installer (accept defaults)
+  • Restart terminal
+
+Step 2: Verify Node.js
+  node --version
+  npm --version
+
+Step 3: Install Dependencies
+  cd C:\CRM\backend && npm install
+  cd C:\CRM\frontend && npm install
+
+Step 4: Install Docker Desktop
+  • Go to: https://www.docker.com/products/docker-desktop
+  • Download and install
+
+================================================================================
+2. START THE APPLICATION (Every Time)
+─────────────────────────────────────────────────────────────────────────────
+
+Terminal 1 - Start MySQL:
+  cd C:\CRM
+  docker-compose up -d
+
+Terminal 2 - Start Backend:
+  cd C:\CRM\backend
+  npm run dev
+  
+  Expected output:
+  ✓ Database connected
+  ✓ Models synced
+  ✓ Server running on http://localhost:3000
+
+Terminal 3 - Start Frontend:
+  cd C:\CRM\frontend
+  npm run dev
+  
+  Expected output:
+  VITE ready in ... ms
+  Local: http://localhost:5173/
+
+Open Browser:
+  http://localhost:5173
+
+Login Credentials:
+  Email: admin@crm.com
+  Password: admin123
+
+================================================================================
+3. STOP THE APPLICATION
+─────────────────────────────────────────────────────────────────────────────
+
+Terminal 1 - Stop MySQL:
+  Press CTRL+C in terminal
+  Then run:
+  docker-compose down
+
+Terminal 2 & 3:
+  Press CTRL+C
+
+================================================================================
+4. COMMON COMMANDS
+─────────────────────────────────────────────────────────────────────────────
+
+Backend:
+  npm run dev      # Start dev server
+  npm run build    # Build for production
+  npm start        # Run production build
+
+Frontend:
+  npm run dev      # Start dev server
+  npm run build    # Build for production
+  npm run preview  # Preview production build
+
+Docker:
+  docker-compose up -d      # Start MySQL
+  docker-compose down        # Stop MySQL
+  docker-compose logs -f     # View logs
+  docker-compose down -v     # Stop and delete data
+
+MySQL CLI:
+  docker exec -it crm_mysql mysql -u crm_user -p
+  Password: crm_password_123
+
+================================================================================
+5. API ENDPOINTS
+─────────────────────────────────────────────────────────────────────────────
+
+Auth:
+  POST   /auth/login           Login
+  POST   /auth/register        Register
+
+People (All require JWT token):
+  GET    /people               List people with search/filter
+  GET    /people/:id           Get one person
+  POST   /people               Create person
+  PUT    /people/:id           Update person
+  DELETE /people/:id           Delete person
+
+Add token to requests:
+  Authorization: Bearer <token>
+
+================================================================================
+6. DEMO DATA
+─────────────────────────────────────────────────────────────────────────────
+
+Admin User:
+  Email: admin@crm.com
+  Password: admin123
+
+Sample People:
+  • David Cohen - Battalion: Golani
+  • Sarah Levi - Battalion: Infantry
+
+================================================================================
+7. PROJECT URLS
+─────────────────────────────────────────────────────────────────────────────
+
+Frontend:     http://localhost:5173
+Backend:      http://localhost:3000
+MySQL:        localhost:3306
+
+================================================================================
+8. ENVIRONMENT VARIABLES
+─────────────────────────────────────────────────────────────────────────────
+
+Backend (backend/.env):
+  PORT=3000
+  NODE_ENV=development
+  DB_HOST=localhost
+  DB_PORT=3306
+  DB_NAME=crm_db
+  DB_USER=crm_user
+  DB_PASSWORD=crm_password_123
+  JWT_SECRET=your_super_secret_jwt_key_change_in_production
+  JWT_EXPIRES_IN=24h
+  CORS_ORIGIN=http://localhost:5173
+
+Frontend (frontend/.env):
+  VITE_API_URL=http://localhost:3000
+
+================================================================================
+9. TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────────────────
+
+Issue: "npm: command not found"
+Solution: Reinstall Node.js from https://nodejs.org/ and restart terminal
+
+Issue: "Cannot connect to MySQL"
+Solution: Run "docker-compose up -d" and wait 10 seconds
+
+Issue: "Cannot GET /people"
+Solution: Backend not running - run "cd backend && npm run dev"
+
+Issue: "Network Error" when logging in
+Solution: Check CORS_ORIGIN in backend/.env matches frontend URL
+
+Issue: "Invalid token"
+Solution: Clear localStorage, login again
+
+Issue: "Port already in use"
+Solution: Change PORT in .env or kill process using the port
+
+================================================================================
+10. FILE LOCATIONS
+─────────────────────────────────────────────────────────────────────────────
+
+Backend Code:      C:\CRM\backend\src\
+Frontend Code:     C:\CRM\frontend\src\
+Database Schema:   C:\CRM\backend\src\migrations\schema.sql
+Config Files:      C:\CRM\*\.env
+Docker Config:     C:\CRM\docker-compose.yml
+Documentation:     C:\CRM\README.md, SETUP.md
+
+================================================================================
+11. ADDITIONAL HELP
+─────────────────────────────────────────────────────────────────────────────
+
+For detailed setup guide:
+  Read: C:\CRM\SETUP.md
+
+For full documentation:
+  Read: C:\CRM\README.md
+
+For development:
+  Check individual package.json in backend/ and frontend/
+
+================================================================================
