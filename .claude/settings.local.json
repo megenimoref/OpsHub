@@ -4,7 +4,9 @@
       "Bash(xargs:*)",
       "Bash(npx tsc:*)",
       "Bash(taskkill:*)",
-      "Bash(node --version:*)"
+      "Bash(node --version:*)",
+      "Bash(npm install:*)",
+      "Bash(npm:*)"
     ]
   }
 }

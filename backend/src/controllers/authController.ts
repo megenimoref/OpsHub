@@ -109,19 +109,27 @@ export const setupTotp = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const secret = speakeasy.generateSecret({
-      name: `CRM (${user.email})`,
-      length: 20,
+    // Reuse existing secret if already generated (prevents React StrictMode double-call issues)
+    let base32Secret = user.totpSecret;
+    if (!base32Secret) {
+      const secret = speakeasy.generateSecret({
+        name: `CRM (${user.email})`,
+        length: 20,
+      });
+      base32Secret = secret.base32;
+      await user.update({ totpSecret: base32Secret });
+    }
+
+    const otpauthUrl = speakeasy.otpauthURL({
+      secret: base32Secret,
+      label: `CRM (${user.email})`,
+      encoding: 'base32',
     });
-
-    // Save secret to DB (not yet enabled)
-    await user.update({ totpSecret: secret.base32 });
-
-    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url!);
+    const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
     return res.json({
       qrCodeUrl,
-      manualCode: secret.base32,
+      manualCode: base32Secret,
     });
   } catch (error) {
     console.error('Setup TOTP error:', error);

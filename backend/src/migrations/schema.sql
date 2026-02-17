@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   role ENUM('admin', 'staff') NOT NULL DEFAULT 'staff',
+  totpSecret VARCHAR(255) DEFAULT NULL,
+  totpEnabled TINYINT(1) NOT NULL DEFAULT 0,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email)
@@ -26,8 +28,8 @@ CREATE TABLE IF NOT EXISTS people (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insert admin user (password: admin123)
-INSERT INTO users (email, password, role) VALUES 
-('admin@crm.com', '$2a$10$W9/cIPP91PSMaI4HF0s5/.8IA4MWI6dFpfJaD7.5YgLd7mzfvHlim', 'admin');
+INSERT INTO users (email, password, role) VALUES
+('admin@crm.com', '$2a$10$9rgnVUJFpjyPoN9nMAGMk.WJDNYeBZPtiJ9PClo5AOTfhlp01URTi', 'admin');
 
 -- Insert sample people
 INSERT INTO people (firstName, lastName, email, phone, battalion, userId) VALUES
