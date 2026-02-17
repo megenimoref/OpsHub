@@ -43,7 +43,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'email', 'role', 'createdAt'],
+      attributes: ['id', 'email', 'role', 'totpEnabled', 'createdAt'],
       order: [['createdAt', 'DESC']],
     });
     res.json(users);

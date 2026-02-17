@@ -1,23 +1,49 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: crm_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root_password_123
-      MYSQL_DATABASE: crm_db
-      MYSQL_USER: crm_user
-      MYSQL_PASSWORD: crm_password_123
-    ports:
-      - "3306:3306"
+  api:
+    image: node:20-alpine
+    container_name: crm-api
+    working_dir: /app
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ./backend:/app
+    command: sh -c "npm install && npm run build && node dist/app.js"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_NAME=crm
+      - DB_USER=root
+      - DB_PASSWORD=change_me
+      - JWT_SECRET=change_me_in_production
+      - JWT_EXPIRES_IN=24h
+      - CORS_ORIGIN=http://localhost:5173
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    mem_limit: 300m
+    restart: unless-stopped
+    networks:
+      - crm-network
+
+  db:
+    image: mariadb:11
+    container_name: crm-db
+    environment:
+      - MARIADB_ROOT_PASSWORD=change_me
+      - MARIADB_DATABASE=crm
+    command: >
+      --innodb-buffer-pool-size=128M
+      --max-connections=40
+      --key-buffer-size=16M
+      --table-open-cache=200
+    volumes:
+      - dbdata:/var/lib/mysql
       - ./backend/src/migrations/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 5s
-      retries: 10
+    mem_limit: 400m
+    restart: unless-stopped
     networks:
       - crm-network
 
@@ -26,4 +52,4 @@ networks:
     driver: bridge
 
 volumes:
-  mysql_data:
+  dbdata:

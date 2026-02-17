@@ -7,6 +7,7 @@ import {
   getSoldiersFromBattalion,
   searchSoldierByPersonalNumber,
   updateSoldier,
+  getDashboardData,
   SoldierRow,
 } from '../services/battalionService';
 import { logger } from '../services/logger';
@@ -233,5 +234,17 @@ export const updateSoldierHandler = async (req: Request, res: Response): Promise
   } catch (error: any) {
     logger.error('Update soldier failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בעדכון חייל' });
+  }
+};
+
+const DASHBOARD_PEOPLE = ['שלומי אזולאי', 'כוכב אבשלום', 'נמרוד סער', 'לילך'];
+
+export const getDashboard = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await getDashboardData(DASHBOARD_PEOPLE);
+    res.json(data);
+  } catch (error: any) {
+    logger.error('Dashboard error', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בטעינת דשבורד' });
   }
 };

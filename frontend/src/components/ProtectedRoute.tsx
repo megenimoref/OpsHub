@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, initFromStorage } = useAuthStore();
+  const { isAuthenticated, user, initFromStorage } = useAuthStore();
 
   React.useEffect(() => {
     initFromStorage();
@@ -15,6 +15,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Force TOTP setup if not yet configured
+  if (user && !user.totpEnabled) {
+    return <Navigate to="/setup-totp" replace />;
   }
 
   return <>{children}</>;
