@@ -32,15 +32,10 @@ export function getBattalionDbName(battalionName: string): string {
 const SOLDIERS_TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS soldiers (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  personal_number VARCHAR(50),
+  personal_number VARCHAR(50) UNIQUE,
   last_name VARCHAR(100),
   first_name VARCHAR(100),
   mobile_phone VARCHAR(30),
-  \`rank\` VARCHAR(50),
-  company VARCHAR(100),
-  department VARCHAR(100),
-  student_2026 TEXT,
-  attached TEXT,
   request_status TEXT,
   marital_status TEXT,
   children_count TEXT,
@@ -73,11 +68,31 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
     await conn.end();
   }
 
-  // Step 2: Connect directly to the new database, drop+recreate table for fresh import
+  // Step 2: Connect directly to the new database, create table + migrate old schema
   const dbConn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
-    await dbConn.query(`DROP TABLE IF EXISTS soldiers`);
     await dbConn.query(SOLDIERS_TABLE_DDL);
+
+    // Migrate old tables: drop removed columns if they exist
+    const OLD_COLUMNS = ['rank', 'company', 'department', 'student_2026', 'attached'];
+    const [cols] = await dbConn.execute<mysql.RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+      [dbName]
+    );
+    const existingCols = new Set(cols.map((c) => c.COLUMN_NAME as string));
+    for (const col of OLD_COLUMNS) {
+      if (existingCols.has(col)) {
+        await dbConn.query(`ALTER TABLE soldiers DROP COLUMN \`${col}\``);
+      }
+    }
+
+    // Add UNIQUE constraint on personal_number if missing
+    const [indexes] = await dbConn.execute<mysql.RowDataPacket[]>(
+      `SHOW INDEX FROM soldiers WHERE Column_name = 'personal_number' AND Non_unique = 0`
+    );
+    if (indexes.length === 0) {
+      await dbConn.query(`ALTER TABLE soldiers ADD UNIQUE (personal_number)`);
+    }
   } finally {
     await dbConn.end();
   }
@@ -88,11 +103,6 @@ export interface SoldierRow {
   last_name?: string;
   first_name?: string;
   mobile_phone?: string;
-  rank?: string;
-  company?: string;
-  department?: string;
-  student_2026?: string;
-  attached?: string;
   request_status?: string;
   marital_status?: string;
   children_count?: string;
@@ -120,22 +130,37 @@ export async function importSoldiers(battalionName: string, soldiers: SoldierRow
     for (const soldier of soldiers) {
       await conn.execute(
         `INSERT INTO soldiers (
-          personal_number, last_name, first_name, mobile_phone, \`rank\`, company, department,
-          student_2026, attached, request_status, marital_status, children_count,
+          personal_number, last_name, first_name, mobile_phone,
+          request_status, marital_status, children_count,
           student_indicator, spouse, spouse_phone, data_indicators, contact_by,
           contact_date, contact_with, employment_status, welfare_fund, national_insurance,
           other_assistance, applications_needed, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          last_name = VALUES(last_name),
+          first_name = VALUES(first_name),
+          mobile_phone = VALUES(mobile_phone),
+          request_status = VALUES(request_status),
+          marital_status = VALUES(marital_status),
+          children_count = VALUES(children_count),
+          student_indicator = VALUES(student_indicator),
+          spouse = VALUES(spouse),
+          spouse_phone = VALUES(spouse_phone),
+          data_indicators = VALUES(data_indicators),
+          contact_by = VALUES(contact_by),
+          contact_date = VALUES(contact_date),
+          contact_with = VALUES(contact_with),
+          employment_status = VALUES(employment_status),
+          welfare_fund = VALUES(welfare_fund),
+          national_insurance = VALUES(national_insurance),
+          other_assistance = VALUES(other_assistance),
+          applications_needed = VALUES(applications_needed),
+          notes = VALUES(notes)`,
         [
           soldier.personal_number || null,
           soldier.last_name || null,
           soldier.first_name || null,
           soldier.mobile_phone || null,
-          soldier.rank || null,
-          soldier.company || null,
-          soldier.department || null,
-          soldier.student_2026 || null,
-          soldier.attached || null,
           soldier.request_status || null,
           soldier.marital_status || null,
           soldier.children_count || null,
@@ -183,17 +208,21 @@ export interface PersonDashboard {
   todayCount: number;
 }
 
-export async function getDashboardData(people: string[]): Promise<PersonDashboard[]> {
-  // Get all battalion DB names
-  const conn = await mysql.createConnection(dbConfig);
+export async function getDashboardData(people: string[], battalionFilter?: string): Promise<PersonDashboard[]> {
   let dbNames: string[] = [];
-  try {
-    const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-      `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
-    );
-    dbNames = rows.map((r) => r.SCHEMA_NAME as string);
-  } finally {
-    await conn.end();
+
+  if (battalionFilter) {
+    dbNames = [getBattalionDbName(battalionFilter)];
+  } else {
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn.end();
+    }
   }
 
   const today = new Date().toISOString().split('T')[0];
@@ -248,12 +277,68 @@ export async function getDashboardData(people: string[]): Promise<PersonDashboar
   return results;
 }
 
+export interface GlobalStats {
+  totalSoldiers: number;
+  totalStudents: number;
+  byStatus: { status: string; count: number }[];
+}
+
+export async function getGlobalStats(battalionFilter?: string): Promise<GlobalStats> {
+  let dbNames: string[] = [];
+
+  if (battalionFilter) {
+    dbNames = [getBattalionDbName(battalionFilter)];
+  } else {
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn.end();
+    }
+  }
+
+  let totalSoldiers = 0;
+  let totalStudents = 0;
+  const statusCounts: Record<string, number> = {};
+
+  for (const dbName of dbNames) {
+    const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const [rows] = await c.execute<mysql.RowDataPacket[]>(
+        `SELECT request_status, student_indicator FROM soldiers`
+      );
+      for (const row of rows) {
+        totalSoldiers++;
+        const indicator = (row.student_indicator as string)?.trim()?.toLowerCase() || '';
+        if (indicator && indicator !== 'לא' && indicator !== '0' && indicator !== 'no') {
+          totalStudents++;
+        }
+        const status = (row.request_status as string)?.trim() || 'לא מוגדר';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      }
+    } finally {
+      await c.end();
+    }
+  }
+
+  return {
+    totalSoldiers,
+    totalStudents,
+    byStatus: Object.entries(statusCounts)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count),
+  };
+}
+
 export async function getSoldiersFromBattalion(battalionName: string): Promise<SoldierRow[]> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-      `SELECT personal_number, first_name, last_name, mobile_phone, \`rank\`, company, department FROM soldiers`
+      `SELECT personal_number, first_name, last_name, mobile_phone FROM soldiers`
     );
     return rows as SoldierRow[];
   } finally {
@@ -293,7 +378,7 @@ export async function updateSoldier(
     const READONLY_FIELDS = new Set(['id', 'created_at', 'updated_at']);
     const fields = Object.keys(data)
       .filter((k) => !READONLY_FIELDS.has(k))
-      .map((k) => (k === 'rank' ? `\`rank\` = ?` : `${k} = ?`));
+      .map((k) => `${k} = ?`);
     const values = Object.keys(data)
       .filter((k) => !READONLY_FIELDS.has(k))
       .map((k) => (data as any)[k]);

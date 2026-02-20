@@ -6,8 +6,6 @@ interface Soldier {
   first_name?: string;
   last_name?: string;
   mobile_phone?: string;
-  rank?: string;
-  company?: string;
 }
 
 function toWhatsAppNumber(phone: string): string {
@@ -140,7 +138,6 @@ export const MailingListPage: React.FC = () => {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white truncate">
-                        {soldier.rank && <span className="text-gray-400 ml-1">{soldier.rank}</span>}
                         {soldier.first_name} {soldier.last_name}
                       </p>
                       {soldier.mobile_phone ? (

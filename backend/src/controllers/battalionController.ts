@@ -8,6 +8,7 @@ import {
   searchSoldierByPersonalNumber,
   updateSoldier,
   getDashboardData,
+  getGlobalStats,
   SoldierRow,
 } from '../services/battalionService';
 import { logger } from '../services/logger';
@@ -18,11 +19,6 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'שם משפחה': 'last_name',
   'שם פרטי': 'first_name',
   'טלפון נייד': 'mobile_phone',
-  'דרגה': 'rank',
-  'פלוגה': 'company',
-  'מחלקה': 'department',
-  'סטודנט 2026': 'student_2026',
-  'מסופח': 'attached',
   'סטוס פנייה': 'request_status',
   'מצב משפחתי': 'marital_status',
   'מספר ילדים': 'children_count',
@@ -237,12 +233,17 @@ export const updateSoldierHandler = async (req: Request, res: Response): Promise
   }
 };
 
-const DASHBOARD_PEOPLE = ['שלומי אזולאי', 'כוכב אבשלום', 'נמרוד סער', 'לילך'];
+const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 
 export const getDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
-    const data = await getDashboardData(DASHBOARD_PEOPLE);
-    res.json(data);
+    const battalionFilter = req.query.battalion ? String(req.query.battalion) : undefined;
+    const [people, globalStats, battalions] = await Promise.all([
+      getDashboardData(DASHBOARD_PEOPLE, battalionFilter),
+      getGlobalStats(battalionFilter),
+      listBattalions(),
+    ]);
+    res.json({ people, globalStats, battalions });
   } catch (error: any) {
     logger.error('Dashboard error', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בטעינת דשבורד' });

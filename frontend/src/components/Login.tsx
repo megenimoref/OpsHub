@@ -65,9 +65,14 @@ export const Login: React.FC = () => {
         backgroundRepeat: 'no-repeat',
       }}
     >
-      <div className="max-w-md w-full space-y-8 bg-black bg-opacity-50 p-8 rounded-xl backdrop-blur-sm border border-cyan-800">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-cyan-300">
+      <div className="max-w-md w-full space-y-8 bg-black bg-opacity-60 p-8 rounded-xl backdrop-blur-md border border-cyan-800">
+        <div className="flex flex-col items-center">
+          <img
+            src="/logo.jpeg"
+            alt="Logo"
+            className="w-80 h-80 rounded-2xl shadow-2xl mb-4"
+          />
+          <h2 className="text-center text-3xl font-extrabold text-cyan-300">
             {step === 'credentials' ? 'CRM Login' : 'אימות דו-שלבי'}
           </h2>
           {step === 'totp' && (
