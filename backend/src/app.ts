@@ -8,6 +8,8 @@ import ticketsRoutes from './routes/tickets';
 import usersRoutes from './routes/users';
 import battalionRoutes from './routes/battalion';
 import logsRoutes from './routes/logs';
+import chatRoutes from './routes/chat';
+import openaiRoutes from './routes/openai';
 import { logger } from './services/logger';
 
 const app = express();
@@ -25,6 +27,8 @@ app.use('/tickets', ticketsRoutes);
 app.use('/users', usersRoutes);
 app.use('/battalion', battalionRoutes);
 app.use('/logs', logsRoutes);
+app.use('/chat', chatRoutes);
+app.use('/openai', openaiRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

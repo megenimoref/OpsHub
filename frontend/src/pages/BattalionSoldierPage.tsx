@@ -7,11 +7,6 @@ interface Soldier {
   last_name: string;
   first_name: string;
   mobile_phone: string;
-  rank: string;
-  company: string;
-  department: string;
-  student_2026: string;
-  attached: string;
   request_status: string;
   marital_status: string;
   children_count: string;
@@ -30,8 +25,6 @@ interface Soldier {
   notes: string;
 }
 
-const CONTACT_BY_OPTIONS = ['שלומי אזולאי', 'כוכב אבשלום', 'נמרוד סער', 'לילך', 'נטאלי'];
-
 const TODAY = new Date().toISOString().split('T')[0];
 
 const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean; options?: string[]; datePicker?: boolean }[] = [
@@ -39,11 +32,6 @@ const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean; op
   { key: 'last_name', label: 'שם משפחה' },
   { key: 'first_name', label: 'שם פרטי' },
   { key: 'mobile_phone', label: 'טלפון נייד' },
-  { key: 'rank', label: 'דרגה' },
-  { key: 'company', label: 'פלוגה' },
-  { key: 'department', label: 'מחלקה' },
-  { key: 'student_2026', label: 'סטודנט 2026', options: ['לא', 'כן'] },
-  { key: 'attached', label: 'מסופח' },
   { key: 'request_status', label: 'סטטוס פנייה' },
   { key: 'marital_status', label: 'מצב משפחתי' },
   { key: 'children_count', label: 'מספר ילדים' },
@@ -51,7 +39,7 @@ const FIELD_LABELS: { key: keyof Soldier; label: string; multiline?: boolean; op
   { key: 'spouse', label: 'בן/בת זוג' },
   { key: 'spouse_phone', label: 'טלפון בן/בת זוג' },
   { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
-  { key: 'contact_by', label: 'מי יצרה קשר', options: CONTACT_BY_OPTIONS },
+  { key: 'contact_by', label: 'מי יצרה קשר' },
   { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
   { key: 'contact_with', label: 'מול מי נוצר קשר' },
   { key: 'employment_status', label: 'סטטוס תעסוקתי' },
@@ -95,7 +83,6 @@ export const BattalionSoldierPage: React.FC = () => {
       setFormData({
         ...res.data.soldier,
         contact_date: res.data.soldier.contact_date || TODAY,
-        student_2026: res.data.soldier.student_2026 || 'לא',
       });
     } catch (err: any) {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../services/api';
 
 interface PersonDashboard {
@@ -9,11 +9,23 @@ interface PersonDashboard {
   byStatus: { status: string; count: number }[];
 }
 
+interface GlobalStats {
+  totalSoldiers: number;
+  totalStudents: number;
+  byStatus: { status: string; count: number }[];
+}
+
+interface DashboardResponse {
+  people: PersonDashboard[];
+  globalStats: GlobalStats;
+  battalions: string[];
+}
+
 const PERSON_COLORS: Record<string, string> = {
-  'שלומי אזולאי': 'cyan',
-  'כוכב אבשלום': 'purple',
-  'נמרוד סער': 'green',
+  'כוכב': 'purple',
+  'נימרוד': 'green',
   'לילך': 'pink',
+  'יקי': 'cyan',
 };
 
 const COLOR_CLASSES: Record<string, { border: string; title: string; badge: string; bar: string }> = {
@@ -24,18 +36,39 @@ const COLOR_CLASSES: Record<string, { border: string; title: string; badge: stri
 };
 
 export const DashboardPage: React.FC = () => {
-  const [data, setData] = useState<PersonDashboard[]>([]);
+  const [people, setPeople] = useState<PersonDashboard[]>([]);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
+  const [battalions, setBattalions] = useState<string[]>([]);
+  const [selectedBattalion, setSelectedBattalion] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    api.get('/battalion/dashboard')
-      .then((res) => setData(res.data))
+  const fetchDashboard = useCallback((battalion?: string) => {
+    setLoading(true);
+    setError('');
+    const params = battalion ? { battalion } : {};
+    api.get<DashboardResponse>('/battalion/dashboard', { params })
+      .then((res) => {
+        setPeople(res.data.people);
+        setGlobalStats(res.data.globalStats);
+        if (res.data.battalions) {
+          setBattalions(res.data.battalions);
+        }
+      })
       .catch(() => setError('שגיאה בטעינת הדשבורד'))
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const handleBattalionChange = (value: string) => {
+    setSelectedBattalion(value);
+    fetchDashboard(value || undefined);
+  };
+
+  if (loading && battalions.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
@@ -43,18 +76,84 @@ export const DashboardPage: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (error && battalions.length === 0) {
     return (
       <div className="p-6 text-red-400 text-center">{error}</div>
     );
   }
 
+  const maxStatusCount = globalStats ? Math.max(...globalStats.byStatus.map((s) => s.count), 1) : 1;
+
   return (
     <div className="p-4 md:p-6" dir="rtl">
-      <h1 className="text-2xl font-bold text-white mb-6">לוח נתונים</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-white">לוח נתונים</h1>
 
+        {/* Battalion selector */}
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-400">גדוד:</label>
+          <select
+            value={selectedBattalion}
+            onChange={(e) => handleBattalionChange(e.target.value)}
+            className="px-3 py-2 bg-gray-900 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm min-w-[160px]"
+          >
+            <option value="">כל הגדודים</option>
+            {battalions.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+          {loading && (
+            <div className="w-5 h-5 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          )}
+        </div>
+      </div>
+
+      {/* Global Stats Summary */}
+      {globalStats && (
+        <div className="mb-6 space-y-4">
+          {/* Top cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="bg-gray-900 rounded-xl border border-blue-800/60 p-4 text-center">
+              <p className="text-3xl font-bold text-blue-400">{globalStats.totalSoldiers}</p>
+              <p className="text-xs text-gray-400 mt-1">סה"כ חיילים</p>
+            </div>
+            <div className="bg-gray-900 rounded-xl border border-amber-800/60 p-4 text-center">
+              <p className="text-3xl font-bold text-amber-400">{globalStats.totalStudents}</p>
+              <p className="text-xs text-gray-400 mt-1">סטודנטים</p>
+            </div>
+            <div className="bg-gray-900 rounded-xl border border-emerald-800/60 p-4 text-center sm:col-span-1 col-span-2">
+              <p className="text-3xl font-bold text-emerald-400">{globalStats.byStatus.length}</p>
+              <p className="text-xs text-gray-400 mt-1">סוגי סטטוס</p>
+            </div>
+          </div>
+
+          {/* Status breakdown panel */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-sm font-semibold text-white mb-4">פילוח לפי סטטוס פנייה</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              {globalStats.byStatus.map(({ status, count }) => (
+                <div key={status}>
+                  <div className="flex justify-between text-xs text-gray-300 mb-1">
+                    <span className="truncate max-w-[70%]">{status}</span>
+                    <span className="font-semibold">{count}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${(count / maxStatusCount) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Per-person cards */}
+      <h2 className="text-lg font-semibold text-white mb-4">לפי מטפל</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {data.map((person) => {
+        {people.map((person) => {
           const color = PERSON_COLORS[person.name] || 'cyan';
           const cls = COLOR_CLASSES[color];
           const maxCount = Math.max(...person.byStatus.map((s) => s.count), 1);

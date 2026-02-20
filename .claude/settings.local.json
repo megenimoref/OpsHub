@@ -6,7 +6,10 @@
       "Bash(taskkill:*)",
       "Bash(node --version:*)",
       "Bash(npm install:*)",
-      "Bash(npm:*)"
+      "Bash(npm:*)",
+      "Bash(docker volume ls:*)",
+      "Bash(docker stop:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }
