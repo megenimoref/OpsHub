@@ -35,7 +35,7 @@ export const TotpSetupPage: React.FC = () => {
       if (user && token) {
         setAuth(token, { ...user, totpEnabled: true });
       }
-      navigate('/people');
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error || 'קוד שגוי');
       setCode('');

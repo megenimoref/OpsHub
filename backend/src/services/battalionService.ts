@@ -29,6 +29,21 @@ export function getBattalionDbName(battalionName: string): string {
   return `battalion_${sanitizeBattalionName(battalionName)}`;
 }
 
+const SOLDIER_CHANGES_TABLE_DDL = `
+CREATE TABLE IF NOT EXISTS soldier_changes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  soldier_id INT NOT NULL,
+  soldier_name VARCHAR(200),
+  field_name VARCHAR(100),
+  field_label VARCHAR(100),
+  old_value TEXT,
+  new_value TEXT,
+  changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_soldier_id (soldier_id),
+  INDEX idx_changed_at (changed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`;
+
 const SOLDIERS_TABLE_DDL = `
 CREATE TABLE IF NOT EXISTS soldiers (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -72,6 +87,7 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
   const dbConn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
     await dbConn.query(SOLDIERS_TABLE_DDL);
+    await dbConn.query(SOLDIER_CHANGES_TABLE_DDL);
 
     // Migrate old tables: drop removed columns if they exist
     const OLD_COLUMNS = ['rank', 'company', 'department', 'student_2026', 'attached'];
@@ -367,6 +383,33 @@ export async function searchSoldierByPersonalNumber(
   }
 }
 
+const FIELD_LABEL_MAP: Record<string, string> = {
+  personal_number: 'מספר אישי',
+  last_name: 'שם משפחה',
+  first_name: 'שם פרטי',
+  mobile_phone: 'טלפון נייד',
+  request_status: 'סטטוס פנייה',
+  marital_status: 'מצב משפחתי',
+  children_count: 'מספר ילדים',
+  student_indicator: 'אינדיקציית סטודנט',
+  spouse: 'בן/בת זוג',
+  spouse_phone: 'טלפון בן/בת זוג',
+  data_indicators: 'אינדיקציות מהנתונים',
+  contact_by: 'מי יצרה קשר',
+  contact_date: 'תאריך קשר',
+  contact_with: 'מול מי נוצר קשר',
+  employment_status: 'סטטוס תעסוקתי',
+  welfare_fund: 'קרן סיוע',
+  national_insurance: 'ביטוח לאומי',
+  other_assistance: 'סיוע אחר',
+  applications_needed: 'בקשות להגשה',
+  notes: 'פירוט/הערות',
+};
+
+async function ensureChangesTable(conn: mysql.Connection): Promise<void> {
+  await conn.query(SOLDIER_CHANGES_TABLE_DDL);
+}
+
 export async function updateSoldier(
   battalionName: string,
   id: number,
@@ -375,18 +418,69 @@ export async function updateSoldier(
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
+    await ensureChangesTable(conn);
     const READONLY_FIELDS = new Set(['id', 'created_at', 'updated_at']);
-    const fields = Object.keys(data)
-      .filter((k) => !READONLY_FIELDS.has(k))
-      .map((k) => `${k} = ?`);
-    const values = Object.keys(data)
-      .filter((k) => !READONLY_FIELDS.has(k))
-      .map((k) => (data as any)[k]);
-    if (fields.length === 0) return;
+    const keys = Object.keys(data).filter((k) => !READONLY_FIELDS.has(k));
+    if (keys.length === 0) return;
+
+    // Fetch current soldier data to detect changes
+    const [currentRows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT * FROM soldiers WHERE id = ? LIMIT 1`,
+      [id]
+    );
+    const current = currentRows[0] as Record<string, any> | undefined;
+
+    // Perform the update
+    const fields = keys.map((k) => `${k} = ?`);
+    const values = keys.map((k) => (data as any)[k]);
     await conn.execute(
       `UPDATE soldiers SET ${fields.join(', ')} WHERE id = ?`,
       [...values, id]
     );
+
+    // Log changes
+    if (current) {
+      const soldierName = `${current.first_name || ''} ${current.last_name || ''}`.trim();
+      for (const key of keys) {
+        const oldVal = (current[key] ?? '') as string;
+        const newVal = ((data as any)[key] ?? '') as string;
+        if (String(oldVal).trim() !== String(newVal).trim()) {
+          await conn.execute(
+            `INSERT INTO soldier_changes (soldier_id, soldier_name, field_name, field_label, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)`,
+            [id, soldierName, key, FIELD_LABEL_MAP[key] || key, oldVal, newVal]
+          );
+        }
+      }
+    }
+  } finally {
+    await conn.end();
+  }
+}
+
+export interface SoldierChange {
+  id: number;
+  soldier_id: number;
+  soldier_name: string;
+  field_name: string;
+  field_label: string;
+  old_value: string;
+  new_value: string;
+  changed_at: string;
+}
+
+export async function getSoldierChanges(
+  battalionName: string,
+  soldierId: number
+): Promise<SoldierChange[]> {
+  const dbName = getBattalionDbName(battalionName);
+  const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+  try {
+    await ensureChangesTable(conn);
+    const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT * FROM soldier_changes WHERE soldier_id = ? ORDER BY changed_at DESC LIMIT 100`,
+      [soldierId]
+    );
+    return rows as SoldierChange[];
   } finally {
     await conn.end();
   }
