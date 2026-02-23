@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 
+interface SoldierChange {
+  id: number;
+  soldier_id: number;
+  soldier_name: string;
+  field_name: string;
+  field_label: string;
+  old_value: string;
+  new_value: string;
+  changed_at: string;
+}
+
 interface Soldier {
   id: number;
   personal_number: string;
@@ -61,6 +72,7 @@ export const BattalionSoldierPage: React.FC = () => {
   const [searchError, setSearchError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [changes, setChanges] = useState<SoldierChange[]>([]);
 
   useEffect(() => {
     api.get('/battalion/list').then((res) => {
@@ -68,11 +80,21 @@ export const BattalionSoldierPage: React.FC = () => {
     });
   }, []);
 
+  const fetchChanges = async (battalion: string, soldierId: number) => {
+    try {
+      const res = await api.get(`/battalion/${encodeURIComponent(battalion)}/soldiers/${soldierId}/changes`);
+      setChanges(res.data.changes || []);
+    } catch {
+      setChanges([]);
+    }
+  };
+
   const handleSearch = async () => {
     if (!selectedBattalion || !personalNumber.trim()) return;
     setSearching(true);
     setSearchError('');
     setSoldier(null);
+    setChanges([]);
     setSaveSuccess(false);
     setSaveError('');
     try {
@@ -84,6 +106,7 @@ export const BattalionSoldierPage: React.FC = () => {
         ...res.data.soldier,
         contact_date: res.data.soldier.contact_date || TODAY,
       });
+      fetchChanges(selectedBattalion, res.data.soldier.id);
     } catch (err: any) {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');
     } finally {
@@ -98,7 +121,8 @@ export const BattalionSoldierPage: React.FC = () => {
     setSaveError('');
     try {
       await api.put(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/${soldier.id}`, formData);
-      setSaveSuccess(true);
+      setSoldier(null);
+      setFormData({});
     } catch (err: any) {
       setSaveError(err.response?.data?.error || 'שגיאה בשמירה');
     } finally {
@@ -240,6 +264,34 @@ export const BattalionSoldierPage: React.FC = () => {
             >
               {saving ? 'שומר...' : 'שמור שינויים'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Change history */}
+      {soldier && changes.length > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mt-6">
+          <h3 className="text-lg font-semibold text-white mb-4">היסטוריית שינויים</h3>
+          <div className="space-y-3">
+            {changes.map((change) => (
+              <div key={change.id} className="flex items-start justify-between bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-cyan-300">{change.soldier_name}</span>
+                  <span className="text-gray-400 text-sm mx-2">—</span>
+                  <span className="text-sm text-yellow-300">{change.field_label}</span>
+                  <div className="mt-1 text-xs text-gray-400">
+                    <span className="text-red-400 line-through">{change.old_value || '(ריק)'}</span>
+                    <span className="mx-2">←</span>
+                    <span className="text-green-400">{change.new_value || '(ריק)'}</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 whitespace-nowrap mr-4">
+                  {new Date(change.changed_at).toLocaleDateString('he-IL')}
+                  {' '}
+                  {new Date(change.changed_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

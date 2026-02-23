@@ -7,6 +7,7 @@ import {
   getSoldiersFromBattalion,
   searchSoldierByPersonalNumber,
   updateSoldier,
+  getSoldierChanges,
   getDashboardData,
   getGlobalStats,
   SoldierRow,
@@ -230,6 +231,21 @@ export const updateSoldierHandler = async (req: Request, res: Response): Promise
   } catch (error: any) {
     logger.error('Update soldier failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בעדכון חייל' });
+  }
+};
+
+export const getSoldierChangesHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, id } = req.params;
+    if (!name || !id) {
+      res.status(400).json({ error: 'חסר שם גדוד או מזהה חייל' });
+      return;
+    }
+    const changes = await getSoldierChanges(decodeURIComponent(name), Number(id));
+    res.json({ changes });
+  } catch (error: any) {
+    logger.error('Get soldier changes failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בשליפת היסטוריית שינויים' });
   }
 };
 

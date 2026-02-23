@@ -9,7 +9,8 @@
       "Bash(npm:*)",
       "Bash(docker volume ls:*)",
       "Bash(docker stop:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(curl:*)"
     ]
   }
 }

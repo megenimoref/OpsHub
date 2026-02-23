@@ -46,7 +46,7 @@ export const Login: React.FC = () => {
     try {
       const response = await authService.verifyTotp(preAuthToken, totpCode);
       setAuth(response.token, response.user);
-      navigate('/people');
+      navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Invalid code');
       setTotpCode('');
