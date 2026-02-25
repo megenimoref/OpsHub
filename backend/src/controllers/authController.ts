@@ -34,13 +34,13 @@ export const login = async (req: Request, res: Response) => {
     if (!user.totpEnabled) {
       // @ts-ignore
       const token = jwt.sign(
-        { userId: user.id, role: user.role },
+        { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
         JWT_SECRET,
         { expiresIn: JWT_EXPIRES_IN }
       );
       return res.json({
         token,
-        user: { id: user.id, email: user.email, role: user.role, totpEnabled: false },
+        user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, totpEnabled: false },
         requiresTotpSetup: true,
       });
     }
@@ -85,14 +85,14 @@ export const register = async (req: Request, res: Response) => {
 
     // @ts-ignore
     const token = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     res.status(201).json({
       token,
-      user: { id: user.id, email: user.email, role: user.role, totpEnabled: false },
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, totpEnabled: false },
       requiresTotpSetup: true,
     });
   } catch (error) {
@@ -209,14 +209,14 @@ export const verifyTotp = async (req: Request, res: Response) => {
 
     // @ts-ignore
     const token = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     return res.json({
       token,
-      user: { id: user.id, email: user.email, role: user.role, totpEnabled: true },
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, totpEnabled: true },
     });
   } catch (error) {
     console.error('Verify TOTP error:', error);

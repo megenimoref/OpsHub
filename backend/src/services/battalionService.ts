@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS soldier_changes (
   field_label VARCHAR(100),
   old_value TEXT,
   new_value TEXT,
+  changed_by VARCHAR(255),
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_soldier_id (soldier_id),
   INDEX idx_changed_at (changed_at)
@@ -349,6 +350,132 @@ export async function getGlobalStats(battalionFilter?: string): Promise<GlobalSt
   };
 }
 
+export interface BattalionPieStat {
+  battalion: string;
+  totalSoldiers: number;
+  contactedSoldiers: number;
+}
+
+export async function getBattalionPieStats(battalionFilter?: string): Promise<BattalionPieStat[]> {
+  let dbNames: string[] = [];
+
+  if (battalionFilter) {
+    dbNames = [getBattalionDbName(battalionFilter)];
+  } else {
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn.end();
+    }
+  }
+
+  const results: BattalionPieStat[] = [];
+
+  for (const dbName of dbNames) {
+    const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const [rows] = await c.execute<mysql.RowDataPacket[]>(
+        `SELECT COUNT(*) AS total, SUM(CASE WHEN contact_by IS NOT NULL AND TRIM(contact_by) != '' THEN 1 ELSE 0 END) AS contacted FROM soldiers`
+      );
+      const row = rows[0];
+      results.push({
+        battalion: dbName.replace(/^battalion_/, ''),
+        totalSoldiers: Number(row.total) || 0,
+        contactedSoldiers: Number(row.contacted) || 0,
+      });
+    } finally {
+      await c.end();
+    }
+  }
+
+  return results;
+}
+
+export interface AssistanceStat {
+  battalion: string;
+  nationalInsurance: number;
+  welfareFund: number;
+  otherAssistance: number;
+}
+
+export async function getAssistanceStats(battalionFilter?: string): Promise<AssistanceStat[]> {
+  let dbNames: string[] = [];
+
+  if (battalionFilter) {
+    dbNames = [getBattalionDbName(battalionFilter)];
+  } else {
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn.end();
+    }
+  }
+
+  const results: AssistanceStat[] = [];
+
+  for (const dbName of dbNames) {
+    const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const [rows] = await c.execute<mysql.RowDataPacket[]>(
+        `SELECT
+          SUM(CASE WHEN national_insurance IS NOT NULL AND TRIM(national_insurance) != '' AND TRIM(national_insurance) NOT IN (?, ?) THEN 1 ELSE 0 END) AS ni,
+          SUM(CASE WHEN welfare_fund IS NOT NULL AND TRIM(welfare_fund) != '' AND TRIM(welfare_fund) NOT IN (?, ?) THEN 1 ELSE 0 END) AS wf,
+          SUM(CASE WHEN other_assistance IS NOT NULL AND TRIM(other_assistance) != '' AND TRIM(other_assistance) NOT IN (?, ?) THEN 1 ELSE 0 END) AS oa
+        FROM soldiers`,
+        ['לא', 'אין', 'לא', 'אין', 'לא', 'אין']
+      );
+      const row = rows[0];
+      results.push({
+        battalion: dbName.replace(/^battalion_/, ''),
+        nationalInsurance: Number(row.ni) || 0,
+        welfareFund: Number(row.wf) || 0,
+        otherAssistance: Number(row.oa) || 0,
+      });
+    } finally {
+      await c.end();
+    }
+  }
+
+  return results;
+}
+
+export interface AssistanceSoldier {
+  firstName: string;
+  lastName: string;
+  personalNumber: string;
+  value: string;
+}
+
+export async function getSoldiersByAssistanceType(
+  battalionName: string,
+  assistanceType: 'national_insurance' | 'welfare_fund' | 'other_assistance'
+): Promise<AssistanceSoldier[]> {
+  const dbName = getBattalionDbName(battalionName);
+  const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+  try {
+    const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT first_name, last_name, personal_number, ${assistanceType} AS val FROM soldiers WHERE ${assistanceType} IS NOT NULL AND TRIM(${assistanceType}) != '' AND TRIM(${assistanceType}) NOT IN (?, ?)`,
+      ['לא', 'אין']
+    );
+    return rows.map((r) => ({
+      firstName: r.first_name || '',
+      lastName: r.last_name || '',
+      personalNumber: r.personal_number || '',
+      value: r.val || '',
+    }));
+  } finally {
+    await conn.end();
+  }
+}
+
 export async function getSoldiersFromBattalion(battalionName: string): Promise<SoldierRow[]> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
@@ -408,12 +535,19 @@ const FIELD_LABEL_MAP: Record<string, string> = {
 
 async function ensureChangesTable(conn: mysql.Connection): Promise<void> {
   await conn.query(SOLDIER_CHANGES_TABLE_DDL);
+  // Migrate: add changed_by column if missing
+  try {
+    await conn.query(`ALTER TABLE soldier_changes ADD COLUMN changed_by VARCHAR(255) AFTER new_value`);
+  } catch {
+    // Column already exists
+  }
 }
 
 export async function updateSoldier(
   battalionName: string,
   id: number,
-  data: Partial<SoldierRow>
+  data: Partial<SoldierRow>,
+  changedBy?: string
 ): Promise<void> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
@@ -446,8 +580,8 @@ export async function updateSoldier(
         const newVal = ((data as any)[key] ?? '') as string;
         if (String(oldVal).trim() !== String(newVal).trim()) {
           await conn.execute(
-            `INSERT INTO soldier_changes (soldier_id, soldier_name, field_name, field_label, old_value, new_value) VALUES (?, ?, ?, ?, ?, ?)`,
-            [id, soldierName, key, FIELD_LABEL_MAP[key] || key, oldVal, newVal]
+            `INSERT INTO soldier_changes (soldier_id, soldier_name, field_name, field_label, old_value, new_value, changed_by) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [id, soldierName, key, FIELD_LABEL_MAP[key] || key, oldVal, newVal, changedBy || null]
           );
         }
       }
@@ -465,6 +599,7 @@ export interface SoldierChange {
   field_label: string;
   old_value: string;
   new_value: string;
+  changed_by: string | null;
   changed_at: string;
 }
 

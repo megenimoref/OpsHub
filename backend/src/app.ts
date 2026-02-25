@@ -10,6 +10,7 @@ import battalionRoutes from './routes/battalion';
 import logsRoutes from './routes/logs';
 import chatRoutes from './routes/chat';
 import openaiRoutes from './routes/openai';
+import whatsappRoutes from './routes/whatsapp';
 import { logger } from './services/logger';
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/battalion', battalionRoutes);
 app.use('/logs', logsRoutes);
 app.use('/chat', chatRoutes);
 app.use('/openai', openaiRoutes);
+app.use('/whatsapp', whatsappRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -54,7 +56,7 @@ async function start() {
     await sequelize.authenticate();
     console.log('✓ Database connected');
 
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log('✓ Models synced');
 
     app.listen(PORT, () => {

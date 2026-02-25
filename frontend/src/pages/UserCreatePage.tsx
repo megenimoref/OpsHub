@@ -6,12 +6,16 @@ import { authService } from '../services/authService';
 interface UserRecord {
   id: number;
   email: string;
+  firstName?: string;
+  lastName?: string;
   role: 'admin' | 'staff';
   totpEnabled: boolean;
 }
 
 export const UserCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'staff' | 'admin'>('staff');
@@ -42,8 +46,10 @@ export const UserCreatePage: React.FC = () => {
     setSuccess('');
     setLoading(true);
     try {
-      await api.post('/users', { email, password, role });
-      setSuccess(`המשתמש ${email} נוצר בהצלחה`);
+      await api.post('/users', { email, password, role, firstName, lastName });
+      setSuccess(`המשתמש ${firstName} ${lastName} (${email}) נוצר בהצלחה`);
+      setFirstName('');
+      setLastName('');
       setEmail('');
       setPassword('');
       setRole('staff');
@@ -52,6 +58,23 @@ export const UserCreatePage: React.FC = () => {
       setError(err.response?.data?.error || 'שגיאה ביצירת המשתמש');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  const handleDeleteUser = async (userId: number, userName: string) => {
+    if (!window.confirm(`האם למחוק את המשתמש ${userName}?`)) return;
+    setDeletingId(userId);
+    setResetMsg('');
+    try {
+      await api.delete(`/users/${userId}`);
+      setResetMsg(`המשתמש ${userName} נמחק בהצלחה`);
+      fetchUsers();
+    } catch (err: any) {
+      setResetMsg(err.response?.data?.error || 'שגיאה במחיקה');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -85,6 +108,34 @@ export const UserCreatePage: React.FC = () => {
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                שם פרטי <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
+                placeholder="שם פרטי"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                שם משפחה <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
+                placeholder="שם משפחה"
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               אימייל <span className="text-red-500">*</span>
@@ -159,19 +210,29 @@ export const UserCreatePage: React.FC = () => {
             {users.map((u) => (
               <div key={u.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
                 <div>
-                  <span className="text-white text-sm">{u.email}</span>
+                  <span className="text-white text-sm font-medium">{u.firstName} {u.lastName}</span>
+                  <span className="mr-2 text-xs text-gray-400">({u.email})</span>
                   <span className="mr-2 text-xs text-gray-400">({u.role})</span>
                   <span className={`mr-2 text-xs px-2 py-0.5 rounded-full ${u.totpEnabled ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`}>
                     {u.totpEnabled ? '2FA פעיל' : '2FA לא מוגדר'}
                   </span>
                 </div>
-                <button
-                  onClick={() => handleResetTotp(u.id, u.email)}
-                  disabled={resettingId === u.id}
-                  className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded-md disabled:opacity-50"
-                >
-                  {resettingId === u.id ? 'מאפס...' : 'אפס 2FA'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleResetTotp(u.id, u.email)}
+                    disabled={resettingId === u.id}
+                    className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded-md disabled:opacity-50"
+                  >
+                    {resettingId === u.id ? 'מאפס...' : 'אפס 2FA'}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(u.id, `${u.firstName} ${u.lastName}`)}
+                    disabled={deletingId === u.id}
+                    className="px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded-md disabled:opacity-50"
+                  >
+                    {deletingId === u.id ? 'מוחק...' : 'מחק'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
