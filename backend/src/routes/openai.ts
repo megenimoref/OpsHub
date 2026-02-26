@@ -20,7 +20,7 @@ router.post('/', async (req, res) => {
       }
     );
     res.json(response.data);
-  } catch (error) {
+  } catch (error: any) {
     if (axios.isAxiosError(error)) {
       res.status(error.response?.status || 500).json({ error: error.response?.data || error.message });
     } else {
