@@ -6,6 +6,9 @@ declare global {
     interface Request {
       userId?: number;
       userRole?: 'admin' | 'staff';
+      userEmail?: string;
+      userFirstName?: string;
+      userLastName?: string;
     }
   }
 }
@@ -21,6 +24,9 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
     req.userId = decoded.userId;
     req.userRole = decoded.role;
+    req.userEmail = decoded.email;
+    req.userFirstName = decoded.firstName;
+    req.userLastName = decoded.lastName;
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });

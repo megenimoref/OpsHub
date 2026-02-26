@@ -10,6 +10,9 @@ import {
   getSoldierChanges,
   getDashboardData,
   getGlobalStats,
+  getBattalionPieStats,
+  getAssistanceStats,
+  getSoldiersByAssistanceType,
   SoldierRow,
 } from '../services/battalionService';
 import { logger } from '../services/logger';
@@ -226,7 +229,10 @@ export const updateSoldierHandler = async (req: Request, res: Response): Promise
       res.status(400).json({ error: 'חסר שם גדוד או מזהה חייל' });
       return;
     }
-    await updateSoldier(decodeURIComponent(name), Number(id), req.body);
+    const changedBy = req.userFirstName && req.userLastName
+      ? `${req.userFirstName} ${req.userLastName}`
+      : req.userEmail;
+    await updateSoldier(decodeURIComponent(name), Number(id), req.body, changedBy);
     res.json({ success: true });
   } catch (error: any) {
     logger.error('Update soldier failed', { errorMessage: error.message, stack: error.stack });
@@ -254,14 +260,37 @@ const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 export const getDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionFilter = req.query.battalion ? String(req.query.battalion) : undefined;
-    const [people, globalStats, battalions] = await Promise.all([
+    const [people, globalStats, battalions, battalionPieStats, assistanceStats] = await Promise.all([
       getDashboardData(DASHBOARD_PEOPLE, battalionFilter),
       getGlobalStats(battalionFilter),
       listBattalions(),
+      getBattalionPieStats(battalionFilter),
+      getAssistanceStats(battalionFilter),
     ]);
-    res.json({ people, globalStats, battalions });
+    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats });
   } catch (error: any) {
     logger.error('Dashboard error', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בטעינת דשבורד' });
+  }
+};
+
+const VALID_ASSISTANCE_TYPES = new Set(['national_insurance', 'welfare_fund', 'other_assistance']);
+
+export const getAssistanceSoldiers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.params;
+    const { type } = req.query;
+    if (!name || !type || !VALID_ASSISTANCE_TYPES.has(String(type))) {
+      res.status(400).json({ error: 'חסר שם גדוד או סוג סיוע לא תקין' });
+      return;
+    }
+    const soldiers = await getSoldiersByAssistanceType(
+      decodeURIComponent(name),
+      String(type) as 'national_insurance' | 'welfare_fund' | 'other_assistance'
+    );
+    res.json({ soldiers });
+  } catch (error: any) {
+    logger.error('Get assistance soldiers failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בשליפת חיילים לפי סיוע' });
   }
 };

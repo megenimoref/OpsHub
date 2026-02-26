@@ -10,7 +10,10 @@
       "Bash(docker volume ls:*)",
       "Bash(docker stop:*)",
       "Bash(npx vite:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(tasklist:*)",
+      "Bash(netstat:*)",
+      "WebFetch(domain:green-api.com)"
     ]
   }
 }

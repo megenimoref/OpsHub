@@ -5,6 +5,8 @@ import bcrypt from 'bcryptjs';
 class User extends Model {
   public id!: number;
   public email!: string;
+  public firstName!: string;
+  public lastName!: string;
   public password!: string;
   public role!: 'admin' | 'staff';
   public totpSecret!: string | null;
@@ -31,6 +33,16 @@ User.init(
       validate: {
         isEmail: true,
       },
+    },
+    firstName: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      defaultValue: '',
+    },
+    lastName: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      defaultValue: '',
     },
     password: {
       type: DataTypes.STRING(255),
