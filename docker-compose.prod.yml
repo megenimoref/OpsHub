@@ -1,0 +1,59 @@
+services:
+  db:
+    image: mariadb:11.4
+    container_name: crm-db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    command: >
+      --innodb-buffer-pool-size=128M
+      --max-connections=40
+      --key-buffer-size=16M
+      --table-open-cache=200
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./backend/src/migrations/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    restart: unless-stopped
+    networks: [crm-net]
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crm-api
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 24h
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    depends_on: [db]
+    restart: unless-stopped
+    networks: [crm-net]
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${PUBLIC_URL}/api
+    container_name: crm-web
+    depends_on: [api]
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    networks: [crm-net]
+
+networks:
+  crm-net:
+    driver: bridge
+
+volumes:
+  dbdata:

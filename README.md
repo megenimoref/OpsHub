@@ -63,74 +63,46 @@ Frontend runs on `http://localhost:5173`
 
 ---
 
-## Production Deployment (CentOS)
+## Production Deployment (Docker Compose)
 
-Deployment scripts are in the [`deploy/`](deploy/) folder.
-Full guide with architecture diagram and troubleshooting: [`deploy/DEPLOY-GUIDE.md`](deploy/DEPLOY-GUIDE.md)
-
-### Prerequisites
-
-- CentOS 9 Stream (or 8+)
-- Root access (sudo)
-- Public IP address
-
-### Deployment Steps
+Everything runs in containers - no need to install Node.js, MariaDB, or Nginx on the host.
 
 ```bash
-# Upload project to server at /root/CRM, then:
-cd /root/CRM/deploy
-chmod +x *.sh
+# 1. Upload project to server
+cd /home/opc/crm
 
-# Step 1: Install Node.js, MariaDB, Nginx, Firewall
-bash 01-install-packages.sh
-mysql_secure_installation
+# 2. Create .env from example
+cp .env.prod.example .env
+nano .env   # Set passwords, IP, JWT_SECRET
 
-# Step 2: Setup Backend as systemd service
-bash 02-setup-backend.sh
-
-# Step 3: Build Frontend and configure Nginx
-bash 03-setup-frontend.sh
+# 3. Build and start everything
+sudo docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Post-Installation
-
-Edit backend config with real values:
+Update code:
 ```bash
-nano /opt/crm/backend/.env
+git pull
+sudo docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Required changes:
-```env
-DB_PASSWORD=your_real_db_password
-JWT_SECRET=run_openssl_rand_-hex_32
-CORS_ORIGIN=http://YOUR_SERVER_IP
-```
-
-Then restart:
+Useful commands:
 ```bash
-systemctl restart crm-backend
+docker compose -f docker-compose.prod.yml ps        # Status
+docker compose -f docker-compose.prod.yml logs -f    # All logs
+docker compose -f docker-compose.prod.yml logs api   # Backend logs
+docker compose -f docker-compose.prod.yml down       # Stop all
+docker compose -f docker-compose.prod.yml down -v    # Stop + delete DB data
 ```
-
-### Access
-
-Open in browser: `http://YOUR_SERVER_IP`
 
 ### Architecture
 
 ```
-User  ──►  Nginx (port 80)
-            ├── /        → React static files
-            └── /api/*   → Backend (port 3000) → MariaDB (port 3306)
+User  -->  Nginx/Web (port 80)
+            |-- /        -> React static files
+            |-- /api/*   -> Backend (port 3000) -> MariaDB (port 3306)
 ```
 
-### Useful Commands
-
-```bash
-systemctl status crm-backend      # Check backend status
-journalctl -u crm-backend -f      # View backend logs
-systemctl restart crm-backend     # Restart backend
-systemctl restart nginx            # Restart frontend
-```
+Access: `http://YOUR_SERVER_IP`
 
 ---
 

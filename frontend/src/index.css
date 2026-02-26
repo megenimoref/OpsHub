@@ -12,8 +12,5 @@ body {
 
 html[dir='rtl'] {
   direction: rtl;
-}
-
-html[dir='rtl'] * {
   text-align: right;
 }
