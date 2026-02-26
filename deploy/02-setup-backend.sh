@@ -2,17 +2,34 @@
 ###############################################
 # CRM - Backend Setup as systemd Service
 # Run as root: sudo bash 02-setup-backend.sh
+#
+# FIXED:
+# - Detect project directory relative to this script (works from any cwd)
+# - Copy backend from <project_root>/backend instead of /root/CRM/backend
+# - Use mariadb/mysql client whichever exists
 ###############################################
 
-set -e
+set -euo pipefail
 
 APP_DIR="/opt/crm/backend"
 APP_USER="crm"
 SERVICE_NAME="crm-backend"
 
+# Detect project root (assumes this script lives in <project_root>/deploy)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Pick DB client (MariaDB on OL9 typically provides mariadb, sometimes mysql symlink exists)
+if command -v mariadb >/dev/null 2>&1; then
+  DBCLI="mariadb"
+else
+  DBCLI="mysql"
+fi
+
 echo "=========================================="
 echo "  CRM - Backend Setup (systemd)"
 echo "=========================================="
+echo "Project dir: ${PROJECT_DIR}"
 
 # Create app user
 echo "[1/6] Creating application user..."
@@ -26,7 +43,16 @@ fi
 # Copy project files
 echo "[2/6] Copying backend files..."
 mkdir -p "$APP_DIR"
-cp -r /root/CRM/backend/* "$APP_DIR/"
+
+if [ ! -d "${PROJECT_DIR}/backend" ]; then
+  echo "ERROR: Backend directory not found at: ${PROJECT_DIR}/backend"
+  echo "Make sure your repo has a 'backend' folder next to 'deploy'."
+  exit 1
+fi
+
+# Copy backend content into /opt/crm/backend
+# (You can change this to rsync if you prefer incremental updates.)
+cp -r "${PROJECT_DIR}/backend/"* "$APP_DIR/"
 
 # Install dependencies and build
 echo "[3/6] Installing dependencies & building..."
@@ -37,7 +63,8 @@ npm run build
 # Import database schema
 echo "[4/6] Importing database schema..."
 if [ -f "$APP_DIR/src/migrations/schema.sql" ]; then
-    mysql -u root crm < "$APP_DIR/src/migrations/schema.sql" 2>/dev/null || echo "Schema already exists or applied."
+    # Run as root (sudo) so unix_socket auth works when enabled
+    $DBCLI -u root crm < "$APP_DIR/src/migrations/schema.sql" 2>/dev/null || echo "Schema already exists or applied."
 fi
 
 # Setup .env for production
