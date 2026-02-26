@@ -75,12 +75,12 @@ bash 02-setup-backend.sh
 2. הקוד מועתק ל-`/opt/crm/backend/`
 3. Dependencies מותקנים ו-TypeScript נבנה
 4. סכמת מסד הנתונים מיובאת
-5. נוצר קובץ `.env.production`
+5. נוצר קובץ `.env`
 6. נוצר systemd service שרץ אוטומטית
 
 ### חובה לערוך אחרי ההרצה:
 ```bash
-nano /opt/crm/backend/.env.production
+nano /opt/crm/backend/.env
 ```
 
 שנה את הערכים הבאים:
@@ -138,7 +138,7 @@ bash 03-setup-frontend.sh
 ### אחרי ההרצה:
 עדכן את ה-CORS ב-Backend:
 ```bash
-nano /opt/crm/backend/.env.production
+nano /opt/crm/backend/.env
 # שנה CORS_ORIGIN=http://YOUR_SERVER_IP
 
 systemctl restart crm-backend
@@ -228,7 +228,7 @@ setsebool -P httpd_can_network_connect 1
 ### שגיאת CORS
 ```bash
 # ודא שה-CORS_ORIGIN תואם בדיוק
-cat /opt/crm/backend/.env.production | grep CORS
+cat /opt/crm/backend/.env | grep CORS
 # צריך להיות: CORS_ORIGIN=http://YOUR_SERVER_IP
 # (בלי / בסוף!)
 ```

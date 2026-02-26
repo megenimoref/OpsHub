@@ -42,8 +42,8 @@ fi
 
 # Setup .env for production
 echo "[5/6] Configuring environment..."
-if [ ! -f "$APP_DIR/.env.production" ]; then
-    cat > "$APP_DIR/.env.production" << 'ENV'
+if [ ! -f "$APP_DIR/.env" ]; then
+    cat > "$APP_DIR/.env" << 'ENV'
 PORT=3000
 NODE_ENV=production
 DB_HOST=localhost
@@ -55,9 +55,9 @@ JWT_SECRET=CHANGE_ME_GENERATE_RANDOM_64_CHARS
 JWT_EXPIRES_IN=24h
 CORS_ORIGIN=http://YOUR_SERVER_IP
 ENV
-    echo "Created .env.production - EDIT IT WITH REAL VALUES!"
+    echo "Created .env - EDIT IT WITH REAL VALUES!"
 else
-    echo ".env.production already exists."
+    echo ".env already exists."
 fi
 
 # Set permissions
@@ -77,7 +77,7 @@ User=${APP_USER}
 Group=${APP_USER}
 WorkingDirectory=${APP_DIR}
 Environment=NODE_ENV=production
-EnvironmentFile=${APP_DIR}/.env.production
+EnvironmentFile=${APP_DIR}/.env
 ExecStart=/usr/bin/node ${APP_DIR}/dist/app.js
 Restart=always
 RestartSec=5
@@ -115,7 +115,7 @@ echo "Logs:    journalctl -u ${SERVICE_NAME} -f"
 echo "Restart: systemctl restart ${SERVICE_NAME}"
 echo ""
 echo "IMPORTANT:"
-echo "  1. Edit ${APP_DIR}/.env.production with real values!"
+echo "  1. Edit ${APP_DIR}/.env with real values!"
 echo "  2. Change DB_PASSWORD and JWT_SECRET!"
 echo "  3. Set CORS_ORIGIN to http://YOUR_SERVER_IP"
 echo "  4. Then run: systemctl restart ${SERVICE_NAME}"
