@@ -198,9 +198,9 @@ export const BattalionSoldierPage: React.FC = () => {
 
       {/* Search bar */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3 items-end">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           {/* Battalion select */}
-          <div className="flex-1">
+          <div className="w-full sm:flex-1">
             <label className="block text-sm font-medium text-gray-300 mb-1">גדוד</label>
             <select
               value={selectedBattalion}
@@ -215,7 +215,7 @@ export const BattalionSoldierPage: React.FC = () => {
           </div>
 
           {/* Personal number input */}
-          <div className="flex-1">
+          <div className="w-full sm:flex-1">
             <label className="block text-sm font-medium text-gray-300 mb-1">מספר אישי</label>
             <input
               type="text"
@@ -231,7 +231,7 @@ export const BattalionSoldierPage: React.FC = () => {
           <button
             onClick={handleSearch}
             disabled={searching || !selectedBattalion || !personalNumber.trim()}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+            className="w-full sm:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
           >
             {searching ? 'מחפש...' : 'חפש'}
           </button>

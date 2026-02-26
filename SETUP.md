@@ -89,69 +89,77 @@ Login with:
 
 ---
 
-## Production Deployment (CentOS)
+## Production Deployment (Docker Compose)
 
-Full deployment guide: [`deploy/DEPLOY-GUIDE.md`](deploy/DEPLOY-GUIDE.md)
-
-### Quick Overview
+Only requirement: Docker + Docker Compose on the server. Everything runs in containers.
 
 ```bash
-# Upload project to /root/CRM on the server
-cd /root/CRM/deploy
-chmod +x *.sh
+# 1. Upload project to server
+cd /home/opc/crm
 
-# Step 1: Install all packages (Node.js, MariaDB, Nginx, Firewall)
-bash 01-install-packages.sh
-mysql_secure_installation
-
-# Step 2: Setup Backend as systemd service
-bash 02-setup-backend.sh
-
-# Step 3: Build Frontend + configure Nginx
-bash 03-setup-frontend.sh
+# 2. Create .env from example
+cp .env.prod.example .env
+nano .env
 ```
 
-### Post-Installation
+Edit `.env` with real values:
+```env
+DB_NAME=crm
+DB_USER=crm_user
+DB_PASSWORD=YOUR_STRONG_PASSWORD
+DB_ROOT_PASSWORD=YOUR_ROOT_STRONG_PASSWORD
+JWT_SECRET=run_openssl_rand_-hex_32
+PUBLIC_URL=http://YOUR_SERVER_IP
+CORS_ORIGIN=http://YOUR_SERVER_IP
+```
 
 ```bash
-# Edit environment config
-nano /opt/crm/backend/.env
-
-# Required changes:
-#   DB_PASSWORD=your_real_password
-#   JWT_SECRET=$(openssl rand -hex 32)
-#   CORS_ORIGIN=http://YOUR_SERVER_IP
-
-# Restart backend
-systemctl restart crm-backend
+# 3. Build and start
+sudo docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Access: `http://YOUR_SERVER_IP`
 
+### Docker Management
+
+```bash
+# Status
+docker compose -f docker-compose.prod.yml ps
+
+# Logs (all / specific service)
+docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f api
+
+# Restart
+docker compose -f docker-compose.prod.yml restart
+
+# Stop
+docker compose -f docker-compose.prod.yml down
+
+# Update code and redeploy
+git pull
+sudo docker compose -f docker-compose.prod.yml up -d --build
+
+# Access DB CLI
+docker exec -it crm-db mysql -u crm_user -p crm
+```
+
+### How to know you're on the right file?
+
+| Check | dev (`docker-compose.yml`) | prod (`docker-compose.prod.yml`) |
+|-------|---------------------------|----------------------------------|
+| Frontend port | 5173 (Vite) | 80 (Nginx) |
+| Backend exposed | Yes (3000) | No (internal) |
+| Bind mount (`./backend:/app`) | Yes | No |
+| `npm install` in command | Yes | No (built in image) |
+| Passwords | Hardcoded | From `.env` file |
+
 ### Architecture
 
 ```
-User  -->  Nginx (port 80)
-            |-- /        -> React static files (/var/www/crm)
+User  -->  Nginx/Web (port 80)
+            |-- /        -> React static files
             |-- /api/*   -> Backend (port 3000) -> MariaDB (port 3306)
-```
-
-### Service Management
-
-```bash
-# Backend
-systemctl status crm-backend       # Check status
-systemctl restart crm-backend      # Restart
-journalctl -u crm-backend -f       # View logs
-
-# Frontend (Nginx)
-systemctl status nginx
-systemctl restart nginx
-nginx -t                           # Test config
-
-# Database
-systemctl status mariadb
-mysql -u crm_user -p crm           # Access DB CLI
 ```
 
 ---
@@ -172,6 +180,7 @@ CRM/
 │   │   ├── services/              # Business logic
 │   │   └── migrations/
 │   │       └── schema.sql         # Database schema
+│   ├── Dockerfile                 # Multi-stage production build
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── .env
@@ -186,17 +195,15 @@ CRM/
 │   │   ├── services/              # API calls
 │   │   ├── types/                 # TypeScript interfaces
 │   │   └── index.css              # Tailwind CSS
+│   ├── Dockerfile                 # Multi-stage build + Nginx
+│   ├── nginx.conf                 # Nginx config (SPA + reverse proxy)
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── .env
 │
-├── deploy/                        # Production deployment scripts
-│   ├── 01-install-packages.sh
-│   ├── 02-setup-backend.sh
-│   ├── 03-setup-frontend.sh
-│   └── DEPLOY-GUIDE.md
-│
-├── docker-compose.yml             # Local DB setup
+├── docker-compose.yml             # Local development (DB only)
+├── docker-compose.prod.yml        # Production (all services in Docker)
+├── .env.prod.example              # Production env template
 ├── README.md
 └── SETUP.md                       # This file
 ```
