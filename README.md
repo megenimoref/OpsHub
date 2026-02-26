@@ -24,6 +24,8 @@ Production-quality, responsive web CRM with React frontend, Express backend, and
 **Database:** MariaDB 11
 **Auth:** JWT + bcryptjs + TOTP (Speakeasy)
 
+> For full setup instructions, API docs, and troubleshooting see [`SETUP.md`](SETUP.md)
+
 ---
 
 ## Local Development (Quick Start)
