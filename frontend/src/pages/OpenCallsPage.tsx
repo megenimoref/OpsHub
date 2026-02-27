@@ -21,12 +21,26 @@ export const OpenCallsPage: React.FC = () => {
   // Modal state
   const [selectedCall, setSelectedCall] = useState<ServiceCall | null>(null);
   const [callNotes, setCallNotes] = useState('');
+  const [closingCall, setClosingCall] = useState(false);
   const [updatingCall, setUpdatingCall] = useState(false);
 
   // Load battalions and open calls on mount
   useEffect(() => {
     api.get('/battalion/list').then((res) => setBattalions(res.data.battalions || [])).catch(() => {});
     loadOpenCalls();
+
+    // Check if there's pre-filled data from soldier search
+    const newCallData = sessionStorage.getItem('newCallData');
+    if (newCallData) {
+      try {
+        const data = JSON.parse(newCallData);
+        if (data.personName) setPersonName(data.personName);
+        if (data.battalion) setBattalion(data.battalion);
+        sessionStorage.removeItem('newCallData');
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
   }, []);
 
   // Set notes when call is selected
@@ -77,31 +91,36 @@ export const OpenCallsPage: React.FC = () => {
     if (!selectedCall) return;
     setUpdatingCall(true);
     try {
-      const updated = await api.put(`/service-calls/${selectedCall.id}`, {
+      const payload: any = {
         notes: callNotes,
-      });
+        updateDetails: [], // Track what was updated
+      };
+
+      // If notes changed, track it
+      if (callNotes && callNotes !== (selectedCall.notes || '')) {
+        payload.updateDetails.push('הערות');
+      }
+
+      // If closing the call, add status to payload and track it
+      if (closingCall && selectedCall.status === 'open') {
+        payload.status = 'closed';
+        payload.updateDetails.push('סטטוס: נסגרה');
+      }
+
+      const updated = await api.put(`/service-calls/${selectedCall.id}`, payload);
       setSelectedCall(updated.data);
-      setOpenCalls(openCalls.map(c => c.id === selectedCall.id ? updated.data : c));
+      setOpenCalls(openCalls.map(c => c.id === selectedCall.id ? updated.data : c).filter(c => !(closingCall && c.id === selectedCall.id && c.status === 'closed')));
+
+      // Clear notes field after successful update (but history is preserved)
+      setCallNotes('');
+      setClosingCall(false);
+
+      // If closed, close the modal
+      if (closingCall && updated.data.status === 'closed') {
+        setTimeout(() => setSelectedCall(null), 500);
+      }
     } catch (err: any) {
       alert(err.response?.data?.error || 'שגיאה בעדכון הקריאה');
-    } finally {
-      setUpdatingCall(false);
-    }
-  };
-
-  const handleCloseCall = async () => {
-    if (!selectedCall) return;
-    if (!window.confirm('אתה בטוח שברצונך לסגור את הקריאה?')) return;
-
-    setUpdatingCall(true);
-    try {
-      const updated = await api.put(`/service-calls/${selectedCall.id}`, {
-        status: 'closed',
-      });
-      setOpenCalls(openCalls.filter(c => c.id !== selectedCall.id));
-      setSelectedCall(null);
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'שגיאה בסגירת הקריאה');
     } finally {
       setUpdatingCall(false);
     }
@@ -320,16 +339,70 @@ export const OpenCallsPage: React.FC = () => {
                 <p className="text-gray-400 text-sm">{new Date(selectedCall.createdAt).toLocaleString('he-IL')}</p>
               </div>
 
+              {/* Updates History */}
+              {selectedCall.updates && selectedCall.updates.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">היסטוריית עדכונים</label>
+                  <div className="bg-gray-800 rounded-md p-3 mb-3 max-h-48 overflow-y-auto space-y-3">
+                    {[...selectedCall.updates].reverse().map((update, idx) => (
+                      <div key={idx} className="pb-3 border-b border-gray-700 last:border-b-0">
+                        <div className="flex items-start justify-between mb-1">
+                          <p className="text-xs text-gray-500">
+                            {new Date(update.timestamp).toLocaleString('he-IL')}
+                          </p>
+                          {update.details && update.details.length > 0 && (
+                            <div className="flex flex-wrap gap-1 justify-end">
+                              {update.details.map((detail, didx) => (
+                                <span key={didx} className="text-xs bg-blue-900/40 text-blue-300 px-2 py-0.5 rounded">
+                                  {detail}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {update.notes && (
+                          <p className="text-sm text-gray-300 whitespace-pre-wrap">{update.notes}</p>
+                        )}
+                        {update.status && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            <span className={update.status === 'closed' ? 'text-red-400' : 'text-green-400'}>
+                              {update.status === 'closed' ? '✓ נסגרה' : 'פתוחה'}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Current Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">הערות / עדכונים</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">הערות חדשות</label>
                 <textarea
                   value={callNotes}
                   onChange={(e) => setCallNotes(e.target.value)}
-                  rows={5}
+                  rows={4}
                   className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
-                  placeholder="הוסף הערות או עדכונים לקריאה..."
+                  placeholder="הוסף הערה חדשה..."
                 />
               </div>
+
+              {/* Close Call Checkbox */}
+              {selectedCall.createdBy === user?.id && selectedCall.status === 'open' && (
+                <div className="flex items-center gap-3 p-3 bg-red-900/20 border border-red-700/30 rounded-md">
+                  <input
+                    type="checkbox"
+                    id="close-call"
+                    checked={closingCall}
+                    onChange={(e) => setClosingCall(e.target.checked)}
+                    className="w-4 h-4 cursor-pointer accent-red-600"
+                  />
+                  <label htmlFor="close-call" className="text-sm text-gray-300 cursor-pointer flex-1">
+                    סגור קריאה זו בעדכון
+                  </label>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4 border-t border-gray-700">
                 <button
@@ -339,16 +412,6 @@ export const OpenCallsPage: React.FC = () => {
                 >
                   {updatingCall ? 'משדכן...' : 'עדכן קריאה'}
                 </button>
-
-                {selectedCall.createdBy === user?.id && (
-                  <button
-                    onClick={handleCloseCall}
-                    disabled={updatingCall}
-                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium disabled:opacity-50"
-                  >
-                    {updatingCall ? 'סוגר...' : 'סגור קריאה'}
-                  </button>
-                )}
 
                 <button
                   onClick={() => setSelectedCall(null)}

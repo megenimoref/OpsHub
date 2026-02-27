@@ -14,7 +14,8 @@
       "Bash(tasklist:*)",
       "Bash(netstat:*)",
       "WebFetch(domain:green-api.com)",
-      "Bash(lsof -i :3000 -i :5173)"
+      "Bash(lsof -i :3000 -i :5173)",
+      "Bash(npx tsx src/seed.ts)"
     ]
   }
 }

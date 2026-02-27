@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { authService } from '../services/authService';
 
@@ -116,9 +117,10 @@ interface SoldierOption {
 }
 
 export const BattalionSoldierPage: React.FC = () => {
+  const navigate = useNavigate();
   const [battalions, setBattalions] = useState<string[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState('');
-  const [searchName, setSearchName] = useState('');
+  const [searchPersonalNumber, setSearchPersonalNumber] = useState('');
   const [soldierSuggestions, setSoldierSuggestions] = useState<SoldierOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [soldier, setSoldier] = useState<Soldier | null>(null);
@@ -149,8 +151,8 @@ export const BattalionSoldierPage: React.FC = () => {
     }
   };
 
-  const handleSearchNameChange = async (value: string) => {
-    setSearchName(value);
+  const handleSearchPersonalNumberChange = async (value: string) => {
+    setSearchPersonalNumber(value);
     if (!selectedBattalion || !value.trim()) {
       setSoldierSuggestions([]);
       setShowSuggestions(false);
@@ -158,16 +160,16 @@ export const BattalionSoldierPage: React.FC = () => {
     }
 
     try {
-      const res = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
-        params: { name: value.trim() },
+      const soldier = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
+        params: { personal_number: value.trim() },
       });
-      const soldier = res.data.soldier;
-      if (soldier) {
+      if (soldier.data.soldier) {
+        const s = soldier.data.soldier;
         setSoldierSuggestions([
           {
-            id: soldier.id,
-            name: `${soldier.first_name} ${soldier.last_name}`,
-            personal_number: soldier.personal_number,
+            id: s.id,
+            name: `${s.first_name} ${s.last_name}`,
+            personal_number: s.personal_number,
           },
         ]);
         setShowSuggestions(true);
@@ -188,7 +190,7 @@ export const BattalionSoldierPage: React.FC = () => {
     setSaveError('');
     try {
       const res = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
-        params: { name: selectedSoldier.name },
+        params: { personal_number: selectedSoldier.personal_number },
       });
       const user = authService.getStoredUser();
       const userName = user?.firstName && user?.lastName
@@ -200,7 +202,7 @@ export const BattalionSoldierPage: React.FC = () => {
         contact_date: res.data.soldier.contact_date || TODAY,
         contact_by: res.data.soldier.contact_by || userName,
       });
-      setSearchName(selectedSoldier.name);
+      setSearchPersonalNumber(selectedSoldier.personal_number);
       setShowSuggestions(false);
       fetchChanges(selectedBattalion, res.data.soldier.id);
     } catch (err: any) {
@@ -231,6 +233,17 @@ export const BattalionSoldierPage: React.FC = () => {
     setSaveSuccess(false);
   };
 
+  const handleOpenCall = () => {
+    if (!soldier) return;
+    // Store soldier details in localStorage to pass to open-calls page
+    const personName = `${soldier.first_name} ${soldier.last_name}`;
+    sessionStorage.setItem('newCallData', JSON.stringify({
+      personName,
+      battalion: selectedBattalion,
+    }));
+    navigate('/open-calls');
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto" dir="rtl">
       <h1 className="text-2xl font-bold text-white mb-6">חיפוש ועריכת חייל</h1>
@@ -253,15 +266,15 @@ export const BattalionSoldierPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Name input with autocomplete */}
+          {/* Personal Number input with autocomplete */}
           <div className="w-full relative">
-            <label className="block text-sm font-medium text-gray-300 mb-1">שם החייל</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">מספר אישי</label>
             <input
               type="text"
-              value={searchName}
-              onChange={(e) => handleSearchNameChange(e.target.value)}
-              onFocus={() => searchName && showSuggestions && setSoldierSuggestions(soldierSuggestions)}
-              placeholder="הקלד שם פרטי או משפחה..."
+              value={searchPersonalNumber}
+              onChange={(e) => handleSearchPersonalNumberChange(e.target.value)}
+              onFocus={() => searchPersonalNumber && showSuggestions && setSoldierSuggestions(soldierSuggestions)}
+              placeholder="הקלד מספר אישי..."
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               disabled={!selectedBattalion}
             />
@@ -299,13 +312,22 @@ export const BattalionSoldierPage: React.FC = () => {
               {soldier.first_name} {soldier.last_name}
               <span className="text-sm font-normal text-gray-400 mr-2">({soldier.personal_number})</span>
             </h2>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {saving ? 'שומר...' : 'שמור שינויים'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleOpenCall}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                title="פתח קריאה חדשה לחייל זה"
+              >
+                + קריאה
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {saving ? 'שומר...' : 'שמור שינויים'}
+              </button>
+            </div>
           </div>
 
           {saveSuccess && (

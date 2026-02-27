@@ -39,6 +39,13 @@ export interface PeopleListResponse {
   data: Person[];
 }
 
+export interface ServiceCallUpdate {
+  timestamp: string;
+  notes?: string;
+  status?: 'open' | 'closed';
+  details?: string[];
+}
+
 export interface ServiceCall {
   id: number;
   subject: string;
@@ -49,6 +56,7 @@ export interface ServiceCall {
   personId: number | null;
   personName: string | null;
   notes: string | null;
+  updates?: ServiceCallUpdate[] | null;
   closedAt: string | null;
   createdBy: number;
   createdAt: string;

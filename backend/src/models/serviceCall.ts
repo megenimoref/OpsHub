@@ -11,6 +11,7 @@ class ServiceCall extends Model {
   public personId!: number | null;
   public personName!: string | null;
   public notes!: string | null;
+  public updates!: any[] | null;
   public closedAt!: Date | null;
   public createdBy!: number;
   public createdAt!: Date;
@@ -57,6 +58,11 @@ ServiceCall.init(
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    updates: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: [],
     },
     closedAt: {
       type: DataTypes.DATE,

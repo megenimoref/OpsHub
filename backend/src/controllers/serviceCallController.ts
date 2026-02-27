@@ -47,7 +47,7 @@ export const createServiceCall = async (req: Request, res: Response) => {
 export const updateServiceCall = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { notes, status } = req.body;
+    const { notes, status, updateDetails } = req.body;
 
     const call = await ServiceCall.findByPk(id);
     if (!call) {
@@ -59,15 +59,34 @@ export const updateServiceCall = async (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Only the creator can close this call' });
     }
 
-    // Update fields
-    if (notes !== undefined) {
-      call.notes = notes;
-    }
-    if (status !== undefined) {
-      call.status = status;
-      if (status === 'closed') {
-        call.closedAt = new Date();
+    // Track updates in history
+    if (notes !== undefined || status !== undefined) {
+      const updates = Array.isArray(call.updates) ? call.updates : [];
+
+      const update: any = {
+        timestamp: new Date().toISOString(),
+      };
+
+      if (notes !== undefined && notes !== call.notes) {
+        update.notes = notes;
+        call.notes = notes;
       }
+
+      if (status !== undefined) {
+        update.status = status;
+        call.status = status;
+        if (status === 'closed') {
+          call.closedAt = new Date();
+        }
+      }
+
+      // Store what was updated
+      if (Array.isArray(updateDetails) && updateDetails.length > 0) {
+        update.details = updateDetails;
+      }
+
+      updates.push(update);
+      call.updates = updates;
     }
 
     await call.save();
