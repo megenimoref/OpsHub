@@ -109,10 +109,18 @@ interface SystemUser {
   lastName: string;
 }
 
+interface SoldierOption {
+  id: number;
+  name: string;
+  personal_number: string;
+}
+
 export const BattalionSoldierPage: React.FC = () => {
   const [battalions, setBattalions] = useState<string[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState('');
-  const [personalNumber, setPersonalNumber] = useState('');
+  const [searchName, setSearchName] = useState('');
+  const [soldierSuggestions, setSoldierSuggestions] = useState<SoldierOption[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [soldier, setSoldier] = useState<Soldier | null>(null);
   const [formData, setFormData] = useState<Partial<Soldier>>({});
   const [searching, setSearching] = useState(false);
@@ -141,8 +149,37 @@ export const BattalionSoldierPage: React.FC = () => {
     }
   };
 
-  const handleSearch = async () => {
-    if (!selectedBattalion || !personalNumber.trim()) return;
+  const handleSearchNameChange = async (value: string) => {
+    setSearchName(value);
+    if (!selectedBattalion || !value.trim()) {
+      setSoldierSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
+        params: { name: value.trim() },
+      });
+      const soldier = res.data.soldier;
+      if (soldier) {
+        setSoldierSuggestions([
+          {
+            id: soldier.id,
+            name: `${soldier.first_name} ${soldier.last_name}`,
+            personal_number: soldier.personal_number,
+          },
+        ]);
+        setShowSuggestions(true);
+      } else {
+        setSoldierSuggestions([]);
+      }
+    } catch {
+      setSoldierSuggestions([]);
+    }
+  };
+
+  const selectSoldier = async (selectedSoldier: SoldierOption) => {
     setSearching(true);
     setSearchError('');
     setSoldier(null);
@@ -151,7 +188,7 @@ export const BattalionSoldierPage: React.FC = () => {
     setSaveError('');
     try {
       const res = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
-        params: { personal_number: personalNumber.trim() },
+        params: { name: selectedSoldier.name },
       });
       const user = authService.getStoredUser();
       const userName = user?.firstName && user?.lastName
@@ -163,6 +200,8 @@ export const BattalionSoldierPage: React.FC = () => {
         contact_date: res.data.soldier.contact_date || TODAY,
         contact_by: res.data.soldier.contact_by || userName,
       });
+      setSearchName(selectedSoldier.name);
+      setShowSuggestions(false);
       fetchChanges(selectedBattalion, res.data.soldier.id);
     } catch (err: any) {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');
@@ -198,9 +237,9 @@ export const BattalionSoldierPage: React.FC = () => {
 
       {/* Search bar */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div className="flex flex-col gap-3">
           {/* Battalion select */}
-          <div className="w-full sm:flex-1">
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-300 mb-1">גדוד</label>
             <select
               value={selectedBattalion}
@@ -214,27 +253,35 @@ export const BattalionSoldierPage: React.FC = () => {
             </select>
           </div>
 
-          {/* Personal number input */}
-          <div className="w-full sm:flex-1">
-            <label className="block text-sm font-medium text-gray-300 mb-1">מספר אישי</label>
+          {/* Name input with autocomplete */}
+          <div className="w-full relative">
+            <label className="block text-sm font-medium text-gray-300 mb-1">שם החייל</label>
             <input
               type="text"
-              value={personalNumber}
-              onChange={(e) => setPersonalNumber(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="הקלד מספר אישי..."
+              value={searchName}
+              onChange={(e) => handleSearchNameChange(e.target.value)}
+              onFocus={() => searchName && showSuggestions && setSoldierSuggestions(soldierSuggestions)}
+              placeholder="הקלד שם פרטי או משפחה..."
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              disabled={!selectedBattalion}
             />
-          </div>
 
-          {/* Search button */}
-          <button
-            onClick={handleSearch}
-            disabled={searching || !selectedBattalion || !personalNumber.trim()}
-            className="w-full sm:w-auto px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:text-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            {searching ? 'מחפש...' : 'חפש'}
-          </button>
+            {/* Autocomplete suggestions */}
+            {showSuggestions && soldierSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-700 border border-gray-600 rounded-lg shadow-lg z-10">
+                {soldierSuggestions.map((suggestion) => (
+                  <div
+                    key={suggestion.id}
+                    onClick={() => selectSoldier(suggestion)}
+                    className="px-3 py-2 text-white cursor-pointer hover:bg-gray-600 border-b border-gray-600 last:border-b-0 text-sm"
+                  >
+                    <div className="font-semibold">{suggestion.name}</div>
+                    <div className="text-xs text-gray-400">מספר אישי: {suggestion.personal_number}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {searchError && (

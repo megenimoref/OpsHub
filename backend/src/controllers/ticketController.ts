@@ -29,7 +29,17 @@ export const createTicket = async (req: Request, res: Response) => {
 
 export const getTickets = async (req: Request, res: Response) => {
   try {
-    const tickets = await Ticket.findAll({ order: [['createdAt', 'DESC']] });
+    const { myTickets } = req.query;
+
+    const where: any = {};
+    if (myTickets === 'true') {
+      where.createdBy = req.userId;
+    }
+
+    const tickets = await Ticket.findAll({
+      where,
+      order: [['createdAt', 'DESC']]
+    });
     res.json(tickets);
   } catch (error) {
     console.error('Get tickets error:', error);

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { benefitsData } from '../data/benefitsData';
 
 const Badge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="inline-block bg-gray-800 border border-gray-600 text-gray-200 text-xs px-2 py-1 rounded-lg">
@@ -470,7 +471,7 @@ export const BenefitsPage: React.FC = () => {
           </div>
           <p className="text-xs text-gray-400 mb-3">בחרו נושא כדי לפתוח פירוט מלא:</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {benefits.map((b) => {
+            {benefitsData.map((b) => {
               const open = activeId === b.id;
               return (
                 <div
@@ -489,7 +490,7 @@ export const BenefitsPage: React.FC = () => {
                       &gt;
                     </span>
                   </div>
-                  {open && <div className="mt-3 text-[11px] text-gray-200 space-y-1">{b.content}</div>}
+                  {open && <div className="mt-3 text-[11px] text-gray-200 space-y-1 whitespace-pre-wrap">{b.content}</div>}
                 </div>
               );
             })}

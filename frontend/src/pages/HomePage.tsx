@@ -213,9 +213,32 @@ export const HomePage: React.FC = () => {
         <p className="text-gray-400 text-sm">מערכת מידע - בחר פעולה</p>
       </div>
 
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+        {visibleTiles.map((tile) => {
+          const c = COLOR_MAP[tile.color];
+          return (
+            <Link
+              key={tile.to}
+              to={tile.to}
+              className={`group relative ${c.bg} ${c.border} border rounded-2xl p-5 flex flex-col items-center gap-3 text-center
+                transition-all duration-300 ${c.hover} hover:shadow-lg hover:-translate-y-1`}
+            >
+              <div className={`absolute top-3 left-3 w-2 h-2 rounded-full ${c.glow} opacity-60 group-hover:opacity-100 transition-opacity`} />
+              <div className={`${c.icon} transition-transform duration-300 group-hover:scale-110`}>
+                {tile.icon}
+              </div>
+              <div>
+                <p className="text-white font-semibold text-sm">{tile.label}</p>
+                <p className="text-gray-500 text-xs mt-1 hidden sm:block">{tile.description}</p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+
       {/* Slider - מתחלף כל 5 שניות */}
       {sliderItems.length > 0 && (
-        <div className="mb-8 bg-gray-900/80 border border-gray-700 rounded-2xl p-4 shadow-lg shadow-gray-900/40">
+        <div className="bg-gray-900/80 border border-gray-700 rounded-2xl p-4 shadow-lg shadow-gray-900/40">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               {sliderItems[currentSlide].badge && (
@@ -246,29 +269,6 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-        {visibleTiles.map((tile) => {
-          const c = COLOR_MAP[tile.color];
-          return (
-            <Link
-              key={tile.to}
-              to={tile.to}
-              className={`group relative ${c.bg} ${c.border} border rounded-2xl p-5 flex flex-col items-center gap-3 text-center
-                transition-all duration-300 ${c.hover} hover:shadow-lg hover:-translate-y-1`}
-            >
-              <div className={`absolute top-3 left-3 w-2 h-2 rounded-full ${c.glow} opacity-60 group-hover:opacity-100 transition-opacity`} />
-              <div className={`${c.icon} transition-transform duration-300 group-hover:scale-110`}>
-                {tile.icon}
-              </div>
-              <div>
-                <p className="text-white font-semibold text-sm">{tile.label}</p>
-                <p className="text-gray-500 text-xs mt-1 hidden sm:block">{tile.description}</p>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
     </div>
   );
 };
