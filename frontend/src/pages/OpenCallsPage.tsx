@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthStore } from '../hooks/useAuth';
 import { ServiceCall } from '../types';
 
 export const OpenCallsPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useAuthStore();
 
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
