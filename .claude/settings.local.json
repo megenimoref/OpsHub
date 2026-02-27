@@ -13,7 +13,8 @@
       "Bash(curl:*)",
       "Bash(tasklist:*)",
       "Bash(netstat:*)",
-      "WebFetch(domain:green-api.com)"
+      "WebFetch(domain:green-api.com)",
+      "Bash(lsof -i :3000 -i :5173)"
     ]
   }
 }

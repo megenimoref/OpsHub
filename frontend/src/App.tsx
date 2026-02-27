@@ -13,6 +13,7 @@ import { TotpSetupPage } from './pages/TotpSetupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { BenefitsPage } from './pages/BenefitsPage';
+import { OpenCallsPage } from './pages/OpenCallsPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import './index.css';
@@ -74,6 +75,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               d="M12 8c1.657 0 3-1.343 3-3S13.657 2 12 2 9 3.343 9 5s1.343 3 3 3zm6 4a2 2 0 00-2-2h-1.172a3 3 0 01-5.656 0H8a2 2 0 00-2 2v7a3 3 0 003 3h6a3 3 0 003-3v-7z" />
           </svg>
           מיצוי זכויות
+        </NavLink>
+
+        <NavLink to="/open-calls" onClick={closeMenu}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+          קריאות שירות
         </NavLink>
 
         <NavLink to="/tickets/new" onClick={closeMenu}>
@@ -278,6 +287,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <BenefitsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/open-calls"
+            element={
+              <ProtectedRoute>
+                <OpenCallsPage />
               </ProtectedRoute>
             }
           />

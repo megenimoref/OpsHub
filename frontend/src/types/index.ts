@@ -38,3 +38,19 @@ export interface PeopleListResponse {
   limit: number;
   data: Person[];
 }
+
+export interface ServiceCall {
+  id: number;
+  subject: string;
+  description: string;
+  status: 'open' | 'closed';
+  priority: 'low' | 'medium' | 'high';
+  battalion: string | null;
+  personId: number | null;
+  personName: string | null;
+  notes: string | null;
+  closedAt: string | null;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
