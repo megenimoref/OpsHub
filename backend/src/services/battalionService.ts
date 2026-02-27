@@ -510,6 +510,24 @@ export async function searchSoldierByPersonalNumber(
   }
 }
 
+export async function searchSoldierByName(
+  battalionName: string,
+  searchName: string
+): Promise<SoldierFullRow | null> {
+  const dbName = getBattalionDbName(battalionName);
+  const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+  try {
+    const searchTerm = `%${searchName}%`;
+    const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT * FROM soldiers WHERE first_name LIKE ? OR last_name LIKE ? LIMIT 1`,
+      [searchTerm, searchTerm]
+    );
+    return rows.length > 0 ? (rows[0] as SoldierFullRow) : null;
+  } finally {
+    await conn.end();
+  }
+}
+
 const FIELD_LABEL_MAP: Record<string, string> = {
   personal_number: 'מספר אישי',
   last_name: 'שם משפחה',

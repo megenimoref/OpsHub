@@ -8,6 +8,16 @@ interface Person {
   lastName: string;
 }
 
+interface Ticket {
+  id: number;
+  subject: string;
+  description: string;
+  priority: string;
+  battalion?: string;
+  personName?: string;
+  createdAt: string;
+}
+
 export const TicketCreatePage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -23,11 +33,23 @@ export const TicketCreatePage: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  const [ticketSuccess, setTicketSuccess] = useState('');
 
-  // Load battalions on mount
+  // Load battalions and user's tickets on mount
   useEffect(() => {
-    api.get('/people/battalions').then((res) => setBattalions(res.data)).catch(() => {});
+    api.get('/battalion/list').then((res) => setBattalions(res.data.battalions || [])).catch(() => {});
+    loadMyTickets();
   }, []);
+
+  const loadMyTickets = async () => {
+    try {
+      const res = await api.get('/tickets?myTickets=true');
+      setMyTickets(res.data || []);
+    } catch {
+      setMyTickets([]);
+    }
+  };
 
   // Load soldiers when battalion changes
   useEffect(() => {
@@ -46,6 +68,7 @@ export const TicketCreatePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setTicketSuccess('');
     setLoading(true);
     try {
       const person = soldiers.find((p) => String(p.id) === selectedPersonId);
@@ -57,7 +80,15 @@ export const TicketCreatePage: React.FC = () => {
         personId: selectedPersonId ? Number(selectedPersonId) : null,
         personName: person ? `${person.firstName} ${person.lastName}` : null,
       });
-      navigate('/people');
+      setTicketSuccess('הקריאה נפתחה בהצלחה!');
+      setSubject('');
+      setDescription('');
+      setPriority('medium');
+      setSelectedBattalion('');
+      setSelectedPersonId('');
+      setSoldiers([]);
+      await loadMyTickets();
+      setTimeout(() => setTicketSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'שגיאה בפתיחת הקריאה');
     } finally {
@@ -66,12 +97,17 @@ export const TicketCreatePage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto" dir="rtl">
+    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
       <h1 className="text-2xl font-bold text-white mb-6">פתח קריאת שירות</h1>
-      <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 mb-8">
         {error && (
           <div className="mb-4 p-3 bg-red-900/40 border border-red-700 text-red-300 rounded-md text-sm">
             {error}
+          </div>
+        )}
+        {ticketSuccess && (
+          <div className="mb-4 p-3 bg-green-900/40 border border-green-700 text-green-300 rounded-md text-sm">
+            {ticketSuccess}
           </div>
         )}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -166,6 +202,39 @@ export const TicketCreatePage: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {/* My Tickets */}
+      {myTickets.length > 0 && (
+        <div>
+          <h2 className="text-xl font-bold text-white mb-4">קריאותיי</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {myTickets.map((ticket) => (
+              <div key={ticket.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 hover:border-blue-500 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-white font-semibold text-sm flex-1">{ticket.subject}</h3>
+                  <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap mr-2 ${
+                    ticket.priority === 'high' ? 'bg-red-900/40 text-red-300' :
+                    ticket.priority === 'medium' ? 'bg-yellow-900/40 text-yellow-300' :
+                    'bg-green-900/40 text-green-300'
+                  }`}>
+                    {ticket.priority === 'high' ? 'גבוהה' : ticket.priority === 'medium' ? 'בינונית' : 'נמוכה'}
+                  </span>
+                </div>
+                <p className="text-gray-400 text-xs mb-3 line-clamp-2">{ticket.description}</p>
+                {ticket.battalion && (
+                  <p className="text-gray-500 text-xs mb-1">גדוד: {ticket.battalion}</p>
+                )}
+                {ticket.personName && (
+                  <p className="text-gray-500 text-xs mb-1">חייל: {ticket.personName}</p>
+                )}
+                <p className="text-gray-600 text-xs">
+                  {new Date(ticket.createdAt).toLocaleDateString('he-IL')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
