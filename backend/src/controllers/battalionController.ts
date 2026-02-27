@@ -203,31 +203,22 @@ export const getBattalionSoldiers = async (req: Request, res: Response): Promise
 export const searchSoldier = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name } = req.params;
-    const { personal_number, name: searchName } = req.query;
+    const { personal_number } = req.query;
 
     if (!name) {
       res.status(400).json({ error: 'חסר שם גדוד' });
       return;
     }
 
-    let soldier;
-
-    if (personal_number) {
-      // Search by personal number (legacy support)
-      soldier = await searchSoldierByPersonalNumber(
-        decodeURIComponent(name),
-        String(personal_number)
-      );
-    } else if (searchName) {
-      // Search by name (first name or last name)
-      soldier = await searchSoldierByName(
-        decodeURIComponent(name),
-        String(searchName)
-      );
-    } else {
-      res.status(400).json({ error: 'חסר מספר אישי או שם' });
+    if (!personal_number) {
+      res.status(400).json({ error: 'חסר מספר אישי' });
       return;
     }
+
+    const soldier = await searchSoldierByPersonalNumber(
+      decodeURIComponent(name),
+      String(personal_number)
+    );
 
     if (!soldier) {
       res.status(404).json({ error: 'חייל לא נמצא' });

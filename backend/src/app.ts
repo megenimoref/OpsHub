@@ -14,6 +14,7 @@ import logsRoutes from './routes/logs';
 import chatRoutes from './routes/chat';
 import openaiRoutes from './routes/openai';
 import whatsappRoutes from './routes/whatsapp';
+import serviceCallsRoutes from './routes/serviceCalls';
 import { logger } from './services/logger';
 
 const app = express();
@@ -34,6 +35,7 @@ app.use('/logs', logsRoutes);
 app.use('/chat', chatRoutes);
 app.use('/openai', openaiRoutes);
 app.use('/whatsapp', whatsappRoutes);
+app.use('/service-calls', serviceCallsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

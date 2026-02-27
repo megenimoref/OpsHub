@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Link } from 're
 import { useAuthStore } from './hooks/useAuth';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
-import { TicketCreatePage } from './pages/TicketCreatePage';
 import { UserCreatePage } from './pages/UserCreatePage';
 import { BattalionImportPage } from './pages/BattalionImportPage';
 import { BattalionSoldierPage } from './pages/BattalionSoldierPage';
@@ -13,6 +12,7 @@ import { TotpSetupPage } from './pages/TotpSetupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { BenefitsPage } from './pages/BenefitsPage';
+import { OpenCallsPage } from './pages/OpenCallsPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import './index.css';
@@ -76,10 +76,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           מיצוי זכויות
         </NavLink>
 
-        <NavLink to="/tickets/new" onClick={closeMenu}>
+        <NavLink to="/open-calls" onClick={closeMenu}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
           </svg>
           פתח קריאה
         </NavLink>
@@ -226,14 +226,6 @@ function App() {
           <Route path="/setup-totp" element={<TotpSetupPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route
-            path="/tickets/new"
-            element={
-              <ProtectedRoute>
-                <TicketCreatePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
             path="/users/new"
             element={
               <ProtectedRoute>
@@ -278,6 +270,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <BenefitsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/open-calls"
+            element={
+              <ProtectedRoute>
+                <OpenCallsPage />
               </ProtectedRoute>
             }
           />
