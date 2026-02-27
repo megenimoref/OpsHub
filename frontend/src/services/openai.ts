@@ -3,12 +3,15 @@
 
 const OPENAI_API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/openai`;
 
-export async function chatWithOpenAI(messages: { role: string; content: string }[]) {
+export async function chatWithOpenAI(messages: { role: string; content: string }[], context?: string) {
   // הוספת הנחיה קבועה (system prompt) להתמקדות בזכויות אנשי מילואים בישראל, תשובה בעברית בלבד, מקצועית ועדכנית
+  const basePrompt = 'אתה עוזר זכויות מילואים בישראל. ענה בעברית בלבד, תשובה קצרה ותכליתית: פתח במשפט מסכם אחד, אחריו רשימת תנאים ברורה, ולסיום קישור רשמי בלבד (אם יש). אל תוסיף הסברים כלליים, טיפים או מידע לא רשמי. התשובה חייבת להתבסס על מידע רשמי מאתר מילואים, אתר מילואים 360, או מקורות ממשלתיים בלבד. אם אין תשובה ודאית, ציין זאת.';
+
   const systemPrompt = {
     role: 'system',
-    content: 'אתה עוזר זכויות מילואים בישראל. ענה בעברית בלבד, תשובה קצרה ותכליתית: פתח במשפט מסכם אחד, אחריו רשימת תנאים ברורה, ולסיום קישור רשמי בלבד (אם יש). אל תוסיף הסברים כלליים, טיפים או מידע לא רשמי. התשובה חייבת להתבסס על מידע רשמי מאתר מילואים, אתר מילואים 360, או מקורות ממשלתיים בלבד. אם אין תשובה ודאית, ציין זאת.'
+    content: context ? `${basePrompt}\n\nהנה מידע מעודכן על זכויות ויתרונות:\n${context}` : basePrompt
   };
+
   const fullMessages = [systemPrompt, ...messages];
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',

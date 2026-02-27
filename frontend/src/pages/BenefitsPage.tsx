@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { benefitsData } from '../data/benefitsData';
 
 const Badge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="inline-block bg-gray-800 border border-gray-600 text-gray-200 text-xs px-2 py-1 rounded-lg">

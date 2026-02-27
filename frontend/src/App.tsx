@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuthStore } from './hooks/useAuth';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
@@ -29,6 +29,7 @@ const NavLink: React.FC<{ to: string; onClick: () => void; children: React.React
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, clearAuth } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -40,7 +41,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const closeMenu = () => setSidebarOpen(false);
 
-  if (!user) {
+  const hideSidebar = !user || location.pathname === '/login' || location.pathname === '/setup-totp';
+
+  if (hideSidebar) {
     return <main>{children}</main>;
   }
 

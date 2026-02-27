@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithOpenAI } from '../services/openai';
+import { getBenefitsContext } from '../data/benefitsData';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -33,7 +34,8 @@ export const ChatBot: React.FC = () => {
     setLoading(true);
 
     try {
-      const reply = await chatWithOpenAI(newMessages);
+      const benefitsContext = getBenefitsContext();
+      const reply = await chatWithOpenAI(newMessages, benefitsContext);
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
     } catch {
       setMessages((prev) => [
