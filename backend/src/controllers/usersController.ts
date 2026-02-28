@@ -80,3 +80,78 @@ export const deleteUser = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+export const resetUserPassword = async (req: Request, res: Response) => {
+  try {
+    const targetId = parseInt(req.params.id, 10);
+    const { password } = req.body;
+
+    if (isNaN(targetId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = await User.findByPk(targetId);
+    if (!user) {
+      return res.status(404).json({ error: 'משתמש לא נמצא' });
+    }
+
+    user.password = password;
+    await user.save();
+
+    res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    const targetId = parseInt(req.params.id, 10);
+    const { firstName, lastName, role, email } = req.body;
+
+    if (isNaN(targetId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const user = await User.findByPk(targetId);
+    if (!user) {
+      return res.status(404).json({ error: 'משתמש לא נמצא' });
+    }
+
+    // Check if email is being changed and if it's already taken
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+      user.email = email;
+    }
+
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (role !== undefined) user.role = role === 'admin' ? 'admin' : 'staff';
+
+    await user.save();
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      success: true,
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};

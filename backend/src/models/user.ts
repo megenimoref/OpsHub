@@ -11,6 +11,8 @@ class User extends Model {
   public role!: 'admin' | 'staff';
   public totpSecret!: string | null;
   public totpEnabled!: boolean;
+  public passwordResetToken!: string | null;
+  public passwordResetExpires!: Date | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -62,6 +64,16 @@ User.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
+    },
+    passwordResetToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null,
+    },
+    passwordResetExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {

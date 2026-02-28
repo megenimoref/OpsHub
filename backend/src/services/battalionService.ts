@@ -7,7 +7,7 @@ const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
   user: process.env.DB_USER || 'crm_user',
-  password: process.env.DB_PASSWORD || 'crm_password_123',
+  password: process.env.DB_PASSWORD || '1qaz!QAZ',
 };
 
 export function sanitizeBattalionName(name: string): string {
