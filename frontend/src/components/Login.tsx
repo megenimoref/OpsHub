@@ -128,6 +128,16 @@ export const Login: React.FC = () => {
                 {loading ? 'מתחבר...' : 'כניסה'}
               </button>
             </div>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-cyan-400 hover:text-cyan-300 underline"
+              >
+                שכחתי סיסמה
+              </button>
+            </div>
           </form>
         ) : (
           <form className="mt-8 space-y-6" onSubmit={handleTotpSubmit} dir="rtl">

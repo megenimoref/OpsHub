@@ -15,6 +15,7 @@ services:
     volumes:
       - dbdata:/var/lib/mysql
       - ./backend/src/migrations/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+      - ./backend/src/migrations/create_crm_user.sql:/docker-entrypoint-initdb.d/002-create_crm_user.sql:ro
     restart: unless-stopped
     networks: [crm-net]
 
