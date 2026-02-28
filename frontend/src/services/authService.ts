@@ -46,6 +46,23 @@ export const authService = {
     await api.delete(`/auth/reset-totp/${userId}`);
   },
 
+  resetUserPassword: async (userId: number, newPassword: string): Promise<void> => {
+    await api.put(`/users/${userId}/reset-password`, { password: newPassword });
+  },
+
+  updateUser: async (userId: number, firstName?: string, lastName?: string, role?: string, email?: string): Promise<any> => {
+    const { data } = await api.put(`/users/${userId}`, { firstName, lastName, role, email });
+    return data;
+  },
+
+  forgotPassword: async (email: string): Promise<void> => {
+    await api.post('/auth/forgot-password', { email });
+  },
+
+  resetPassword: async (token: string, password: string): Promise<void> => {
+    await api.post('/auth/reset-password', { token, password });
+  },
+
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');

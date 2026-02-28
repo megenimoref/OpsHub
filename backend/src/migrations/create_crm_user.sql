@@ -10,9 +10,13 @@ CREATE USER IF NOT EXISTS 'crm_user'@'localhost' IDENTIFIED BY '1qaz!QAZ';
 GRANT ALL PRIVILEGES ON crm.* TO 'crm_user'@'%';
 GRANT ALL PRIVILEGES ON crm.* TO 'crm_user'@'localhost';
 
+-- Grant privileges on all battalion databases (battalion_*)
+GRANT ALL PRIVILEGES ON `battalion_%`.* TO 'crm_user'@'%';
+GRANT ALL PRIVILEGES ON `battalion_%`.* TO 'crm_user'@'localhost';
+
 -- Grant database creation privileges (needed for battalion databases)
-GRANT CREATE, ALTER, DROP, GRANT OPTION ON *.* TO 'crm_user'@'%';
-GRANT CREATE, ALTER, DROP, GRANT OPTION ON *.* TO 'crm_user'@'localhost';
+GRANT CREATE, ALTER, DROP ON *.* TO 'crm_user'@'%';
+GRANT CREATE, ALTER, DROP ON *.* TO 'crm_user'@'localhost';
 
 -- Apply privileges
 FLUSH PRIVILEGES;

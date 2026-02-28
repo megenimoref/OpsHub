@@ -25,7 +25,11 @@ export const UserCreatePage: React.FC = () => {
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [resettingId, setResettingId] = useState<number | null>(null);
+  const [resettingPasswordId, setResettingPasswordId] = useState<number | null>(null);
   const [resetMsg, setResetMsg] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState<{ [key: number]: string }>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editData, setEditData] = useState<{ [key: number]: Partial<UserRecord> }>({});
 
   const fetchUsers = async () => {
     try {
@@ -90,6 +94,75 @@ export const UserCreatePage: React.FC = () => {
       setResetMsg(err.response?.data?.error || 'שגיאה באיפוס');
     } finally {
       setResettingId(null);
+    }
+  };
+
+  const handleResetPassword = async (userId: number, userEmail: string) => {
+    const password = newPasswordInput[userId];
+    if (!password) {
+      setResetMsg('אנא הכנס סיסמה חדשה');
+      return;
+    }
+    if (password.length < 6) {
+      setResetMsg('הסיסמה חייבת להיות לפחות 6 תווים');
+      return;
+    }
+    if (!window.confirm(`אפס את הסיסמה של ${userEmail}?`)) return;
+    setResettingPasswordId(userId);
+    setResetMsg('');
+    try {
+      await authService.resetUserPassword(userId, password);
+      setResetMsg(`הסיסמה של ${userEmail} אופסה בהצלחה`);
+      setNewPasswordInput({ ...newPasswordInput, [userId]: '' });
+      fetchUsers();
+    } catch (err: any) {
+      setResetMsg(err.response?.data?.error || 'שגיאה באיפוס הסיסמה');
+    } finally {
+      setResettingPasswordId(null);
+    }
+  };
+
+  const handleStartEdit = (user: UserRecord) => {
+    setEditingId(user.id);
+    setEditData({
+      ...editData,
+      [user.id]: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+    setResetMsg('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  const handleSaveEdit = async (userId: number, userName: string) => {
+    const data = editData[userId];
+    if (!data || !data.firstName || !data.lastName || !data.email) {
+      setResetMsg('אנא מלא את כל השדות');
+      return;
+    }
+    setEditingId(null);
+    setResetMsg('');
+    try {
+      await authService.updateUser(
+        userId,
+        data.firstName,
+        data.lastName,
+        data.role,
+        data.email
+      );
+      setResetMsg(`${userName} עודכן בהצלחה`);
+      setEditData({});
+      fetchUsers();
+    } catch (err: any) {
+      setResetMsg(err.response?.data?.error || 'שגיאה בעדכון המשתמש');
+      setEditingId(userId);
     }
   };
 
@@ -208,31 +281,118 @@ export const UserCreatePage: React.FC = () => {
         ) : (
           <div className="space-y-2">
             {users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
-                <div>
-                  <span className="text-white text-sm font-medium">{u.firstName} {u.lastName}</span>
-                  <span className="mr-2 text-xs text-gray-400">({u.email})</span>
-                  <span className="mr-2 text-xs text-gray-400">({u.role})</span>
-                  <span className={`mr-2 text-xs px-2 py-0.5 rounded-full ${u.totpEnabled ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`}>
-                    {u.totpEnabled ? '2FA פעיל' : '2FA לא מוגדר'}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleResetTotp(u.id, u.email)}
-                    disabled={resettingId === u.id}
-                    className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded-md disabled:opacity-50"
-                  >
-                    {resettingId === u.id ? 'מאפס...' : 'אפס 2FA'}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(u.id, `${u.firstName} ${u.lastName}`)}
-                    disabled={deletingId === u.id}
-                    className="px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded-md disabled:opacity-50"
-                  >
-                    {deletingId === u.id ? 'מוחק...' : 'מחק'}
-                  </button>
-                </div>
+              <div key={u.id} className="flex flex-col gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
+                {editingId === u.id ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">שם פרטי</label>
+                        <input
+                          type="text"
+                          value={editData[u.id]?.firstName || ''}
+                          onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], firstName: e.target.value } })}
+                          className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1">שם משפחה</label>
+                        <input
+                          type="text"
+                          value={editData[u.id]?.lastName || ''}
+                          onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], lastName: e.target.value } })}
+                          className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">אימייל</label>
+                      <input
+                        type="email"
+                        value={editData[u.id]?.email || ''}
+                        onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], email: e.target.value } })}
+                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">תפקיד</label>
+                      <select
+                        value={editData[u.id]?.role || 'staff'}
+                        onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], role: e.target.value as 'staff' | 'admin' } })}
+                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleSaveEdit(u.id, `${u.firstName} ${u.lastName}`)}
+                        className="flex-1 px-2 py-1 bg-green-700 hover:bg-green-600 text-white text-xs rounded-md"
+                      >
+                        שמור
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        className="flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded-md"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-white text-sm font-medium">{u.firstName} {u.lastName}</span>
+                        <span className="mr-2 text-xs text-gray-400">({u.email})</span>
+                        <span className="mr-2 text-xs text-gray-400">({u.role})</span>
+                        <span className={`mr-2 text-xs px-2 py-0.5 rounded-full ${u.totpEnabled ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`}>
+                          {u.totpEnabled ? '2FA פעיל' : '2FA לא מוגדר'}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleStartEdit(u)}
+                          className="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-md"
+                        >
+                          ערוך
+                        </button>
+                        <button
+                          onClick={() => handleResetTotp(u.id, u.email)}
+                          disabled={resettingId === u.id}
+                          className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded-md disabled:opacity-50"
+                        >
+                          {resettingId === u.id ? 'מאפס...' : 'אפס 2FA'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(u.id, `${u.firstName} ${u.lastName}`)}
+                          disabled={deletingId === u.id}
+                          className="px-3 py-1 bg-red-900 hover:bg-red-800 text-white text-xs rounded-md disabled:opacity-50"
+                        >
+                          {deletingId === u.id ? 'מוחק...' : 'מחק'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <input
+                          type="password"
+                          placeholder="סיסמה חדשה (לפחות 6 תווים)"
+                          value={newPasswordInput[u.id] || ''}
+                          onChange={(e) => setNewPasswordInput({ ...newPasswordInput, [u.id]: e.target.value })}
+                          className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleResetPassword(u.id, u.email)}
+                        disabled={resettingPasswordId === u.id}
+                        className="px-3 py-1 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-md disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {resettingPasswordId === u.id ? 'מאפס...' : 'אפס סיסמה'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
