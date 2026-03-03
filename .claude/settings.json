@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx getdrip add linear-modern)",
+      "Bash(kill -9 7904)"
+    ]
+  }
+}

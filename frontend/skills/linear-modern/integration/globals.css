@@ -1,0 +1,253 @@
+/* ============================================================
+   LINEAR MODERN SKILL — globals.css
+   ============================================================ */
+
+/* ── FONT IMPORT ──────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── CSS VARIABLES ────────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --color-bg-deep:      #020203;
+  --color-bg-base:      #050506;
+  --color-bg-elevated:  #0a0a0c;
+  --color-surface:      rgba(255, 255, 255, 0.05);
+  --color-surface-hover:rgba(255, 255, 255, 0.08);
+
+  /* Text */
+  --color-fg:           #EDEDEF;
+  --color-fg-muted:     #8A8F98;
+  --color-fg-subtle:    rgba(255, 255, 255, 0.60);
+
+  /* Accent */
+  --color-accent:       #5E6AD2;
+  --color-accent-bright:#6872D9;
+  --color-accent-glow:  rgba(94, 106, 210, 0.3);
+
+  /* Borders */
+  --color-border:       rgba(255, 255, 255, 0.06);
+  --color-border-hover: rgba(255, 255, 255, 0.10);
+  --color-border-accent:rgba(94, 106, 210, 0.30);
+}
+
+/* ── BASE RESET ───────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-fg);
+  font-family: "Inter", "Geist Sans", system-ui, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SELECTION ────────────────────────────────────────────── */
+::selection {
+  background: rgba(94, 106, 210, 0.35);
+  color: #EDEDEF;
+}
+
+/* ── FOCUS ────────────────────────────────────────────────── */
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #050506,
+    0 0 0 4px rgba(94, 106, 210, 0.5);
+}
+
+/* ── SCROLLBAR ────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 8px; }
+::-webkit-scrollbar-track   { background: #020203; }
+::-webkit-scrollbar-thumb   {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ── LINKS ────────────────────────────────────────────────── */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color 200ms ease-out;
+}
+a:hover { color: var(--color-accent-bright); }
+
+/* ── LAYERED BACKGROUND SYSTEM ────────────────────────────── */
+
+/* The full page background — 4-layer composition */
+.bg-canvas {
+  position: relative;
+  background:
+    radial-gradient(ellipse at top, #0a0a0f 0%, #050506 50%, #020203 100%);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Layer 2: Noise texture for paper-like tactile quality */
+.bg-canvas::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.015;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Layer 4: Subtle grid overlay */
+.bg-canvas::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 1;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── BLOB SYSTEM (Layer 3) ────────────────────────────────── */
+
+.blob-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+
+.blob-primary {
+  width: 900px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(94,106,210,0.25) 0%, transparent 70%);
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: blob-float 10s ease-in-out infinite;
+}
+
+.blob-secondary {
+  width: 600px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, rgba(236,72,153,0.08) 50%, transparent 70%);
+  top: 20%;
+  left: -100px;
+  animation: blob-float 8s ease-in-out 2s infinite;
+}
+
+.blob-tertiary {
+  width: 500px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(79,70,229,0.10) 0%, rgba(59,130,246,0.08) 50%, transparent 70%);
+  top: 30%;
+  right: -80px;
+  animation: blob-float 12s ease-in-out 1s infinite;
+}
+
+.blob-bottom {
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(94,106,210,0.10) 0%, transparent 70%);
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: blob-pulse 4s ease-in-out infinite;
+}
+
+/* ── ANIMATIONS ───────────────────────────────────────────── */
+
+@keyframes blob-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33%       { transform: translateY(-20px) rotate(1deg); }
+  66%       { transform: translateY(10px) rotate(-0.5deg); }
+}
+
+.blob-primary { animation-name: blob-float-centered; }
+@keyframes blob-float-centered {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-20px); }
+}
+
+@keyframes blob-pulse {
+  0%, 100% { opacity: 0.10; transform: translateX(-50%) scale(1); }
+  50%       { opacity: 0.15; transform: translateX(-50%) scale(1.05); }
+}
+
+@keyframes shimmer {
+  from { background-position: 0% center; }
+  to   { background-position: 200% center; }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── GRADIENT TEXT UTILITIES ──────────────────────────────── */
+
+.text-gradient {
+  background: linear-gradient(to bottom, #ffffff 0%, rgba(255,255,255,0.95) 40%, rgba(255,255,255,0.70) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-accent {
+  background: linear-gradient(to right, #5E6AD2, #818cf8, #5E6AD2);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ── SECTION DIVIDERS ─────────────────────────────────────── */
+
+.section-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.08) 30%, rgba(255,255,255,0.08) 70%, transparent);
+}
+
+/* ── CONTENT ABOVE BACKGROUND LAYERS ─────────────────────── */
+
+.content-layer {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── REDUCED MOTION ───────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

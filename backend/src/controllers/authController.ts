@@ -157,11 +157,11 @@ export const confirmTotp = async (req: Request, res: Response) => {
       secret: user.totpSecret,
       encoding: 'base32',
       token: code,
-      window: 1,
+      window: 2,  // Allow ±60 seconds tolerance for time skew
     });
 
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid code' });
+      return res.status(401).json({ error: 'Invalid code (or time out of sync)' });
     }
 
     await user.update({ totpEnabled: true });
@@ -202,11 +202,11 @@ export const verifyTotp = async (req: Request, res: Response) => {
       secret: user.totpSecret,
       encoding: 'base32',
       token: code,
-      window: 1,
+      window: 2,  // Allow ±60 seconds tolerance for time skew
     });
 
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid code' });
+      return res.status(401).json({ error: 'Invalid code (or time out of sync)' });
     }
 
     // @ts-ignore

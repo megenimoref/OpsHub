@@ -1,0 +1,16 @@
+{
+  "name": "linear-modern",
+  "version": "1.0.0",
+  "description": "Cinematic dark UI with ambient blob lighting, mouse-tracking spotlights, layered shadows, and expo-out micro-interactions. The Linear/Vercel/Raycast aesthetic.",
+  "category": "dark",
+  "mood": ["cinematic", "precise", "premium", "atmospheric", "technical"],
+  "stack": ["react", "tailwind", "framer-motion"],
+  "dependencies": {
+    "framer-motion": "^10.0.0",
+    "lucide-react": "^0.263.0"
+  },
+  "devDependencies": {},
+  "author": "getdrip",
+  "components": 10,
+  "tags": ["dark", "premium", "developer-tools", "glassmorphism", "ambient", "cinematic", "interactive", "bento"]
+}

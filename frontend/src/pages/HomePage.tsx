@@ -37,6 +37,18 @@ const tiles: MenuTile[] = [
     ),
   },
   {
+    to: '/personal-area',
+    label: 'אזור אישי',
+    description: 'החיילים שלך',
+    color: 'purple',
+    icon: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
     to: '/battalion/import',
     label: 'יבוא גדוד',
     description: 'יבוא נתוני גדוד מקובץ',
@@ -118,6 +130,7 @@ const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; hove
   emerald: { bg: 'bg-emerald-950/50', border: 'border-emerald-800/60', icon: 'text-emerald-400', hover: 'hover:border-emerald-500 hover:shadow-emerald-500/20', glow: 'bg-emerald-500' },
   blue:    { bg: 'bg-blue-950/50',    border: 'border-blue-800/60',    icon: 'text-blue-400',    hover: 'hover:border-blue-500 hover:shadow-blue-500/20',    glow: 'bg-blue-500' },
   green:   { bg: 'bg-green-950/50',   border: 'border-green-800/60',   icon: 'text-green-400',   hover: 'hover:border-green-500 hover:shadow-green-500/20',   glow: 'bg-green-500' },
+  purple:  { bg: 'bg-purple-950/50',  border: 'border-purple-800/60',  icon: 'text-purple-400',  hover: 'hover:border-purple-500 hover:shadow-purple-500/20',  glow: 'bg-purple-500' },
   rose:    { bg: 'bg-rose-950/50',    border: 'border-rose-800/60',    icon: 'text-rose-400',    hover: 'hover:border-rose-500 hover:shadow-rose-500/20',    glow: 'bg-rose-500' },
   orange:  { bg: 'bg-orange-950/50',  border: 'border-orange-800/60',  icon: 'text-orange-400',  hover: 'hover:border-orange-500 hover:shadow-orange-500/20',  glow: 'bg-orange-500' },
 };
