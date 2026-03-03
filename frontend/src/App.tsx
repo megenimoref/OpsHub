@@ -13,6 +13,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { BenefitsPage } from './pages/BenefitsPage';
 import { OpenCallsPage } from './pages/OpenCallsPage';
+import { PersonalAreaPage } from './pages/PersonalAreaPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { authService } from './services/authService';
@@ -84,6 +85,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
           </svg>
           פתח קריאה
+        </NavLink>
+
+        <NavLink to="/personal-area" onClick={closeMenu}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          אזור אישי
         </NavLink>
 
         <NavLink to="/battalion/import" onClick={closeMenu}>
@@ -282,6 +291,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OpenCallsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/personal-area"
+            element={
+              <ProtectedRoute>
+                <PersonalAreaPage />
               </ProtectedRoute>
             }
           />

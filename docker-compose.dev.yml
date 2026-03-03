@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   db:
     image: mariadb:11.4
@@ -8,21 +6,12 @@ services:
       MARIADB_ROOT_PASSWORD: devroot
       MARIADB_DATABASE: crm
       MARIADB_USER: crm_user
-      MARIADB_PASSWORD: 1qaz!QAZ
-    command: >
-      --innodb-buffer-pool-size=128M
-      --max-connections=40
-      --key-buffer-size=16M
-      --table-open-cache=200
+      MARIADB_PASSWORD: crm_dev_pass
     volumes:
-      - dbdata:/var/lib/mysql
+      - dbdata-dev:/var/lib/mysql
       - ./backend/src/migrations/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
       - ./backend/src/migrations/create_crm_user.sql:/docker-entrypoint-initdb.d/002-create_crm_user.sql:ro
-    ports:
-      - "3306:3306"
-    restart: unless-stopped
-    networks:
-      - crm-network
+    networks: [crm-net]
 
   api:
     build:
@@ -37,17 +26,13 @@ services:
       DB_PORT: "3306"
       DB_NAME: crm
       DB_USER: crm_user
-      DB_PASSWORD: 1qaz!QAZ
+      DB_PASSWORD: crm_dev_pass
       CORS_ORIGIN: http://localhost:5173
     volumes:
       - ./backend/src:/app/src
-    ports:
-      - "3000:3000"
     depends_on:
       - db
-    restart: unless-stopped
-    networks:
-      - crm-network
+    networks: [crm-net]
 
   web:
     build:
@@ -57,20 +42,18 @@ services:
     environment:
       VITE_API_URL: /api
       VITE_OPENAI_API_KEY: ${VITE_OPENAI_API_KEY:-}
+    ports:
+      - "5173:5173"
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
-    ports:
-      - "5173:5173"
     depends_on:
       - api
-    restart: unless-stopped
-    networks:
-      - crm-network
+    networks: [crm-net]
 
 networks:
-  crm-network:
+  crm-net:
     driver: bridge
 
 volumes:
-  dbdata:
+  dbdata-dev:

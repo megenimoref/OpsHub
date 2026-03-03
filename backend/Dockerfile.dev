@@ -1,0 +1,15 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Install netcat for connection testing
+RUN apk add --no-cache netcat-openbsd
+
+COPY package*.json ./
+RUN npm ci
+COPY . .
+
+EXPOSE 3000
+
+# Wait for database to be ready, then start app with hot-reload
+# Give DB 15 seconds to start, then try connecting
+CMD sh -c "echo 'Waiting 15 seconds for database startup...' && sleep 15 && echo 'Starting application with retry...' && npx tsx --watch src/app.ts"
