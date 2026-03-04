@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
-import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers } from '../controllers/battalionController';
+import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion } from '../controllers/allocationController';
 
 const router = Router();
@@ -23,6 +23,7 @@ const upload = multer({
   },
 });
 
+router.get('/template', authMiddleware, downloadTemplate);
 router.get('/list', authMiddleware, getBattalions);
 router.get('/dashboard', authMiddleware, getDashboard);
 router.post('/import', authMiddleware, upload.single('file'), importBattalion);

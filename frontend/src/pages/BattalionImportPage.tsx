@@ -204,15 +204,6 @@ export const BattalionImportPage: React.FC = () => {
       : ''
     : '';
 
-  const KNOWN_COLUMNS = [
-    'מספר אישי','שם משפחה','שם פרטי','טלפון נייד',
-    'סטוס פנייה','מצב משפחתי','מספר ילדים',
-    'אינדיקציית סטודנט','בן/בת זוג','מספר טלפון בן/בת זוג',
-    'אינדיקציות שעלו מהנתונים','מי יצרה קשר','תאריך','מול מי נוצר הקשר',
-    'סטטוס תעסוקתי','מיצוי זכויות קרן סיוע פרוט','ביטוח לאומי',
-    'סיוע אחר','אילו בקשות צריך להגיש','פירוט/ הערות',
-  ];
-
   return (
     <div className="p-6 max-w-6xl mx-auto" dir="rtl">
       {/* SECTION 1: IMPORT */}
@@ -332,163 +323,146 @@ export const BattalionImportPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Known columns info */}
-      <div className="mt-6 bg-blue-900/40 border border-blue-700 rounded-lg p-4 text-sm text-blue-300 mb-8" dir="rtl">
-        <p className="font-bold mb-2">עמודות מוכרות ({KNOWN_COLUMNS.length}):</p>
-        <div className="flex flex-wrap gap-1 mt-1">
-          {KNOWN_COLUMNS.map((col) => (
-            <span key={col} className="bg-blue-900/40 text-blue-300 px-2 py-0.5 rounded text-xs">{col}</span>
-          ))}
-        </div>
+      {/* Template download link */}
+      <div className="mt-4 mb-8 text-right">
+        <a
+          href="/api/battalion/template"
+          download="battalion_template.xlsx"
+          className="inline-flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          הורד קובץ Excel לדוגמה
+        </a>
       </div>
 
       {/* SECTION 2: ALLOCATION */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-8">
         <h2 className="text-2xl font-bold text-white mb-6 text-center">הקצאת חיילים</h2>
 
-        <div className="grid grid-cols-3 gap-6">
-          {/* Left: Staff Users Sidebar */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 h-fit">
-            <h3 className="text-white font-bold text-sm mb-3 pb-3 border-b border-gray-700">משתמשי מערכת</h3>
-            <div className="space-y-1">
-              {staffUsers.length === 0 ? (
-                <p className="text-gray-400 text-xs p-2">אין משתמשים</p>
-              ) : (
-                staffUsers.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => setSelectedUser(u.id)}
-                    className={`w-full text-right px-3 py-2 rounded-lg text-sm transition-colors text-xs ${
-                      selectedUser === u.id
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700'
-                    }`}
-                  >
-                    {u.firstName} {u.lastName}
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Middle & Right: Battalion & Allocation */}
-          <div className="col-span-2 space-y-4">
-            {/* Battalion Selection Grid */}
+        <div className="space-y-4 max-w-xl mx-auto">
+          {/* Dropdowns row */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <h3 className="text-white font-bold text-sm mb-3">בחר גדוד:</h3>
-              {battalions.length === 0 ? (
-                <p className="text-gray-400 text-sm">אין גדודים במערכת</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {battalions.map((bn) => (
-                    <button
-                      key={bn}
-                      onClick={() => {
-                        setSelectedBattalion(bn);
-                        setAllocMessage(null);
-                      }}
-                      className={`p-3 rounded-lg border-2 transition-all text-xs font-medium ${
-                        selectedBattalion === bn
-                          ? 'border-blue-500 bg-blue-900/30 text-blue-300'
-                          : 'border-gray-600 bg-gray-800 text-gray-300 hover:border-gray-400'
-                      }`}
-                    >
-                      {bn}
-                    </button>
-                  ))}
+              <label className="block text-sm font-medium text-gray-300 mb-1">בחר גדוד</label>
+              <select
+                value={selectedBattalion ?? ''}
+                onChange={(e) => {
+                  setSelectedBattalion(e.target.value || null);
+                  setAllocMessage(null);
+                }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value="">-- בחר גדוד --</option>
+                {battalions.map((bn) => (
+                  <option key={bn} value={bn}>{bn}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">בחר משתמש</label>
+              <select
+                value={selectedUser ?? ''}
+                onChange={(e) => {
+                  setSelectedUser(e.target.value ? Number(e.target.value) : null);
+                  setAllocMessage(null);
+                }}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value="">-- בחר משתמש --</option>
+                {staffUsers.map((u) => (
+                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Stats */}
+          {selectedBattalion && (
+            <div className="grid grid-cols-2 gap-3">
+              {statsLoading ? (
+                <div className="col-span-2 text-center py-6">
+                  <div className="inline-block animate-spin">
+                    <div className="w-4 h-4 border border-blue-500 border-t-transparent rounded-full"></div>
+                  </div>
+                </div>
+              ) : stats ? (
+                <>
+                  <div className="bg-blue-900/40 border border-blue-700 rounded-lg p-4">
+                    <p className="text-blue-300 text-xs mb-1">סה"כ חיילים בגדוד</p>
+                    <p className="text-2xl font-bold text-blue-100">{stats.total}</p>
+                  </div>
+                  <div className={`${
+                    stats.unallocated === 0
+                      ? 'bg-red-900/40 border-red-700'
+                      : 'bg-green-900/40 border-green-700'
+                  } border rounded-lg p-4`}>
+                    <p className={`${
+                      stats.unallocated === 0 ? 'text-red-300' : 'text-green-300'
+                    } text-xs mb-1`}>
+                      נותרו לא מוקצים
+                    </p>
+                    <p className={`text-2xl font-bold ${
+                      stats.unallocated === 0 ? 'text-red-100' : 'text-green-100'
+                    }`}>
+                      {stats.unallocated}
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          )}
+
+          {/* Allocation Form */}
+          {selectedBattalion && selectedUser && stats && (
+            <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+              <div>
+                <label className="block text-gray-300 text-xs mb-2">כמות חיילים להקצאה:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max={stats.unallocated}
+                  value={allocationCount}
+                  onChange={(e) => {
+                    setAllocationCount(e.target.value);
+                    setAllocMessage(null);
+                  }}
+                  placeholder="0"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm"
+                />
+                <p className="text-gray-400 text-xs mt-1">
+                  ניתן להקצות עד {stats.unallocated} חיילים
+                </p>
+              </div>
+
+              <button
+                onClick={handleAllocate}
+                disabled={allocating || !allocationCount || parseInt(allocationCount) > stats.unallocated}
+                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {allocating ? 'מקצה...' : 'הקצה'}
+              </button>
+
+              {allocMessage && (
+                <div className={`p-3 rounded-lg text-xs ${
+                  allocMessage.type === 'success'
+                    ? 'bg-green-900/40 border border-green-700 text-green-300'
+                    : 'bg-red-900/40 border border-red-700 text-red-300'
+                }`}>
+                  {allocMessage.text}
                 </div>
               )}
             </div>
+          )}
 
-            {/* Stats Section */}
-            {selectedBattalion && (
-              <div className="grid grid-cols-2 gap-3">
-                {statsLoading ? (
-                  <div className="col-span-2 text-center py-6">
-                    <div className="inline-block animate-spin">
-                      <div className="w-4 h-4 border border-blue-500 border-t-transparent rounded-full"></div>
-                    </div>
-                  </div>
-                ) : stats ? (
-                  <>
-                    <div className="bg-blue-900/40 border border-blue-700 rounded-lg p-4">
-                      <p className="text-blue-300 text-xs mb-1">סה"כ חיילים בגדוד</p>
-                      <p className="text-2xl font-bold text-blue-100">{stats.total}</p>
-                    </div>
-                    <div className={`${
-                      stats.unallocated === 0
-                        ? 'bg-red-900/40 border-red-700'
-                        : 'bg-green-900/40 border-green-700'
-                    } border rounded-lg p-4`}>
-                      <p className={`${
-                        stats.unallocated === 0 ? 'text-red-300' : 'text-green-300'
-                      } text-xs mb-1`}>
-                        נותרו לא מוקצים
-                      </p>
-                      <p className={`text-2xl font-bold ${
-                        stats.unallocated === 0 ? 'text-red-100' : 'text-green-100'
-                      }`}>
-                        {stats.unallocated}
-                      </p>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            )}
-
-            {/* Allocation Form */}
-            {selectedBattalion && selectedUser && stats && (
-              <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">משתמש:</span>
-                  <span className="text-white font-semibold">{selectedUserName}</span>
-                </div>
-
-                <div>
-                  <label className="block text-gray-300 text-xs mb-2">כמות חיילים להקצאה:</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max={stats.unallocated}
-                    value={allocationCount}
-                    onChange={(e) => {
-                      setAllocationCount(e.target.value);
-                      setAllocMessage(null);
-                    }}
-                    placeholder="0"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm"
-                  />
-                  <p className="text-gray-400 text-xs mt-1">
-                    ניתן להקצות עד {stats.unallocated} חיילים
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleAllocate}
-                  disabled={allocating || !allocationCount || parseInt(allocationCount) > stats.unallocated}
-                  className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
-                >
-                  {allocating ? 'מקצה...' : 'הקצה'}
-                </button>
-
-                {allocMessage && (
-                  <div className={`p-3 rounded-lg text-xs ${
-                    allocMessage.type === 'success'
-                      ? 'bg-green-900/40 border border-green-700 text-green-300'
-                      : 'bg-red-900/40 border border-red-700 text-red-300'
-                  }`}>
-                    {allocMessage.text}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {selectedBattalion && !selectedUser && (
-              <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4 text-center">
-                <p className="text-blue-300 text-sm">בחר משתמש מהעמודה הימנית להמשך</p>
-              </div>
-            )}
-          </div>
+          {selectedBattalion && !selectedUser && (
+            <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4 text-center">
+              <p className="text-blue-300 text-sm">בחר משתמש להמשך</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

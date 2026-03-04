@@ -23,8 +23,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/setup-totp" replace />;
   }
 
-  // Staff users can only access /personal-area
-  if (user && user.role === 'staff' && location.pathname !== '/personal-area') {
+  // Staff users can only access /personal-area and /battalion/soldier
+  const staffAllowedPaths = ['/personal-area', '/battalion/soldier'];
+  if (user && user.role === 'staff' && !staffAllowedPaths.includes(location.pathname)) {
     return <Navigate to="/personal-area" replace />;
   }
 

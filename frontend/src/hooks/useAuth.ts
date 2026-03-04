@@ -10,10 +10,19 @@ interface AuthStore {
   initFromStorage: () => void;
 }
 
+// Initialize immediately from localStorage so new tabs don't flash to login
+const _storedToken = localStorage.getItem('token');
+const _storedUser = (() => {
+  try {
+    const s = localStorage.getItem('user');
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+})();
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: null,
-  token: null,
-  isAuthenticated: false,
+  user: _storedUser,
+  token: _storedToken,
+  isAuthenticated: !!(_storedToken && _storedUser),
   setAuth: (token, user) =>
     set({ token, user, isAuthenticated: true }),
   clearAuth: () =>

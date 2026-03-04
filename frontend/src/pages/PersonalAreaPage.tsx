@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../services/api';
 
-interface Soldier {
+interface SoldierBasic {
   personal_number: string;
   first_name: string;
   last_name: string;
@@ -19,7 +19,6 @@ const STATUS_OPTIONS: { value: string; color: string }[] = [
   { value: 'אין מספר טלפון', color: '#6366f1' },
 ];
 
-// Filter bar tabs — order: הכל → לא טופלה → יציב (ממתין לטיפול) → טופלה → שאר הסטטוסים
 const FILTER_TABS: { label: string; key: string; color: string }[] = [
   { label: 'הכל', key: 'all', color: '#6b7280' },
   { label: 'לא טופלה', key: 'not_done', color: '#ef4444' },
@@ -37,21 +36,22 @@ const getStatusColor = (status: string): string => {
   return STATUS_OPTIONS.find((s) => s.value === status)?.color || '#9ca3af';
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 export const PersonalAreaPage: React.FC = () => {
-  const [soldiers, setSoldiers] = useState<Soldier[]>([]);
+  const [soldiers, setSoldiers] = useState<SoldierBasic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [filterOpen, setFilterOpen] = useState(false);
+  const [battalionFilter, setBattalionFilter] = useState<string>('all');
 
   useEffect(() => {
     const fetchSoldiers = async () => {
       try {
         setLoading(true);
-        const response = await api.get<Soldier[]>('/battalion/my-soldiers');
+        const response = await api.get<SoldierBasic[]>('/battalion/my-soldiers');
         setSoldiers(response.data || []);
         setError('');
       } catch (err: any) {
@@ -64,24 +64,37 @@ export const PersonalAreaPage: React.FC = () => {
     fetchSoldiers();
   }, []);
 
-  // Filter soldiers based on active tab
-  const filteredSoldiers = useMemo(() => {
-    if (activeFilter === 'all') return soldiers;
-    if (activeFilter === 'not_done') return soldiers.filter((s) => s.request_status !== 'טופלה');
-    return soldiers.filter((s) => s.request_status === activeFilter);
-  }, [soldiers, activeFilter]);
+  const handleRowClick = (soldier: SoldierBasic) => {
+    const params = new URLSearchParams({
+      battalion: soldier.battalion_name,
+      personal_number: soldier.personal_number,
+    });
+    window.open(`/battalion/soldier?${params.toString()}`, '_blank');
+  };
 
-  // Reset to page 1 when filter changes
+  const battalionNames = useMemo(
+    () => Array.from(new Set(soldiers.map((s) => s.battalion_name))).sort(),
+    [soldiers]
+  );
+
+  const filteredSoldiers = useMemo(() => {
+    let list = soldiers;
+    if (battalionFilter !== 'all') list = list.filter((s) => s.battalion_name === battalionFilter);
+    if (activeFilter === 'all') return list;
+    if (activeFilter === 'not_done') return list.filter((s) => s.request_status !== 'טופלה');
+    return list.filter((s) => s.request_status === activeFilter);
+  }, [soldiers, activeFilter, battalionFilter]);
+
   const handleFilterChange = (key: string) => {
     setActiveFilter(key);
     setCurrentPage(1);
   };
 
-  // Count per filter tab
   const countForTab = (key: string): number => {
-    if (key === 'all') return soldiers.length;
-    if (key === 'not_done') return soldiers.filter((s) => s.request_status !== 'טופלה').length;
-    return soldiers.filter((s) => s.request_status === key).length;
+    const base = battalionFilter === 'all' ? soldiers : soldiers.filter((s) => s.battalion_name === battalionFilter);
+    if (key === 'all') return base.length;
+    if (key === 'not_done') return base.filter((s) => s.request_status !== 'טופלה').length;
+    return base.filter((s) => s.request_status === key).length;
   };
 
   const totalPages = Math.ceil(filteredSoldiers.length / PAGE_SIZE);
@@ -135,14 +148,30 @@ export const PersonalAreaPage: React.FC = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto" dir="rtl">
       {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-3xl font-bold text-white mb-1">אזור אישי</h1>
-        <p className="text-gray-400">חיילים המוקצים לך</p>
+      <div className="mb-5 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-1">אזור אישי 360</h1>
+          <p className="text-gray-400 text-sm">חיילים המוקצים לך — לחץ על העין לטעינת כרטיס החייל</p>
+        </div>
+        {battalionNames.length >= 1 && (
+          <div className="flex flex-col items-end gap-1">
+            <label className="text-xs text-gray-400">סנן לפי גדוד</label>
+            <select
+              value={battalionFilter}
+              onChange={(e) => { setBattalionFilter(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[140px]"
+            >
+              <option value="all">כל הגדודים</option>
+              {battalionNames.map((bn) => (
+                <option key={bn} value={bn}>{bn}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Filter — slide-down dropdown */}
       <div className="mb-5">
-        {/* Trigger button */}
         <button
           onClick={() => setFilterOpen((o) => !o)}
           className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-sm text-gray-200 hover:bg-gray-700 transition-colors"
@@ -171,7 +200,6 @@ export const PersonalAreaPage: React.FC = () => {
           </svg>
         </button>
 
-        {/* Slide-down grid */}
         <div
           className={`overflow-hidden transition-all duration-300 ease-in-out ${
             filterOpen ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0'
@@ -218,6 +246,7 @@ export const PersonalAreaPage: React.FC = () => {
             <table className="w-full text-sm text-right text-gray-300">
               <thead>
                 <tr className="border-b border-gray-700 bg-gray-800">
+                  <th className="px-3 py-3 w-10"></th>
                   <th className="px-4 py-3 font-semibold text-gray-200">גדוד</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">סטטוס פנייה</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם משפחה</th>
@@ -229,8 +258,22 @@ export const PersonalAreaPage: React.FC = () => {
                 {paginatedSoldiers.map((soldier, idx) => (
                   <tr
                     key={`${soldier.battalion_name}-${soldier.personal_number}`}
-                    className={`border-b border-gray-700 ${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'} hover:bg-gray-700/30 transition-colors`}
+                    className={`border-b border-gray-700 transition-colors
+                      ${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}
+                      hover:bg-gray-700/30`}
                   >
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={() => handleRowClick(soldier)}
+                        title="פתח כרטיס חייל"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-gray-300">{soldier.battalion_name}</td>
                     <td className="px-4 py-3">
                       {soldier.request_status ? (

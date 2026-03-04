@@ -303,3 +303,43 @@ export const getAssistanceSoldiers = async (req: Request, res: Response): Promis
     res.status(500).json({ error: error.message || 'שגיאה בשליפת חיילים לפי סיוע' });
   }
 };
+
+export const downloadTemplate = async (_req: Request, res: Response): Promise<void> => {
+  const headers = [
+    'מספר אישי', 'שם משפחה', 'שם פרטי', 'טלפון נייד',
+    'סטוס פנייה', 'מצב משפחתי', 'מספר ילדים',
+    'אינדיקציית סטודנט', 'בן/בת זוג', 'מספר טלפון בן/בת זוג',
+    'אינדיקציות שעלו מהנתונים', 'מי יצרה קשר', 'תאריך', 'מול מי נוצר הקשר',
+    'סטטוס תעסוקתי', 'מיצוי זכויות קרן סיוע פרוט', 'ביטוח לאומי',
+    'סיוע אחר', 'אילו בקשות צריך להגיש', 'פירוט/ הערות',
+  ];
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('גדוד', { views: [{ rightToLeft: true }] });
+
+  sheet.addRow(headers);
+
+  // Style the header row
+  const headerRow = sheet.getRow(1);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } };
+  headerRow.alignment = { horizontal: 'center' };
+  headers.forEach((_, i) => {
+    sheet.getColumn(i + 1).width = 22;
+  });
+
+  // Add one example row
+  sheet.addRow([
+    '1234567', 'כהן', 'ישראל', '050-1234567',
+    'ממתין לטיפול', 'נשוי', '2',
+    'לא', 'שרה כהן', '050-7654321',
+    '', '', '', 'החייל',
+    'שכיר', '', 'לא נדרש',
+    '', '', '',
+  ]);
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="battalion_template.xlsx"');
+  await workbook.xlsx.write(res);
+  res.end();
+};

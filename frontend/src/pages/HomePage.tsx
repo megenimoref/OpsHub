@@ -38,7 +38,7 @@ const tiles: MenuTile[] = [
   },
   {
     to: '/personal-area',
-    label: 'אזור אישי',
+    label: 'אזור אישי 360',
     description: 'החיילים שלך',
     color: 'purple',
     icon: (

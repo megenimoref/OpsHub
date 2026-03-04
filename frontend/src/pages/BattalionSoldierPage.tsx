@@ -116,7 +116,19 @@ interface SoldierOption {
   personal_number: string;
 }
 
-export const BattalionSoldierPage: React.FC = () => {
+interface BattalionSoldierPageProps {
+  embedded?: boolean;
+  initialBattalion?: string;
+  initialPersonalNumber?: string;
+  onSave?: (personalNumber: string, requestStatus: string) => void;
+}
+
+export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
+  embedded = false,
+  initialBattalion,
+  initialPersonalNumber,
+  onSave,
+}) => {
   const navigate = useNavigate();
   const [battalions, setBattalions] = useState<string[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState('');
@@ -140,7 +152,64 @@ export const BattalionSoldierPage: React.FC = () => {
     api.get('/users').then((res) => {
       setSystemUsers(res.data || []);
     }).catch(() => {});
+
+    // Auto-load soldier if navigated from personal area (via URL params)
+    const urlParams = new URLSearchParams(window.location.search);
+    const battalionParam = urlParams.get('battalion');
+    const personalNumberParam = urlParams.get('personal_number');
+    if (battalionParam && personalNumberParam) {
+      setSelectedBattalion(battalionParam);
+      setSearchPersonalNumber(personalNumberParam);
+      setSearching(true);
+      setSearchError('');
+      api.get(`/battalion/${encodeURIComponent(battalionParam)}/soldiers/search`, {
+        params: { personal_number: personalNumberParam },
+      }).then((res) => {
+        const user = authService.getStoredUser();
+        const userName = user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : '';
+        setSoldier(res.data.soldier);
+        setFormData({
+          ...res.data.soldier,
+          contact_date: res.data.soldier.contact_date || TODAY,
+          contact_by: res.data.soldier.contact_by || userName,
+        });
+        fetchChanges(battalionParam, res.data.soldier.id);
+      }).catch((err: any) => {
+        setSearchError(err.response?.data?.error || 'חייל לא נמצא');
+      }).finally(() => {
+        setSearching(false);
+      });
+    }
   }, []);
+
+  // Load soldier when initialBattalion/initialPersonalNumber props change (embedded mode)
+  useEffect(() => {
+    if (!initialBattalion || !initialPersonalNumber) return;
+    setSelectedBattalion(initialBattalion);
+    setSearchPersonalNumber(initialPersonalNumber);
+    setSoldier(null);
+    setSearchError('');
+    setSaveSuccess(false);
+    setSaveError('');
+    setSearching(true);
+    api.get(`/battalion/${encodeURIComponent(initialBattalion)}/soldiers/search`, {
+      params: { personal_number: initialPersonalNumber },
+    }).then((res) => {
+      const user = authService.getStoredUser();
+      const userName = user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : '';
+      setSoldier(res.data.soldier);
+      setFormData({
+        ...res.data.soldier,
+        contact_date: res.data.soldier.contact_date || TODAY,
+        contact_by: res.data.soldier.contact_by || userName,
+      });
+      fetchChanges(initialBattalion, res.data.soldier.id);
+    }).catch((err: any) => {
+      setSearchError(err.response?.data?.error || 'חייל לא נמצא');
+    }).finally(() => {
+      setSearching(false);
+    });
+  }, [initialBattalion, initialPersonalNumber]);
 
   const fetchChanges = async (battalion: string, soldierId: number) => {
     try {
@@ -220,6 +289,7 @@ export const BattalionSoldierPage: React.FC = () => {
     try {
       await api.put(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/${soldier.id}`, formData);
       setSaveSuccess(true);
+      onSave?.(soldier.personal_number, (formData.request_status as string) || '');
       fetchChanges(selectedBattalion, soldier.id);
     } catch (err: any) {
       setSaveError(err.response?.data?.error || 'שגיאה בשמירה');
@@ -245,8 +315,8 @@ export const BattalionSoldierPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto" dir="rtl">
-      <h1 className="text-2xl font-bold text-white mb-6">חיפוש ועריכת חייל</h1>
+    <div className={embedded ? 'w-full' : 'p-6 max-w-4xl mx-auto'} dir="rtl">
+      {!embedded && <h1 className="text-2xl font-bold text-white mb-6">חיפוש ועריכת חייל</h1>}
 
       {/* Search bar */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
@@ -312,22 +382,13 @@ export const BattalionSoldierPage: React.FC = () => {
               {soldier.first_name} {soldier.last_name}
               <span className="text-sm font-normal text-gray-400 mr-2">({soldier.personal_number})</span>
             </h2>
-            <div className="flex gap-2">
-              <button
-                onClick={handleOpenCall}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                title="פתח קריאה חדשה לחייל זה"
-              >
-                + קריאה
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                {saving ? 'שומר...' : 'שמור שינויים'}
-              </button>
-            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {saving ? 'שומר...' : 'שמור שינויים'}
+            </button>
           </div>
 
           {saveSuccess && (
