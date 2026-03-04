@@ -15,7 +15,11 @@
       "Bash(netstat:*)",
       "WebFetch(domain:green-api.com)",
       "Bash(lsof -i :3000 -i :5173)",
-      "Bash(npx tsx src/seed.ts)"
+      "Bash(npx tsx src/seed.ts)",
+      "Bash(git branch -D claude/optimistic-rosalind)",
+      "Bash(docker compose -f docker-compose.dev.yml ps)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(docker restart crm-api-dev)"
     ]
   }
 }
