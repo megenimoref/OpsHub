@@ -19,7 +19,11 @@
       "Bash(git branch -D claude/optimistic-rosalind)",
       "Bash(docker compose -f docker-compose.dev.yml ps)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(docker restart crm-api-dev)"
+      "Bash(docker restart crm-api-dev)",
+      "Bash(docker compose down)",
+      "Bash(docker compose up --build -d)",
+      "Bash(ls -la /c/CRM/backend/.env*)",
+      "Bash(docker compose restart api)"
     ]
   }
 }
