@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -11,21 +11,7 @@ interface ImportResult {
   unknownHeaders?: string[];
 }
 
-interface UserItem {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-}
-
-interface BattalionStats {
-  total: number;
-  unallocated: number;
-}
-
 export const BattalionImportPage: React.FC = () => {
-  // Import states
   const [battalionName, setBattalionName] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,72 +19,6 @@ export const BattalionImportPage: React.FC = () => {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-
-  // Allocation states
-  const [battalions, setBattalions] = useState<string[]>([]);
-  const [staffUsers, setStaffUsers] = useState<UserItem[]>([]);
-  const [selectedBattalion, setSelectedBattalion] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<number | null>(null);
-  const [stats, setStats] = useState<BattalionStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [allocationCount, setAllocationCount] = useState<string>('');
-  const [allocating, setAllocating] = useState(false);
-  const [allocMessage, setAllocMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Load battalions and staff users on mount
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [battalionsRes, usersRes] = await Promise.all([
-          api.get<{ battalions: string[] }>('/battalion/list'),
-          api.get<UserItem[]>('/users'),
-        ]);
-
-        setBattalions(battalionsRes.data.battalions || []);
-        const staff = usersRes.data.filter((u) => u.role === 'staff') || [];
-        setStaffUsers(staff);
-      } catch (err) {
-        console.error('Failed to load data:', err);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Load battalion stats when a battalion is selected
-  useEffect(() => {
-    if (!selectedBattalion) {
-      setStats(null);
-      return;
-    }
-
-    const fetchStats = async () => {
-      try {
-        setStatsLoading(true);
-        const soldiersRes = await api.get<{ soldiers: any[] }>(
-          `/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`
-        );
-        const total = soldiersRes.data.soldiers?.length || 0;
-
-        const allocatedRes = await api.get<any[]>(
-          `/battalion/allocations/${encodeURIComponent(selectedBattalion)}`
-        );
-        const allocated = allocatedRes.data?.length || 0;
-
-        setStats({
-          total,
-          unallocated: total - allocated,
-        });
-      } catch (err) {
-        console.error('Failed to load stats:', err);
-        setStats(null);
-      } finally {
-        setStatsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [selectedBattalion]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] || null;
@@ -112,104 +32,35 @@ export const BattalionImportPage: React.FC = () => {
     setError('');
     setResult(null);
 
-    if (!battalionName.trim()) {
-      setError('יש להזין שם גדוד');
-      return;
-    }
-    if (!file) {
-      setError('יש לבחור קובץ Excel');
-      return;
-    }
+    if (!battalionName.trim()) { setError('יש להזין שם גדוד'); return; }
+    if (!file) { setError('יש לבחור קובץ Excel'); return; }
 
     setLoading(true);
     try {
       const formData = new FormData();
       formData.append('battalionName', battalionName.trim());
       formData.append('file', file);
-
       const response = await api.post<ImportResult>('/battalion/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-
       setResult(response.data);
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: any) {
-      const msg = err.response?.data?.error || err.message || 'שגיאה ביבוא הגדוד';
-      setError(msg);
+      setError(err.response?.data?.error || err.message || 'שגיאה ביבוא הגדוד');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAllocate = async () => {
-    if (!selectedBattalion || !selectedUser || !allocationCount) {
-      setAllocMessage({ type: 'error', text: 'בחר גדוד, משתמש וכמות חיילים' });
-      return;
-    }
-
-    const count = parseInt(allocationCount, 10);
-    if (isNaN(count) || count <= 0) {
-      setAllocMessage({ type: 'error', text: 'הכנס מספר חיקי של חיילים' });
-      return;
-    }
-
-    if (stats && count > stats.unallocated) {
-      setAllocMessage({
-        type: 'error',
-        text: `לא ניתן להקצות יותר מ-${stats.unallocated} חיילים`
-      });
-      return;
-    }
-
-    setAllocating(true);
-    try {
-      await api.post('/battalion/allocate', {
-        battalionName: selectedBattalion,
-        allocations: [{ userId: selectedUser, count }],
-      });
-
-      setAllocMessage({
-        type: 'success',
-        text: `${count} חיילים הוקצו בהצלחה`
-      });
-      setAllocationCount('');
-
-      // Refresh stats
-      if (selectedBattalion) {
-        const soldiersRes = await api.get<{ soldiers: any[] }>(
-          `/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`
-        );
-        const total = soldiersRes.data.soldiers?.length || 0;
-        const allocatedRes = await api.get<any[]>(
-          `/battalion/allocations/${encodeURIComponent(selectedBattalion)}`
-        );
-        const allocated = allocatedRes.data?.length || 0;
-        setStats({
-          total,
-          unallocated: total - allocated,
-        });
-      }
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'שגיאה בהקצאת חיילים';
-      setAllocMessage({ type: 'error', text: errorMsg });
-    } finally {
-      setAllocating(false);
-    }
-  };
-
-  const selectedUserName = selectedUser
-    ? staffUsers.find((u) => u.id === selectedUser)
-      ? `${staffUsers.find((u) => u.id === selectedUser)?.firstName} ${staffUsers.find((u) => u.id === selectedUser)?.lastName}`
-      : ''
-    : '';
-
   return (
-    <div className="p-6 max-w-6xl mx-auto" dir="rtl">
-      {/* SECTION 1: IMPORT */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 p-8 mb-8">
-        <h1 className="text-2xl font-bold text-white mb-6 text-center">יבוא גדוד</h1>
+    <div className="p-6 max-w-3xl mx-auto" dir="rtl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-white mb-1">יבוא גדוד</h1>
+        <p className="text-gray-400 text-sm">ייבא נתוני חיילים מקובץ Excel</p>
+      </div>
 
+      <div className="bg-gray-900 rounded-xl border border-gray-700 p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Battalion name */}
           <div>
@@ -237,7 +88,7 @@ export const BattalionImportPage: React.FC = () => {
               </svg>
               <div className="flex-1 text-right">
                 {file ? (
-                  <span className="text-blue-600 font-medium">{file.name}</span>
+                  <span className="text-blue-400 font-medium">{file.name}</span>
                 ) : (
                   <span className="text-gray-400">לחץ לבחירת קובץ .xlsx</span>
                 )}
@@ -262,7 +113,7 @@ export const BattalionImportPage: React.FC = () => {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-900/40 border border-red-700 rounded-lg p-4" dir="rtl">
+            <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
               <p className="font-bold text-red-300 mb-1">שגיאה:</p>
               <p className="text-red-300 text-sm whitespace-pre-wrap">{error}</p>
             </div>
@@ -274,12 +125,8 @@ export const BattalionImportPage: React.FC = () => {
               <div className="bg-green-900/40 border border-green-700 text-green-300 px-4 py-4 rounded-lg">
                 <p className="font-bold text-lg mb-1">✓ היבוא הצליח!</p>
                 <p>{result.message}</p>
-                <p className="text-sm text-green-300 mt-1">
-                  סה"כ שורות בקובץ: {result.totalRows} | יובאו: {result.insertedRows}
-                </p>
+                <p className="text-sm mt-1">סה"כ שורות בקובץ: {result.totalRows} | יובאו: {result.insertedRows}</p>
               </div>
-
-              {/* Unknown columns shown in red */}
               {result.unknownHeaders && result.unknownHeaders.length > 0 && (
                 <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
                   <p className="font-bold text-red-300 mb-2 flex items-center gap-2">
@@ -291,9 +138,7 @@ export const BattalionImportPage: React.FC = () => {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {result.unknownHeaders.map((h) => (
-                      <span key={h} className="bg-red-900/40 text-red-300 border border-red-700 px-2 py-1 rounded text-xs font-medium">
-                        {h}
-                      </span>
+                      <span key={h} className="bg-red-900/40 text-red-300 border border-red-700 px-2 py-1 rounded text-xs font-medium">{h}</span>
                     ))}
                   </div>
                   <p className="text-xs text-red-300 mt-2">עמודות אלו לא יובאו. הן אינן קיימות בסכמת ה-DB.</p>
@@ -323,8 +168,8 @@ export const BattalionImportPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Template download link */}
-      <div className="mt-4 mb-8 text-right">
+      {/* Template download */}
+      <div className="mt-4 text-right">
         <a
           href="/api/battalion/template"
           download="battalion_template.xlsx"
@@ -336,134 +181,6 @@ export const BattalionImportPage: React.FC = () => {
           </svg>
           הורד קובץ Excel לדוגמה
         </a>
-      </div>
-
-      {/* SECTION 2: ALLOCATION */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 p-8">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">הקצאת חיילים</h2>
-
-        <div className="space-y-4 max-w-xl mx-auto">
-          {/* Dropdowns row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">בחר גדוד</label>
-              <select
-                value={selectedBattalion ?? ''}
-                onChange={(e) => {
-                  setSelectedBattalion(e.target.value || null);
-                  setAllocMessage(null);
-                }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="">-- בחר גדוד --</option>
-                {battalions.map((bn) => (
-                  <option key={bn} value={bn}>{bn}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">בחר משתמש</label>
-              <select
-                value={selectedUser ?? ''}
-                onChange={(e) => {
-                  setSelectedUser(e.target.value ? Number(e.target.value) : null);
-                  setAllocMessage(null);
-                }}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="">-- בחר משתמש --</option>
-                {staffUsers.map((u) => (
-                  <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Stats */}
-          {selectedBattalion && (
-            <div className="grid grid-cols-2 gap-3">
-              {statsLoading ? (
-                <div className="col-span-2 text-center py-6">
-                  <div className="inline-block animate-spin">
-                    <div className="w-4 h-4 border border-blue-500 border-t-transparent rounded-full"></div>
-                  </div>
-                </div>
-              ) : stats ? (
-                <>
-                  <div className="bg-blue-900/40 border border-blue-700 rounded-lg p-4">
-                    <p className="text-blue-300 text-xs mb-1">סה"כ חיילים בגדוד</p>
-                    <p className="text-2xl font-bold text-blue-100">{stats.total}</p>
-                  </div>
-                  <div className={`${
-                    stats.unallocated === 0
-                      ? 'bg-red-900/40 border-red-700'
-                      : 'bg-green-900/40 border-green-700'
-                  } border rounded-lg p-4`}>
-                    <p className={`${
-                      stats.unallocated === 0 ? 'text-red-300' : 'text-green-300'
-                    } text-xs mb-1`}>
-                      נותרו לא מוקצים
-                    </p>
-                    <p className={`text-2xl font-bold ${
-                      stats.unallocated === 0 ? 'text-red-100' : 'text-green-100'
-                    }`}>
-                      {stats.unallocated}
-                    </p>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          )}
-
-          {/* Allocation Form */}
-          {selectedBattalion && selectedUser && stats && (
-            <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-              <div>
-                <label className="block text-gray-300 text-xs mb-2">כמות חיילים להקצאה:</label>
-                <input
-                  type="number"
-                  min="0"
-                  max={stats.unallocated}
-                  value={allocationCount}
-                  onChange={(e) => {
-                    setAllocationCount(e.target.value);
-                    setAllocMessage(null);
-                  }}
-                  placeholder="0"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm"
-                />
-                <p className="text-gray-400 text-xs mt-1">
-                  ניתן להקצות עד {stats.unallocated} חיילים
-                </p>
-              </div>
-
-              <button
-                onClick={handleAllocate}
-                disabled={allocating || !allocationCount || parseInt(allocationCount) > stats.unallocated}
-                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
-              >
-                {allocating ? 'מקצה...' : 'הקצה'}
-              </button>
-
-              {allocMessage && (
-                <div className={`p-3 rounded-lg text-xs ${
-                  allocMessage.type === 'success'
-                    ? 'bg-green-900/40 border border-green-700 text-green-300'
-                    : 'bg-red-900/40 border border-red-700 text-red-300'
-                }`}>
-                  {allocMessage.text}
-                </div>
-              )}
-            </div>
-          )}
-
-          {selectedBattalion && !selectedUser && (
-            <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4 text-center">
-              <p className="text-blue-300 text-sm">בחר משתמש להמשך</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

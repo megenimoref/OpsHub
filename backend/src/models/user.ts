@@ -8,11 +8,14 @@ class User extends Model {
   public firstName!: string;
   public lastName!: string;
   public password!: string;
-  public role!: 'admin' | 'staff';
+  public role!: 'admin' | 'staff' | 'super';
   public totpSecret!: string | null;
   public totpEnabled!: boolean;
   public passwordResetToken!: string | null;
   public passwordResetExpires!: Date | null;
+  public totpResetToken!: string | null;
+  public totpResetExpires!: Date | null;
+  public totpPendingSecret!: string | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -51,7 +54,7 @@ User.init(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('admin', 'staff'),
+      type: DataTypes.ENUM('admin', 'staff', 'super'),
       defaultValue: 'staff',
       allowNull: false,
     },
@@ -72,6 +75,21 @@ User.init(
     },
     passwordResetExpires: {
       type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
+    totpResetToken: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      defaultValue: null,
+    },
+    totpResetExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
+    totpPendingSecret: {
+      type: DataTypes.STRING(255),
       allowNull: true,
       defaultValue: null,
     },

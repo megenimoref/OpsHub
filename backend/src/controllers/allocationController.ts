@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mysql from 'mysql2/promise';
+import { fn, col } from 'sequelize';
 import SoldierAllocation from '../models/soldierAllocation';
 import { getBattalionDbName } from '../services/battalionService';
 import { logger } from '../services/logger';
@@ -220,5 +221,29 @@ export const getAllocationsByBattalion = async (req: Request, res: Response): Pr
       stack: error.stack,
     });
     res.status(500).json({ error: error.message || 'שגיאה בשליפת הקצאות' });
+  }
+};
+
+// Returns total allocated soldiers per user (global, across all battalions)
+export const getUserAllocationStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const stats = await SoldierAllocation.findAll({
+      attributes: [
+        'user_id',
+        [fn('COUNT', col('soldier_personal_number')), 'count'],
+      ],
+      group: ['user_id'],
+      raw: true,
+    });
+
+    res.json(
+      stats.map((s: any) => ({
+        userId: s.user_id,
+        count: parseInt(s.count, 10) || 0,
+      }))
+    );
+  } catch (error: any) {
+    logger.error('Get user allocation stats failed', { errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה בשליפת סטטיסטיקות הקצאות' });
   }
 };

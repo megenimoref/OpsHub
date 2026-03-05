@@ -5,7 +5,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: number;
-      userRole?: 'admin' | 'staff';
+      userRole?: 'admin' | 'staff' | 'super';
       userEmail?: string;
       userFirstName?: string;
       userLastName?: string;
@@ -36,6 +36,21 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 export const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
   if (req.userRole !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+// Allows admin or super roles
+export const adminOrSuperMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (req.userRole !== 'admin' && req.userRole !== 'super') {
+    return res.status(403).json({ error: 'Access required' });
+  }
+  next();
+};
+
+export const superMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (req.userRole !== 'super') {
+    return res.status(403).json({ error: 'Super access required' });
   }
   next();
 };

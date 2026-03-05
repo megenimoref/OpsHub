@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
 import { UserCreatePage } from './pages/UserCreatePage';
 import { BattalionImportPage } from './pages/BattalionImportPage';
+import { BattalionAllocatePage } from './pages/BattalionAllocatePage';
 import { BattalionSoldierPage } from './pages/BattalionSoldierPage';
 import { MailingListPage } from './pages/MailingListPage';
 import { LogsPage } from './pages/LogsPage';
@@ -16,6 +17,8 @@ import { OpenCallsPage } from './pages/OpenCallsPage';
 import { PersonalAreaPage } from './pages/PersonalAreaPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { ForgotTotpPage } from './pages/ForgotTotpPage';
+import { ConfirmTotpResetPage } from './pages/ConfirmTotpResetPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import './index.css';
@@ -63,6 +66,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {/* All roles */}
         <NavLink to="/personal-area" onClick={closeMenu}>
           <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -71,7 +75,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           אזור אישי 360
         </NavLink>
 
-        {user.role !== 'staff' && (
+        {/* Super + Admin */}
+        {(user.role === 'super' || user.role === 'admin') && (
+          <NavLink to="/battalion/allocate" onClick={closeMenu}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            הקצאת חיילים
+          </NavLink>
+        )}
+
+        {/* Admin only */}
+        {user.role === 'admin' && (
           <>
             <NavLink to="/" onClick={closeMenu}>
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,24 +144,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               שליחה לרשימת תפוצה
             </NavLink>
 
-            {user.role === 'admin' && (
-              <>
-                <NavLink to="/users/new" onClick={closeMenu}>
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                  </svg>
-                  הכנס משתמש חדש
-                </NavLink>
-                <NavLink to="/logs" onClick={closeMenu}>
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  לוגי מערכת
-                </NavLink>
-              </>
-            )}
+            <NavLink to="/users/new" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              הכנס משתמש חדש
+            </NavLink>
+
+            <NavLink to="/logs" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              לוגי מערכת
+            </NavLink>
           </>
         )}
       </nav>
@@ -240,6 +253,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/forgot-totp" element={<ForgotTotpPage />} />
+          <Route path="/confirm-totp-reset" element={<ConfirmTotpResetPage />} />
           <Route path="/setup-totp" element={<TotpSetupPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route
@@ -247,6 +262,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <UserCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/battalion/allocate"
+            element={
+              <ProtectedRoute>
+                <BattalionAllocatePage />
               </ProtectedRoute>
             }
           />
