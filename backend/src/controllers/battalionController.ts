@@ -7,6 +7,7 @@ import {
   getSoldiersFromBattalion,
   searchSoldierByPersonalNumber,
   searchSoldierByName,
+  searchSoldierGlobal,
   updateSoldier,
   getSoldierChanges,
   getDashboardData,
@@ -228,6 +229,25 @@ export const searchSoldier = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     logger.error('Search soldier failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בחיפוש חייל' });
+  }
+};
+
+export const searchSoldierGlobalHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { personal_number } = req.query;
+    if (!personal_number) {
+      res.status(400).json({ error: 'חסר מספר אישי' });
+      return;
+    }
+    const result = await searchSoldierGlobal(String(personal_number).trim());
+    if (!result) {
+      res.status(404).json({ error: 'חייל לא נמצא' });
+      return;
+    }
+    res.json({ soldier: result.soldier, battalionName: result.battalionName });
+  } catch (error: any) {
+    logger.error('Global search failed', { errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה בחיפוש' });
   }
 };
 

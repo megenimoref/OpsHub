@@ -510,6 +510,17 @@ export async function searchSoldierByPersonalNumber(
   }
 }
 
+export async function searchSoldierGlobal(
+  personalNumber: string
+): Promise<{ soldier: SoldierFullRow; battalionName: string } | null> {
+  const battalions = await listBattalions();
+  for (const bn of battalions) {
+    const soldier = await searchSoldierByPersonalNumber(bn, personalNumber);
+    if (soldier) return { soldier, battalionName: bn };
+  }
+  return null;
+}
+
 export async function searchSoldierByName(
   battalionName: string,
   searchName: string

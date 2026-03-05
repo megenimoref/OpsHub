@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware } from '../middleware/auth';
-import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate } from '../controllers/battalionController';
+import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats } from '../controllers/allocationController';
 
 const router = Router();
@@ -29,6 +29,7 @@ router.get('/dashboard', authMiddleware, getDashboard);
 router.post('/import', authMiddleware, upload.single('file'), importBattalion);
 router.post('/allocate', authMiddleware, adminOrSuperMiddleware, allocateSoldiers);
 router.get('/allocation-stats', authMiddleware, adminOrSuperMiddleware, getUserAllocationStats);
+router.get('/search-global', authMiddleware, searchSoldierGlobalHandler);
 router.get('/my-soldiers', authMiddleware, getMySoldiers);
 router.get('/allocations/:name', authMiddleware, getAllocationsByBattalion);
 router.get('/:name/assistance-soldiers', authMiddleware, getAssistanceSoldiers);
