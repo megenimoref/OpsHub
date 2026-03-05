@@ -31,6 +31,7 @@ export const UserCreatePage: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<{ [key: number]: Partial<UserRecord> }>({});
   const [changingRoleId, setChangingRoleId] = useState<number | null>(null);
+  const [sendingTotpEmailId, setSendingTotpEmailId] = useState<number | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -140,6 +141,19 @@ export const UserCreatePage: React.FC = () => {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditData({});
+  };
+
+  const handleSendTotpEmail = async (user: UserRecord) => {
+    setSendingTotpEmailId(user.id);
+    setResetMsg('');
+    try {
+      await api.post(`/users/${user.id}/send-totp-email`);
+      setResetMsg(`מייל Google Authenticator נשלח בהצלחה אל ${user.email}`);
+    } catch (err: any) {
+      setResetMsg(err.response?.data?.error || 'שגיאה בשליחת המייל');
+    } finally {
+      setSendingTotpEmailId(null);
+    }
   };
 
   const handleRoleChange = async (user: UserRecord, newRole: 'staff' | 'admin' | 'super') => {
@@ -391,6 +405,14 @@ export const UserCreatePage: React.FC = () => {
                           className="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-md"
                         >
                           ערוך
+                        </button>
+                        <button
+                          onClick={() => handleSendTotpEmail(u)}
+                          disabled={sendingTotpEmailId === u.id}
+                          className="px-3 py-1 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-md disabled:opacity-50 whitespace-nowrap"
+                          title={`שלח מייל Google Authenticator אל ${u.email}`}
+                        >
+                          {sendingTotpEmailId === u.id ? 'שולח...' : '📧 Google Auth'}
                         </button>
                         <button
                           onClick={() => handleResetTotp(u.id, u.email)}
