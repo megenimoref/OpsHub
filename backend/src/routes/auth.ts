@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, register, setupTotp, confirmTotp, verifyTotp, resetTotp, forgotPassword, resetPassword } from '../controllers/authController';
+import { login, register, setupTotp, confirmTotp, verifyTotp, resetTotp, forgotPassword, resetPassword, forgotTotp, confirmTotpReset } from '../controllers/authController';
 import { authMiddleware, adminMiddleware } from '../middleware/auth';
 
 const router = Router();
@@ -12,5 +12,7 @@ router.post('/verify-totp', verifyTotp);
 router.delete('/reset-totp/:userId', authMiddleware, adminMiddleware, resetTotp);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
+router.post('/forgot-totp', forgotTotp);
+router.post('/confirm-totp-reset', confirmTotpReset);
 
 export default router;

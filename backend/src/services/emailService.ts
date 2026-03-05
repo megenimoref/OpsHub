@@ -12,6 +12,41 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export async function sendTotpResetEmail(to: string, qrCodeDataUrl: string, confirmUrl: string): Promise<void> {
+  const mailOptions = {
+    from: process.env.GMAIL_USER,
+    to,
+    subject: 'איפוס Google Authenticator - חמל העורף',
+    html: `
+      <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right;">
+        <h2>איפוס Google Authenticator</h2>
+        <p>קיבלת בקשה לאיפוס קוד האימות הדו-שלבי שלך.</p>
+        <p><strong>סרוק את הברקוד הבא עם אפליקציית Google Authenticator:</strong></p>
+        <div style="text-align: center; margin: 20px 0;">
+          <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 200px; height: 200px;" />
+        </div>
+        <p>לאחר הסריקה, לחץ על הכפתור להלן להפעלת הקוד החדש:</p>
+        <p style="text-align: center;">
+          <a href="${confirmUrl}" style="background-color: #0891b2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+            אפס והפעל Authenticator
+          </a>
+        </p>
+        <p style="color: #666;">הקישור יפוג תוקף בעוד שעה אחת.</p>
+        <p style="color: #666;">אם לא ביקשת זאת, אתה יכול להתעלם מהודעה זו.</p>
+        <hr />
+        <p style="color: #999; font-size: 12px;">מערכת חמל העורף</p>
+      </div>
+    `,
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`TOTP reset email sent to ${to}`);
+  } catch (error) {
+    console.error('Error sending TOTP reset email:', error);
+    throw new Error('Failed to send TOTP reset email');
+  }
+}
+
 export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
   const mailOptions = {
     from: process.env.GMAIL_USER,

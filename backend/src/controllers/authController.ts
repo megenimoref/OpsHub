@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 import User from '../models/user';
 import validator from 'validator';
 import crypto from 'crypto';
-import { sendPasswordResetEmail } from '../services/emailService';
+import { sendPasswordResetEmail, sendTotpResetEmail } from '../services/emailService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -293,6 +293,71 @@ export const forgotPassword = async (req: Request, res: Response) => {
     res.json({ success: true, message: 'Password reset email sent' });
   } catch (error) {
     console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const forgotTotp = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email || !validator.isEmail(email)) {
+      return res.status(400).json({ error: 'כתובת אימייל לא תקינה' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    // Always return success to avoid email enumeration
+    if (!user || !user.totpEnabled) {
+      return res.json({ message: 'אם כתובת האימייל קיימת במערכת, נשלח אליה מייל עם הוראות.' });
+    }
+
+    // Generate new TOTP secret + QR code
+    const secret = speakeasy.generateSecret({ name: `CRM (${email})`, length: 20 });
+    const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url || '');
+
+    // Generate reset token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await user.update({
+      totpResetToken: tokenHash,
+      totpResetExpires: expires,
+      totpPendingSecret: secret.base32,
+    });
+
+    const confirmUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm-totp-reset?token=${rawToken}`;
+    await sendTotpResetEmail(email, qrCodeDataUrl, confirmUrl);
+
+    res.json({ message: 'אם כתובת האימייל קיימת במערכת, נשלח אליה מייל עם הוראות.' });
+  } catch (error) {
+    console.error('Forgot TOTP error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const confirmTotpReset = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token is required' });
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await User.findOne({ where: { totpResetToken: tokenHash } });
+
+    if (!user || !user.totpResetExpires || new Date() > user.totpResetExpires || !user.totpPendingSecret) {
+      return res.status(400).json({ error: 'הקישור אינו תקף או שפג תוקפו' });
+    }
+
+    await user.update({
+      totpSecret: user.totpPendingSecret,
+      totpEnabled: true,
+      totpResetToken: null,
+      totpResetExpires: null,
+      totpPendingSecret: null,
+    });
+
+    res.json({ success: true, message: 'Google Authenticator אופס בהצלחה. ניתן להתחבר עם הקוד החדש.' });
+  } catch (error) {
+    console.error('Confirm TOTP reset error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };

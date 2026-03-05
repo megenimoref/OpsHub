@@ -176,6 +176,15 @@ export const Login: React.FC = () => {
                 חזור
               </button>
             </div>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-totp')}
+                className="text-sm text-cyan-400 hover:text-cyan-300 underline"
+              >
+                שכחתי Google Authenticator
+              </button>
+            </div>
           </form>
         )}
       </div>

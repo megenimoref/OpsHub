@@ -15,7 +15,7 @@ export interface User {
   email: string;
   firstName?: string;
   lastName?: string;
-  role: 'admin' | 'staff';
+  role: 'admin' | 'staff' | 'super';
   totpEnabled: boolean;
 }
 
