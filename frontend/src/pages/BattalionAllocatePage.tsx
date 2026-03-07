@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useAuthStore } from '../hooks/useAuth';
 
 interface UserItem {
   id: number;
@@ -141,6 +142,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
 };
 
 export const BattalionAllocatePage: React.FC = () => {
+  const { user: currentUser } = useAuthStore();
   const [battalions, setBattalions] = useState<string[]>([]);
   const [staffUsers, setStaffUsers] = useState<UserItem[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState<string | null>(null);
@@ -170,7 +172,12 @@ export const BattalionAllocatePage: React.FC = () => {
           api.get<UserItem[]>('/users'),
         ]);
         setBattalions(battalionsRes.data.battalions || []);
-        setStaffUsers(usersRes.data.filter((u) => u.role === 'staff') || []);
+        const allUsers = usersRes.data || [];
+        // Super users can only allocate to non-admin users
+        const allocatableUsers = currentUser?.role === 'super'
+          ? allUsers.filter((u) => u.role !== 'admin')
+          : allUsers;
+        setStaffUsers(allocatableUsers);
       } catch (err) {
         console.error('Failed to load data:', err);
       }

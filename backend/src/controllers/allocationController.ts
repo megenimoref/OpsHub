@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mysql from 'mysql2/promise';
 import { fn, col } from 'sequelize';
 import SoldierAllocation from '../models/soldierAllocation';
+import User from '../models/user';
 import { getBattalionDbName } from '../services/battalionService';
 import { logger } from '../services/logger';
 
@@ -26,6 +27,19 @@ export const allocateSoldiers = async (req: Request, res: Response): Promise<voi
       if (!alloc.userId || typeof alloc.count !== 'number' || alloc.count < 0) {
         res.status(400).json({ error: 'Invalid allocation item: userId and count (>= 0) required' });
         return;
+      }
+    }
+
+    // Super users can only allocate to non-admin users
+    if (req.userRole === 'super') {
+      const targetUserIds = allocations.map((a: any) => a.userId).filter(Boolean);
+      if (targetUserIds.length > 0) {
+        const targetUsers = await User.findAll({ where: { id: targetUserIds }, attributes: ['id', 'role'] });
+        const hasAdminTarget = targetUsers.some((u) => u.role === 'admin');
+        if (hasAdminTarget) {
+          res.status(403).json({ error: 'משתמש super לא יכול להקצות חיילים למשתמשי admin' });
+          return;
+        }
       }
     }
 

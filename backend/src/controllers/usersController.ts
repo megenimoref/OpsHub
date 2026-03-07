@@ -32,7 +32,7 @@ export const createUser = async (req: Request, res: Response) => {
       password,
       firstName: firstName || '',
       lastName: lastName || '',
-      role: ['admin', 'super', 'staff'].includes(role) ? role : 'staff',
+      role: ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff',
     });
 
     res.status(201).json({
@@ -177,7 +177,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
-    if (role !== undefined) user.role = ['admin', 'super', 'staff'].includes(role) ? role : 'staff';
+    if (role !== undefined) user.role = ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff';
 
     await user.save();
 

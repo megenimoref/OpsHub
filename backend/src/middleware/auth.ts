@@ -5,7 +5,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: number;
-      userRole?: 'admin' | 'staff' | 'super';
+      userRole?: 'admin' | 'staff' | 'super' | 'manager';
       userEmail?: string;
       userFirstName?: string;
       userLastName?: string;
@@ -51,6 +51,14 @@ export const adminOrSuperMiddleware = (req: Request, res: Response, next: NextFu
 export const superMiddleware = (req: Request, res: Response, next: NextFunction) => {
   if (req.userRole !== 'super') {
     return res.status(403).json({ error: 'Super access required' });
+  }
+  next();
+};
+
+// Allows admin, super, or manager roles (for allocation + stats)
+export const allocateMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (req.userRole !== 'admin' && req.userRole !== 'super' && req.userRole !== 'manager') {
+    return res.status(403).json({ error: 'Access required' });
   }
   next();
 };

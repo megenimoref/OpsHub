@@ -11,6 +11,8 @@ export const Login: React.FC = () => {
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
 
@@ -52,6 +54,23 @@ export const Login: React.FC = () => {
       setTotpCode('');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setForgotMsg({ type: 'error', text: 'הכנס כתובת אימייל בשדה למעלה תחילה' });
+      return;
+    }
+    setForgotLoading(true);
+    setForgotMsg(null);
+    try {
+      await authService.forgotPassword(email);
+      setForgotMsg({ type: 'success', text: `קישור איפוס סיסמה נשלח אל ${email}` });
+    } catch (err: any) {
+      setForgotMsg({ type: 'error', text: err.response?.data?.error || 'שגיאה בשליחת המייל' });
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -129,13 +148,23 @@ export const Login: React.FC = () => {
               </button>
             </div>
 
+            {forgotMsg && (
+              <div className={`p-3 rounded-md text-sm text-center ${
+                forgotMsg.type === 'success'
+                  ? 'bg-green-900/40 border border-green-700 text-green-300'
+                  : 'bg-red-900/40 border border-red-700 text-red-300'
+              }`}>
+                {forgotMsg.text}
+              </div>
+            )}
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-sm text-cyan-400 hover:text-cyan-300 underline"
+                onClick={handleForgotPassword}
+                disabled={forgotLoading}
+                className="text-sm text-cyan-400 hover:text-cyan-300 underline disabled:opacity-50"
               >
-                שכחתי סיסמה
+                {forgotLoading ? 'שולח...' : 'שכחתי סיסמה'}
               </button>
             </div>
           </form>

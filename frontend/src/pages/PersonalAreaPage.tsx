@@ -46,6 +46,10 @@ export const PersonalAreaPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [battalionFilter, setBattalionFilter] = useState<string>('all');
+  const [searchingKey, setSearchingKey] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   useEffect(() => {
     const fetchSoldiers = async () => {
@@ -63,6 +67,37 @@ export const PersonalAreaPage: React.FC = () => {
     };
     fetchSoldiers();
   }, []);
+
+  const openSearch = (key: string) => {
+    setSearchingKey(key);
+    setSearchInput('');
+    setSearchError('');
+  };
+
+  const closeSearch = () => {
+    setSearchingKey(null);
+    setSearchInput('');
+    setSearchError('');
+  };
+
+  const handleGlobalSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const pn = searchInput.trim();
+    if (!pn) return;
+    setSearchLoading(true);
+    setSearchError('');
+    try {
+      const res = await api.get(`/battalion/search-global?personal_number=${encodeURIComponent(pn)}`);
+      const { battalionName, soldier } = res.data;
+      const params = new URLSearchParams({ battalion: battalionName, personal_number: soldier.personal_number });
+      window.open(`/battalion/soldier?${params.toString()}`, '_blank');
+      closeSearch();
+    } catch (err: any) {
+      setSearchError(err.response?.data?.error || 'חייל לא נמצא');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
   const handleRowClick = (soldier: SoldierBasic) => {
     const params = new URLSearchParams({
@@ -255,43 +290,106 @@ export const PersonalAreaPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedSoldiers.map((soldier, idx) => (
-                  <tr
-                    key={`${soldier.battalion_name}-${soldier.personal_number}`}
-                    className={`border-b border-gray-700 transition-colors
-                      ${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}
-                      hover:bg-gray-700/30`}
-                  >
-                    <td className="px-3 py-2 text-center">
-                      <button
-                        onClick={() => handleRowClick(soldier)}
-                        title="פתח כרטיס חייל"
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 transition-colors"
+                {paginatedSoldiers.map((soldier, idx) => {
+                  const rowKey = `${soldier.battalion_name}-${soldier.personal_number}`;
+                  const isSearching = searchingKey === rowKey;
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <tr
+                        className={`border-b border-gray-700 transition-colors
+                          ${isSearching ? 'bg-blue-900/20' : idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/50'}
+                          hover:bg-gray-700/30`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-gray-300">{soldier.battalion_name}</td>
-                    <td className="px-4 py-3">
-                      {soldier.request_status ? (
-                        <span
-                          className="px-3 py-1 rounded-full text-white text-xs font-semibold"
-                          style={{ backgroundColor: getStatusColor(soldier.request_status) }}
+                        <td className="px-3 py-2 text-center">
+                          <button
+                            onClick={() => handleRowClick(soldier)}
+                            title="פתח כרטיס חייל"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-900/30 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-gray-300">{soldier.battalion_name}</td>
+                        <td className="px-4 py-3">
+                          {soldier.request_status ? (
+                            <span
+                              className="px-3 py-1 rounded-full text-white text-xs font-semibold"
+                              style={{ backgroundColor: getStatusColor(soldier.request_status) }}
+                            >
+                              {soldier.request_status}
+                            </span>
+                          ) : (
+                            <span className="text-gray-500 text-xs">-</span>
+                          )}
+                        </td>
+                        {/* Clickable name/number cells */}
+                        <td
+                          className="px-4 py-3 text-gray-300 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
+                          title="לחץ לחיפוש חייל אחר"
+                          onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
                         >
-                          {soldier.request_status}
-                        </span>
-                      ) : (
-                        <span className="text-gray-500 text-xs">-</span>
+                          {soldier.last_name}
+                          {!isSearching && <span className="mr-1 text-gray-600 text-xs">🔍</span>}
+                        </td>
+                        <td
+                          className="px-4 py-3 text-gray-300 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
+                          title="לחץ לחיפוש חייל אחר"
+                          onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
+                        >
+                          {soldier.first_name}
+                          {!isSearching && <span className="mr-1 text-gray-600 text-xs">🔍</span>}
+                        </td>
+                        <td
+                          className="px-4 py-3 font-medium text-gray-200 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
+                          title="לחץ לחיפוש חייל אחר"
+                          onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
+                        >
+                          {soldier.personal_number}
+                          {!isSearching && <span className="mr-1 text-gray-600 text-xs">🔍</span>}
+                        </td>
+                      </tr>
+                      {/* Inline search row */}
+                      {isSearching && (
+                        <tr className="border-b border-blue-800 bg-blue-950/40">
+                          <td colSpan={6} className="px-4 py-3">
+                            <form onSubmit={handleGlobalSearch} className="flex items-center gap-2">
+                              <span className="text-blue-300 text-xs font-medium whitespace-nowrap">חיפוש חייל לפי מספר אישי:</span>
+                              <input
+                                autoFocus
+                                type="text"
+                                value={searchInput}
+                                onChange={(e) => { setSearchInput(e.target.value); setSearchError(''); }}
+                                onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
+                                placeholder="הכנס מספר אישי..."
+                                className="flex-1 max-w-xs px-3 py-1.5 text-sm bg-gray-800 border border-blue-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <button
+                                type="submit"
+                                disabled={searchLoading || !searchInput.trim()}
+                                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg disabled:opacity-50 transition-colors"
+                              >
+                                {searchLoading ? '...' : 'חפש'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={closeSearch}
+                                className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg transition-colors"
+                              >
+                                ביטול
+                              </button>
+                              {searchError && (
+                                <span className="text-red-400 text-xs">{searchError}</span>
+                              )}
+                            </form>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-300">{soldier.last_name}</td>
-                    <td className="px-4 py-3 text-gray-300">{soldier.first_name}</td>
-                    <td className="px-4 py-3 font-medium text-gray-200">{soldier.personal_number}</td>
-                  </tr>
-                ))}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

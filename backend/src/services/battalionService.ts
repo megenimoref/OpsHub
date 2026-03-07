@@ -447,6 +447,55 @@ export async function getAssistanceStats(battalionFilter?: string): Promise<Assi
   return results;
 }
 
+export interface BattalionStatusBreakdown {
+  battalion: string;
+  byStatus: { status: string; count: number }[];
+}
+
+export async function getBattalionStatusBreakdown(battalionFilter?: string): Promise<BattalionStatusBreakdown[]> {
+  let dbNames: string[] = [];
+
+  if (battalionFilter) {
+    dbNames = [getBattalionDbName(battalionFilter)];
+  } else {
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn.end();
+    }
+  }
+
+  const results: BattalionStatusBreakdown[] = [];
+
+  for (const dbName of dbNames) {
+    const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const [rows] = await c.execute<mysql.RowDataPacket[]>(
+        `SELECT COALESCE(NULLIF(TRIM(request_status), ''), 'לא מוגדר') AS status, COUNT(*) AS count
+         FROM soldiers
+         GROUP BY status
+         ORDER BY count DESC
+         LIMIT 8`
+      );
+      results.push({
+        battalion: dbName.replace(/^battalion_/, ''),
+        byStatus: rows.map((r) => ({
+          status: r.status as string,
+          count: Number(r.count),
+        })),
+      });
+    } finally {
+      await c.end();
+    }
+  }
+
+  return results;
+}
+
 export interface AssistanceSoldier {
   firstName: string;
   lastName: string;
@@ -508,6 +557,17 @@ export async function searchSoldierByPersonalNumber(
   } finally {
     await conn.end();
   }
+}
+
+export async function searchSoldierGlobal(
+  personalNumber: string
+): Promise<{ soldier: SoldierFullRow; battalionName: string } | null> {
+  const battalions = await listBattalions();
+  for (const bn of battalions) {
+    const soldier = await searchSoldierByPersonalNumber(bn, personalNumber);
+    if (soldier) return { soldier, battalionName: bn };
+  }
+  return null;
 }
 
 export async function searchSoldierByName(
