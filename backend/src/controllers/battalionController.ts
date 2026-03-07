@@ -98,8 +98,9 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     });
 
     // Security check: cannot have both personal_number and ID number (ת.ז) in the same file
-    const tzPattern = /ת[.\s]?ז|תעודת\s*זהות|מספר\s*ת[.\s]?ז/i;
-    const hasTz = allRawHeaders.some((h) => tzPattern.test(h));
+    // Match only exact column names like "ת.ז", "ת.ז.", "תז", "תעודת זהות", "מספר ת.ז"
+    const tzPattern = /^(ת\.?ז\.?|תעודת\s*זהות|מספר\s*ת\.?ז\.?)$/i;
+    const hasTz = allRawHeaders.some((h) => tzPattern.test(h.trim()));
     const hasPersonalNumber = seenFields.has('personal_number');
     if (hasPersonalNumber && hasTz) {
       logger.info('Battalion import blocked - security violation: personal_number + tz', { battalionName, fileName: req.file.originalname });
