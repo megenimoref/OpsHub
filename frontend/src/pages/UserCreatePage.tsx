@@ -8,7 +8,7 @@ interface UserRecord {
   email: string;
   firstName?: string;
   lastName?: string;
-  role: 'admin' | 'staff' | 'super';
+  role: 'admin' | 'staff' | 'super' | 'manager';
   totpEnabled: boolean;
 }
 
@@ -18,7 +18,7 @@ export const UserCreatePage: React.FC = () => {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'staff' | 'admin' | 'super'>('staff');
+  const [role, setRole] = useState<'staff' | 'admin' | 'super' | 'manager'>('staff');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -156,7 +156,7 @@ export const UserCreatePage: React.FC = () => {
     }
   };
 
-  const handleRoleChange = async (user: UserRecord, newRole: 'staff' | 'admin' | 'super') => {
+  const handleRoleChange = async (user: UserRecord, newRole: 'staff' | 'admin' | 'super' | 'manager') => {
     setChangingRoleId(user.id);
     setResetMsg('');
     try {
@@ -271,12 +271,13 @@ export const UserCreatePage: React.FC = () => {
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'staff' | 'admin' | 'super')}
+              onChange={(e) => setRole(e.target.value as 'staff' | 'admin' | 'super' | 'manager')}
               className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white"
             >
               <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
               <option value="super">Super</option>
+              <option value="admin">Admin</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">
@@ -347,12 +348,13 @@ export const UserCreatePage: React.FC = () => {
                       <label className="block text-xs text-gray-400 mb-1">תפקיד</label>
                       <select
                         value={editData[u.id]?.role || 'staff'}
-                        onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], role: e.target.value as 'staff' | 'admin' | 'super' } })}
+                        onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], role: e.target.value as 'staff' | 'admin' | 'super' | 'manager' } })}
                         className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="staff">Staff</option>
-                        <option value="admin">Admin</option>
+                        <option value="manager">Manager</option>
                         <option value="super">Super</option>
+                        <option value="admin">Admin</option>
                       </select>
                     </div>
                     <div className="flex gap-2">
@@ -381,15 +383,17 @@ export const UserCreatePage: React.FC = () => {
                           <select
                             value={u.role}
                             disabled={changingRoleId === u.id}
-                            onChange={(e) => handleRoleChange(u, e.target.value as 'staff' | 'admin' | 'super')}
+                            onChange={(e) => handleRoleChange(u, e.target.value as 'staff' | 'admin' | 'super' | 'manager')}
                             className={`text-xs px-2 py-0.5 rounded-full border font-semibold cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-offset-gray-800 disabled:opacity-60 disabled:cursor-wait appearance-none pr-5
                               ${u.role === 'admin' ? 'bg-red-900/60 border-red-700 text-red-300 focus:ring-red-500' :
                                 u.role === 'super' ? 'bg-purple-900/60 border-purple-700 text-purple-300 focus:ring-purple-500' :
+                                u.role === 'manager' ? 'bg-green-900/60 border-green-700 text-green-300 focus:ring-green-500' :
                                 'bg-blue-900/60 border-blue-700 text-blue-300 focus:ring-blue-500'}`}
                           >
                             <option value="staff">Staff</option>
-                            <option value="admin">Admin</option>
+                            <option value="manager">Manager</option>
                             <option value="super">Super</option>
+                            <option value="admin">Admin</option>
                           </select>
                           {changingRoleId === u.id && (
                             <span className="absolute left-1 top-0.5 text-xs animate-spin">⟳</span>

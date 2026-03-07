@@ -14,6 +14,7 @@ import {
   getGlobalStats,
   getBattalionPieStats,
   getAssistanceStats,
+  getBattalionStatusBreakdown,
   getSoldiersByAssistanceType,
   SoldierRow,
 } from '../services/battalionService';
@@ -79,19 +80,34 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     const columnIndexMap: Record<number, keyof SoldierRow> = {};
     const seenFields = new Set<keyof SoldierRow>();
     const unknownHeaders: string[] = [];
+    const allRawHeaders: string[] = [];
 
     headerRow.eachCell((cell, colNumber) => {
       const header = cell.text?.trim();
-      if (header && COLUMN_MAP[header]) {
+      if (!header) return;
+      allRawHeaders.push(header);
+      if (COLUMN_MAP[header]) {
         const field = COLUMN_MAP[header];
         if (!seenFields.has(field)) {
           columnIndexMap[colNumber] = field;
           seenFields.add(field);
         }
-      } else if (header) {
+      } else {
         unknownHeaders.push(header);
       }
     });
+
+    // Security check: cannot have both personal_number and ID number (ת.ז) in the same file
+    const tzPattern = /ת[.\s]?ז|תעודת\s*זהות|מספר\s*ת[.\s]?ז/i;
+    const hasTz = allRawHeaders.some((h) => tzPattern.test(h));
+    const hasPersonalNumber = seenFields.has('personal_number');
+    if (hasPersonalNumber && hasTz) {
+      logger.info('Battalion import blocked - security violation: personal_number + tz', { battalionName, fileName: req.file.originalname });
+      res.status(400).json({
+        error: 'לפי אבטחת מידע של הלשכה המרכזית לסטטיסטיקה (הבלמ"ס), אין אפשרות לייבא קובץ המכיל גם מספר אישי וגם תעודת זהות באותו קובץ.',
+      });
+      return;
+    }
 
     logger.info('Headers parsed', {
       battalionName,
@@ -289,14 +305,15 @@ const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 export const getDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionFilter = req.query.battalion ? String(req.query.battalion) : undefined;
-    const [people, globalStats, battalions, battalionPieStats, assistanceStats] = await Promise.all([
+    const [people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown] = await Promise.all([
       getDashboardData(DASHBOARD_PEOPLE, battalionFilter),
       getGlobalStats(battalionFilter),
       listBattalions(),
       getBattalionPieStats(battalionFilter),
       getAssistanceStats(battalionFilter),
+      getBattalionStatusBreakdown(battalionFilter),
     ]);
-    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats });
+    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown });
   } catch (error: any) {
     logger.error('Dashboard error', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בטעינת דשבורד' });

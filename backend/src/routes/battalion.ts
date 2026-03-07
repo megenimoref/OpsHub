@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { authMiddleware, adminMiddleware, adminOrSuperMiddleware } from '../middleware/auth';
+import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
 import { importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats } from '../controllers/allocationController';
 
@@ -27,8 +27,8 @@ router.get('/template', authMiddleware, downloadTemplate);
 router.get('/list', authMiddleware, getBattalions);
 router.get('/dashboard', authMiddleware, getDashboard);
 router.post('/import', authMiddleware, upload.single('file'), importBattalion);
-router.post('/allocate', authMiddleware, adminOrSuperMiddleware, allocateSoldiers);
-router.get('/allocation-stats', authMiddleware, adminOrSuperMiddleware, getUserAllocationStats);
+router.post('/allocate', authMiddleware, allocateMiddleware, allocateSoldiers);
+router.get('/allocation-stats', authMiddleware, allocateMiddleware, getUserAllocationStats);
 router.get('/search-global', authMiddleware, searchSoldierGlobalHandler);
 router.get('/my-soldiers', authMiddleware, getMySoldiers);
 router.get('/allocations/:name', authMiddleware, getAllocationsByBattalion);

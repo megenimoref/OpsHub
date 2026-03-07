@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from 'recharts';
 import api from '../services/api';
 
 interface PersonDashboard {
@@ -36,12 +39,18 @@ interface AssistanceSoldier {
   value: string;
 }
 
+interface BattalionStatusBreakdown {
+  battalion: string;
+  byStatus: { status: string; count: number }[];
+}
+
 interface DashboardResponse {
   people: PersonDashboard[];
   globalStats: GlobalStats;
   battalions: string[];
   battalionPieStats: BattalionPieStat[];
   assistanceStats: AssistanceStat[];
+  battalionStatusBreakdown: BattalionStatusBreakdown[];
 }
 
 const PERSON_COLORS: Record<string, string> = {
@@ -64,11 +73,12 @@ export const DashboardPage: React.FC = () => {
   const [battalions, setBattalions] = useState<string[]>([]);
   const [battalionPieStats, setBattalionPieStats] = useState<BattalionPieStat[]>([]);
   const [assistanceStats, setAssistanceStats] = useState<AssistanceStat[]>([]);
+  const [battalionStatusBreakdown, setBattalionStatusBreakdown] = useState<BattalionStatusBreakdown[]>([]);
   const [expandedBar, setExpandedBar] = useState<{ battalion: string; type: string } | null>(null);
   const [expandedSoldiers, setExpandedSoldiers] = useState<AssistanceSoldier[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [selectedBattalion, setSelectedBattalion] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'battalionStatus'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'battalionStatus' | 'comparison'>('general');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -88,6 +98,9 @@ export const DashboardPage: React.FC = () => {
         }
         if (res.data.assistanceStats) {
           setAssistanceStats(res.data.assistanceStats);
+        }
+        if (res.data.battalionStatusBreakdown) {
+          setBattalionStatusBreakdown(res.data.battalionStatusBreakdown);
         }
       })
       .catch(() => setError('שגיאה בטעינת הדשבורד'))
@@ -147,7 +160,39 @@ export const DashboardPage: React.FC = () => {
   const TABS = [
     { key: 'general', label: 'כללי' },
     { key: 'battalionStatus', label: 'סטטוס פניות לפי גדוד' },
+    { key: 'comparison', label: 'השוואה בין גדודים' },
   ] as const;
+
+  // --- Comparison tab derived data ---
+  const coverageChartData = battalionPieStats.map((s) => ({
+    name: s.battalion,
+    'נענו': s.contactedSoldiers,
+    'לא נענו': s.totalSoldiers - s.contactedSoldiers,
+    'סה"כ': s.totalSoldiers,
+  }));
+
+  const assistanceChartData = assistanceStats.map((s) => ({
+    name: s.battalion,
+    'ביטוח לאומי': s.nationalInsurance,
+    'קרן סיוע': s.welfareFund,
+    'סיוע אחר': s.otherAssistance,
+  }));
+
+  // All unique statuses across all battalions (top 6 most common overall)
+  const statusTotals: Record<string, number> = {};
+  battalionStatusBreakdown.forEach((b) =>
+    b.byStatus.forEach(({ status, count }) => {
+      statusTotals[status] = (statusTotals[status] || 0) + count;
+    })
+  );
+  const topStatuses = Object.entries(statusTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([s]) => s);
+
+  const STATUS_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+  const COVERAGE_COLORS = { 'נענו': '#10b981', 'לא נענו': '#4b5563' };
+  const ASSISTANCE_COLORS = { 'ביטוח לאומי': '#3b82f6', 'קרן סיוע': '#f59e0b', 'סיוע אחר': '#a855f7' };
 
   return (
     <div className="p-4 md:p-6" dir="rtl">
@@ -315,6 +360,148 @@ export const DashboardPage: React.FC = () => {
         </>
       )}
 
+      {/* Tab: Comparison */}
+      {activeTab === 'comparison' && (
+        <div className="space-y-8">
+
+          {/* Section 1: Coverage comparison */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">כיסוי חיילים לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">מספר חיילים שנוצר עמם קשר מול לא נוצר קשר</p>
+            {coverageChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={coverageChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                    itemStyle={{ color: '#d1d5db' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                  <Bar dataKey="נענו" fill={COVERAGE_COLORS['נענו']} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="לא נענו" fill={COVERAGE_COLORS['לא נענו']} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 2: Assistance comparison */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">צורכי סיוע לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">השוואת סוגי הסיוע הנדרש בין הגדודים</p>
+            {assistanceChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={assistanceChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                    itemStyle={{ color: '#d1d5db' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                  <Bar dataKey="ביטוח לאומי" fill={ASSISTANCE_COLORS['ביטוח לאומי']} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="קרן סיוע" fill={ASSISTANCE_COLORS['קרן סיוע']} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="סיוע אחר" fill={ASSISTANCE_COLORS['סיוע אחר']} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 3: Status breakdown — stacked bar comparison */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">סטטוס התקדמות טיפול לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">פילוח סטטוסי פנייה — השוואה בין גדודים (stacked)</p>
+            {battalionStatusBreakdown.length > 0 && topStatuses.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={battalionStatusBreakdown.map((bat) => {
+                      const entry: Record<string, string | number> = { name: bat.battalion };
+                      topStatuses.forEach((s) => {
+                        entry[s] = bat.byStatus.find((b) => b.status === s)?.count ?? 0;
+                      });
+                      return entry;
+                    })}
+                    margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                    <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                      itemStyle={{ color: '#d1d5db' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
+                    {topStatuses.map((status, idx) => (
+                      <Bar key={status} dataKey={status} stackId="a" fill={STATUS_COLORS[idx % STATUS_COLORS.length]} />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+                {/* Legend colors */}
+                <div className="flex flex-wrap gap-3 mt-3 justify-center">
+                  {topStatuses.map((s, idx) => (
+                    <span key={s} className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: STATUS_COLORS[idx % STATUS_COLORS.length] }} />
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 4: Summary table */}
+          {battalionPieStats.length > 0 && (
+            <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+              <h2 className="text-base font-semibold text-white mb-4">טבלת סיכום השוואתית</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-right">
+                  <thead>
+                    <tr className="border-b border-gray-700 text-gray-400 text-xs">
+                      <th className="py-2 px-3">גדוד</th>
+                      <th className="py-2 px-3">סה"כ חיילים</th>
+                      <th className="py-2 px-3">נוצר קשר</th>
+                      <th className="py-2 px-3">% כיסוי</th>
+                      <th className="py-2 px-3">ביטוח לאומי</th>
+                      <th className="py-2 px-3">קרן סיוע</th>
+                      <th className="py-2 px-3">סיוע אחר</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {battalionPieStats.map((stat) => {
+                      const assistance = assistanceStats.find((a) => a.battalion === stat.battalion);
+                      const coveragePct = stat.totalSoldiers > 0
+                        ? Math.round((stat.contactedSoldiers / stat.totalSoldiers) * 100)
+                        : 0;
+                      const coverageColor = coveragePct >= 80 ? 'text-green-400' : coveragePct >= 50 ? 'text-yellow-400' : 'text-red-400';
+                      return (
+                        <tr key={stat.battalion} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                          <td className="py-2.5 px-3 font-semibold text-white">גדוד {stat.battalion}</td>
+                          <td className="py-2.5 px-3 text-gray-300">{stat.totalSoldiers}</td>
+                          <td className="py-2.5 px-3 text-green-400">{stat.contactedSoldiers}</td>
+                          <td className={`py-2.5 px-3 font-bold ${coverageColor}`}>{coveragePct}%</td>
+                          <td className="py-2.5 px-3 text-blue-400">{assistance?.nationalInsurance ?? '—'}</td>
+                          <td className="py-2.5 px-3 text-amber-400">{assistance?.welfareFund ?? '—'}</td>
+                          <td className="py-2.5 px-3 text-purple-400">{assistance?.otherAssistance ?? '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tab: Battalion Pie Charts */}
       {activeTab === 'battalionStatus' && (
         <>
@@ -420,14 +607,35 @@ export const DashboardPage: React.FC = () => {
                                             <th className="text-right py-1 px-2 font-medium text-gray-400">שם</th>
                                             <th className="text-right py-1 px-2 font-medium text-gray-400">מ.א</th>
                                             <th className="text-right py-1 px-2 font-medium text-gray-400">פירוט</th>
+                                            <th className="py-1 px-2"></th>
                                           </tr>
                                         </thead>
                                         <tbody>
                                           {expandedSoldiers.map((s, i) => (
-                                            <tr key={i} className="border-b border-gray-700/50">
+                                            <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
                                               <td className="py-1.5 px-2">{s.firstName} {s.lastName}</td>
                                               <td className="py-1.5 px-2">{s.personalNumber}</td>
                                               <td className="py-1.5 px-2 truncate max-w-[200px]">{s.value}</td>
+                                              <td className="py-1.5 px-2">
+                                                <button
+                                                  title="פתח כרטיס חייל"
+                                                  onClick={() => {
+                                                    const params = new URLSearchParams({
+                                                      battalion: expandedBar!.battalion,
+                                                      personal_number: s.personalNumber,
+                                                    });
+                                                    window.open(`/battalion/soldier?${params.toString()}`, '_blank');
+                                                  }}
+                                                  className="text-cyan-400 hover:text-cyan-300 transition-colors"
+                                                >
+                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                  </svg>
+                                                </button>
+                                              </td>
                                             </tr>
                                           ))}
                                         </tbody>
