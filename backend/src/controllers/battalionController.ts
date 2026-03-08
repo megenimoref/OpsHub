@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
+import mysql from 'mysql2/promise';
+import SoldierAllocation from '../models/soldierAllocation';
 import {
   ensureBattalionDatabase,
   importSoldiers,
@@ -19,6 +21,13 @@ import {
   SoldierRow,
 } from '../services/battalionService';
 import { logger } from '../services/logger';
+
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
+  user: process.env.DB_USER || 'crm_user',
+  password: process.env.DB_PASSWORD || '1qaz!QAZ',
+};
 
 // Hebrew column headers mapped to DB field names
 const COLUMN_MAP: Record<string, keyof SoldierRow> = {
@@ -196,6 +205,36 @@ export const getBattalions = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     logger.error('Get battalions failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בקבלת רשימת גדודים' });
+  }
+};
+
+export const deleteBattalion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.params;
+    if (!name) {
+      res.status(400).json({ error: 'חסר שם גדוד' });
+      return;
+    }
+
+    const dbName = getBattalionDbName(name);
+    logger.info('Delete battalion started', { battalionName: name, dbName });
+
+    // Drop the battalion database
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      await conn.execute(`DROP DATABASE IF EXISTS \`${dbName}\``);
+    } finally {
+      await conn.end();
+    }
+
+    // Remove all SoldierAllocation records for this battalion
+    await SoldierAllocation.destroy({ where: { battalion_name: name } });
+
+    logger.info('Delete battalion completed', { battalionName: name, dbName });
+    res.json({ success: true, message: `גדוד "${name}" נמחק בהצלחה` });
+  } catch (error: any) {
+    logger.error('Delete battalion failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה במחיקת הגדוד' });
   }
 };
 

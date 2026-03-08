@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import User from '../models/user';
@@ -27,9 +28,12 @@ export const createUser = async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const user = await User.create({
       email,
-      password,
+      password: hashedPassword,
       firstName: firstName || '',
       lastName: lastName || '',
       role: ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff',
@@ -107,8 +111,9 @@ export const resetUserPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'משתמש לא נמצא' });
     }
 
-    user.password = password;
-    await user.save();
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    await user.update({ password: hashedPassword });
 
     res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
   } catch (error) {
