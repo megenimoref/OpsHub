@@ -23,7 +23,19 @@
       "Bash(docker compose down)",
       "Bash(docker compose up --build -d)",
       "Bash(ls -la /c/CRM/backend/.env*)",
-      "Bash(docker compose restart api)"
+      "Bash(docker compose restart api)",
+      "Bash(ls /c/CRM/*.env /c/CRM/.env* /c/CRM/backend/.env*)",
+      "Bash(ls /c/CRM/docker-compose*.yml)",
+      "Bash(docker compose -f docker-compose.dev.yml logs --tail=30 api)",
+      "Bash(docker compose -f docker-compose.dev.yml logs --tail=20 web)",
+      "Bash(docker compose -f docker-compose.dev.yml logs --tail=10 api)",
+      "Bash(docker compose -f docker-compose.dev.yml logs --tail=5 api)",
+      "Bash(docker compose -f docker-compose.dev.yml logs api)",
+      "Bash(docker compose -f docker-compose.dev.yml stop web)",
+      "Bash(docker compose -f docker-compose.dev.yml up --no-recreate)",
+      "Bash(docker compose -f docker-compose.dev.yml up)",
+      "Bash(where gh)",
+      "Bash(winget list GitHub.cli)"
     ]
   }
 }

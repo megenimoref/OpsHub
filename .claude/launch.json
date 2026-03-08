@@ -4,8 +4,9 @@
     {
       "name": "CRM Dev (Docker)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /c/CRM && docker compose -f docker-compose.dev.yml up -d --no-recreate 2>&1; docker compose -f docker-compose.dev.yml logs -f web 2>&1"],
-      "port": 5173
+      "runtimeArgs": ["-c", "cd /c/CRM && docker compose -f docker-compose.dev.yml up 2>&1"],
+      "port": 5173,
+      "autoPort": false
     }
   ]
 }
