@@ -95,6 +95,21 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <br />
           <span className="text-xs font-normal text-gray-400">מערכת מידע</span>
         </h1>
+        {user && (
+          <div className="mt-3 text-center">
+            <p className="text-sm font-medium text-gray-200 leading-tight">
+              {user.firstName} {user.lastName}
+            </p>
+            <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+              user.role === 'admin' ? 'bg-red-900/60 text-red-300' :
+              user.role === 'super' ? 'bg-purple-900/60 text-purple-300' :
+              user.role === 'manager' ? 'bg-blue-900/60 text-blue-300' :
+              'bg-gray-700/60 text-gray-300'
+            }`}>
+              {{ admin: 'מנהל מערכת', super: 'סופרוויזר', manager: 'דרג פיקודי', staff: 'צוות' }[user.role]}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

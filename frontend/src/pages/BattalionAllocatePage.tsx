@@ -154,6 +154,8 @@ export const BattalionAllocatePage: React.FC = () => {
   const [allocMessage, setAllocMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [userAllocStats, setUserAllocStats] = useState<UserAllocStat[]>([]);
   const [battalionUserCounts, setBattalionUserCounts] = useState<UserAllocStat[]>([]);
+  const [deallocating, setDeallocating] = useState(false);
+  const [deallocMessage, setDeallocMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUserAllocStats = async () => {
     try {
@@ -255,6 +257,24 @@ export const BattalionAllocatePage: React.FC = () => {
     }
   };
 
+  const handleDeallocate = async () => {
+    if (!selectedBattalion || !selectedUser) return;
+    setDeallocating(true);
+    setDeallocMessage(null);
+    try {
+      const { data } = await api.post<{ removed: number; kept: number; message: string }>('/battalion/deallocate', {
+        battalionName: selectedBattalion,
+        userId: selectedUser,
+      });
+      setDeallocMessage({ type: 'success', text: `${data.removed} חיילים הוסרו, ${data.kept} נשארו (טופלה/טופל)` });
+      await Promise.all([refreshStats(), fetchUserAllocStats()]);
+    } catch (err: any) {
+      setDeallocMessage({ type: 'error', text: err.response?.data?.error || 'שגיאה בהסרת חיילים' });
+    } finally {
+      setDeallocating(false);
+    }
+  };
+
   // Pie chart data: per-battalion when battalion selected, global otherwise
   const pieData = selectedBattalion ? battalionUserCounts : userAllocStats;
   const pieLabel = selectedBattalion || 'כל הגדודים';
@@ -353,6 +373,28 @@ export const BattalionAllocatePage: React.FC = () => {
         {selectedBattalion && !selectedUser && (
           <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4 text-center">
             <p className="text-blue-300 text-sm">בחר משתמש להמשך</p>
+          </div>
+        )}
+
+        {/* Deallocate section */}
+        {selectedBattalion && selectedUser && (
+          <div className="bg-gray-800 rounded-lg p-4 space-y-3 border border-red-800/50">
+            <div>
+              <p className="text-red-300 text-xs font-semibold mb-1">הורדת חיילים מהמשתמש</p>
+              <p className="text-gray-400 text-xs">מסיר את כל החיילים שסטטוסם אינו "טופלה" / "טופל"</p>
+            </div>
+            <button
+              onClick={handleDeallocate}
+              disabled={deallocating}
+              className="w-full px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+            >
+              {deallocating ? 'מסיר...' : 'הורד חיילים'}
+            </button>
+            {deallocMessage && (
+              <div className={`p-3 rounded-lg text-xs ${deallocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
+                {deallocMessage.text}
+              </div>
+            )}
           </div>
         )}
       </div>

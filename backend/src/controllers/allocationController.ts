@@ -238,6 +238,76 @@ export const getAllocationsByBattalion = async (req: Request, res: Response): Pr
   }
 };
 
+export const deallocateSoldiers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { battalionName, userId } = req.body;
+
+    if (!battalionName || !userId) {
+      res.status(400).json({ error: 'נדרשים battalionName ו-userId' });
+      return;
+    }
+
+    logger.info('Deallocate soldiers started', { battalionName, userId });
+
+    // Step 1: Find all allocations for this user + battalion
+    const allocations = await SoldierAllocation.findAll({
+      where: { battalion_name: battalionName, user_id: userId },
+      attributes: ['soldier_personal_number'],
+    });
+
+    if (allocations.length === 0) {
+      res.json({ removed: 0, kept: 0, message: 'אין חיילים מוקצים למשתמש זה בגדוד' });
+      return;
+    }
+
+    const personalNumbers = allocations.map((a) => a.soldier_personal_number);
+
+    // Step 2: Query battalion DB for request_status
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    const statusMap: Record<string, string> = {};
+    try {
+      const placeholders = personalNumbers.map(() => '?').join(',');
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT personal_number, request_status FROM soldiers WHERE personal_number IN (${placeholders})`,
+        personalNumbers
+      );
+      for (const row of rows) {
+        statusMap[row.personal_number] = row.request_status || '';
+      }
+    } finally {
+      await conn.end();
+    }
+
+    // Step 3: Remove only soldiers whose status is NOT 'טופלה' / 'טופל'
+    const HANDLED = ['טופלה', 'טופל'];
+    const toRemove = personalNumbers.filter((pn) => !HANDLED.includes(statusMap[pn]));
+    const kept = personalNumbers.length - toRemove.length;
+
+    if (toRemove.length > 0) {
+      await SoldierAllocation.destroy({
+        where: {
+          battalion_name: battalionName,
+          user_id: userId,
+          soldier_personal_number: toRemove,
+        },
+      });
+    }
+
+    logger.info('Deallocate soldiers completed', { battalionName, userId, removed: toRemove.length, kept });
+
+    res.json({
+      success: true,
+      removed: toRemove.length,
+      kept,
+      message: `${toRemove.length} חיילים הוסרו מהקצאת המשתמש`,
+    });
+  } catch (error: any) {
+    logger.error('Deallocate soldiers failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בהסרת חיילים' });
+  }
+};
+
 // Returns total allocated soldiers per user (global, across all battalions)
 export const getUserAllocationStats = async (req: Request, res: Response): Promise<void> => {
   try {

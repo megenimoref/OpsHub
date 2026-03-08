@@ -13,6 +13,8 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendTotpResetEmail(to: string, qrCodeDataUrl: string, confirmUrl: string): Promise<void> {
+  // Extract base64 data from data URL (e.g. "data:image/png;base64,...")
+  const base64Data = qrCodeDataUrl.split(',')[1];
   const mailOptions = {
     from: process.env.GMAIL_USER,
     to,
@@ -23,7 +25,7 @@ export async function sendTotpResetEmail(to: string, qrCodeDataUrl: string, conf
         <p>קיבלת בקשה לאיפוס קוד האימות הדו-שלבי שלך.</p>
         <p><strong>סרוק את הברקוד הבא עם אפליקציית Google Authenticator:</strong></p>
         <div style="text-align: center; margin: 20px 0;">
-          <img src="${qrCodeDataUrl}" alt="QR Code" style="width: 200px; height: 200px;" />
+          <img src="cid:qrcode@crm" alt="QR Code" style="width: 200px; height: 200px;" />
         </div>
         <p>לאחר הסריקה, לחץ על הכפתור להלן להפעלת הקוד החדש:</p>
         <p style="text-align: center;">
@@ -37,6 +39,13 @@ export async function sendTotpResetEmail(to: string, qrCodeDataUrl: string, conf
         <p style="color: #999; font-size: 12px;">מערכת חמל העורף</p>
       </div>
     `,
+    attachments: [
+      {
+        filename: 'qrcode.png',
+        content: Buffer.from(base64Data, 'base64'),
+        cid: 'qrcode@crm',
+      },
+    ],
   };
   try {
     await transporter.sendMail(mailOptions);

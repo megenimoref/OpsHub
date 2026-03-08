@@ -332,7 +332,6 @@ export const PersonalAreaPage: React.FC = () => {
                           onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
                         >
                           {soldier.last_name}
-                          {!isSearching && <span className="mr-1 text-gray-600 text-xs">🔍</span>}
                         </td>
                         <td
                           className="px-4 py-3 text-gray-300 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
@@ -340,7 +339,6 @@ export const PersonalAreaPage: React.FC = () => {
                           onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
                         >
                           {soldier.first_name}
-                          {!isSearching && <span className="mr-1 text-gray-600 text-xs">🔍</span>}
                         </td>
                         <td
                           className="px-4 py-3 font-medium text-gray-200 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
@@ -348,7 +346,6 @@ export const PersonalAreaPage: React.FC = () => {
                           onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
                         >
                           {soldier.personal_number}
-                          {!isSearching && <span className="mr-1 text-gray-600 text-xs">🔍</span>}
                         </td>
                       </tr>
                       {/* Inline search row */}
