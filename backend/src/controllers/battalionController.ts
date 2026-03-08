@@ -18,6 +18,7 @@ import {
   getAssistanceStats,
   getBattalionStatusBreakdown,
   getSoldiersByAssistanceType,
+  getBattalionDbName,
   SoldierRow,
 } from '../services/battalionService';
 import { logger } from '../services/logger';
