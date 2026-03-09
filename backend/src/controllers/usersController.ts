@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import User from '../models/user';
@@ -107,7 +108,9 @@ export const resetUserPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'משתמש לא נמצא' });
     }
 
-    await user.update({ password });
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    await user.update({ password: hashedPassword }, { hooks: false });
 
     res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
   } catch (error) {
