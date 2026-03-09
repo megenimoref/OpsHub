@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import User from '../models/user';
@@ -393,12 +394,14 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Reset token has expired' });
     }
 
-    // Update password and clear reset fields (beforeUpdate hook handles hashing)
+    // Hash manually and skip hooks to avoid double-hashing
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
     await user.update({
-      password,
+      password: hashedPassword,
       passwordResetToken: null,
       passwordResetExpires: null,
-    });
+    }, { hooks: false });
 
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {

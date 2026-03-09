@@ -36,7 +36,9 @@
       "Bash(docker compose -f docker-compose.dev.yml up)",
       "Bash(where gh)",
       "Bash(winget list GitHub.cli)",
-      "Bash(docker info)"
+      "Bash(docker info)",
+      "Bash(git log --oneline --branches --not --remotes -10)",
+      "Bash(git push origin mvp1-8)"
     ]
   }
 }

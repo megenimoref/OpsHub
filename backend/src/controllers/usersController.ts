@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import User from '../models/user';
 import validator from 'validator';
-import { sendTotpResetEmail } from '../services/emailService';
+import { sendTotpResetEmail, sendWelcomeEmail } from '../services/emailService';
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -34,6 +35,18 @@ export const createUser = async (req: Request, res: Response) => {
       lastName: lastName || '',
       role: ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff',
     });
+
+    // Send welcome email with password setup link
+    try {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+      const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
+      await user.update({ passwordResetToken: tokenHash, passwordResetExpires: resetExpires });
+      const setupUrl = `${process.env.CORS_ORIGIN}/reset-password?token=${resetToken}`;
+      await sendWelcomeEmail(email, firstName || '', setupUrl);
+    } catch (emailError) {
+      console.error('Welcome email failed (non-fatal):', emailError);
+    }
 
     res.status(201).json({
       id: user.id,
@@ -107,7 +120,9 @@ export const resetUserPassword = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'משתמש לא נמצא' });
     }
 
-    await user.update({ password });
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    await user.update({ password: hashedPassword }, { hooks: false });
 
     res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
   } catch (error) {
