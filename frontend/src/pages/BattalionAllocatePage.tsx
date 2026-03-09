@@ -61,7 +61,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
     );
   }
 
-  const CX = 110, CY = 110, R = 95;
+  const CX = 150, CY = 150, R = 130;
   let angle = -Math.PI / 2;
 
   const slices = filtered.map((d, idx) => {
@@ -92,7 +92,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
       </div>
 
       {/* SVG pie */}
-      <svg viewBox="0 0 220 220" className="w-52 h-52">
+      <svg viewBox="0 0 300 300" className="w-72 h-72">
         {slices.length === 1 ? (
           /* Single user = full circle — SVG arc can't draw 360°, use <circle> instead */
           <circle cx={CX} cy={CY} r={R} fill={slices[0].color} stroke="#111827" strokeWidth="2.5" />
@@ -105,34 +105,34 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
         {slices.length > 1 && slices.map(({ lx, ly, d, pct }, i) =>
           pct > 0.06 ? (
             <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
-              fontSize="13" fontWeight="bold" fill="white">
+              fontSize="17" fontWeight="bold" fill="white">
               {d.count}
             </text>
           ) : null
         )}
         {/* Centre hole */}
-        <circle cx={CX} cy={CY} r={28} fill="#111827" />
-        <text x={CX} y={CY - 5} textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="bold" fill="white">
+        <circle cx={CX} cy={CY} r={38} fill="#111827" />
+        <text x={CX} y={CY - 7} textAnchor="middle" dominantBaseline="middle" fontSize="18" fontWeight="bold" fill="white">
           {total}
         </text>
-        <text x={CX} y={CY + 11} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="#9ca3af">
+        <text x={CX} y={CY + 13} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="#9ca3af">
           סה״כ
         </text>
       </svg>
 
       {/* Legend */}
-      <div className="mt-4 w-full space-y-1.5">
+      <div className="mt-4 w-full space-y-2">
         {slices.map(({ color, d, user }, i) => (
           <div key={i} className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
-              <span className="text-sm text-gray-200">
+              <span className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+              <span className="text-base text-gray-200">
                 {user ? `${user.firstName} ${user.lastName}` : `משתמש ${d.userId}`}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{Math.round(d.count / total * 100)}%</span>
-              <span className="text-sm font-bold text-white w-8 text-left">{d.count}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{Math.round(d.count / total * 100)}%</span>
+              <span className="text-base font-bold text-white w-10 text-left">{d.count}</span>
             </div>
           </div>
         ))}
@@ -156,6 +156,7 @@ export const BattalionAllocatePage: React.FC = () => {
   const [battalionUserCounts, setBattalionUserCounts] = useState<UserAllocStat[]>([]);
   const [deallocating, setDeallocating] = useState(false);
   const [deallocMessage, setDeallocMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [deallocCount, setDeallocCount] = useState<string>('');
 
   const fetchUserAllocStats = async () => {
     try {
@@ -259,14 +260,21 @@ export const BattalionAllocatePage: React.FC = () => {
 
   const handleDeallocate = async () => {
     if (!selectedBattalion || !selectedUser) return;
+    const count = deallocCount ? parseInt(deallocCount, 10) : undefined;
+    if (deallocCount && (isNaN(count!) || count! <= 0)) {
+      setDeallocMessage({ type: 'error', text: 'הכנס מספר חוקי' });
+      return;
+    }
     setDeallocating(true);
     setDeallocMessage(null);
     try {
       const { data } = await api.post<{ removed: number; kept: number; message: string }>('/battalion/deallocate', {
         battalionName: selectedBattalion,
         userId: selectedUser,
+        ...(count !== undefined && { count }),
       });
       setDeallocMessage({ type: 'success', text: `${data.removed} חיילים הוסרו, ${data.kept} נשארו (טופלה/טופל)` });
+      setDeallocCount('');
       await Promise.all([refreshStats(), fetchUserAllocStats()]);
     } catch (err: any) {
       setDeallocMessage({ type: 'error', text: err.response?.data?.error || 'שגיאה בהסרת חיילים' });
@@ -381,14 +389,25 @@ export const BattalionAllocatePage: React.FC = () => {
           <div className="bg-gray-800 rounded-lg p-4 space-y-3 border border-red-800/50">
             <div>
               <p className="text-red-300 text-xs font-semibold mb-1">הורדת חיילים מהמשתמש</p>
-              <p className="text-gray-400 text-xs">מסיר את כל החיילים שסטטוסם אינו "טופלה" / "טופל"</p>
+              <p className="text-gray-400 text-xs">מוריד חיילים שסטטוסם אינו "טופלה" / "טופל". השאר ריק להורדת כולם.</p>
+            </div>
+            <div>
+              <label className="block text-gray-300 text-xs mb-2">כמות חיילים להורדה (אופציונלי):</label>
+              <input
+                type="number"
+                min="1"
+                value={deallocCount}
+                onChange={(e) => { setDeallocCount(e.target.value); setDeallocMessage(null); }}
+                placeholder="השאר ריק להורדת הכל"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 text-sm"
+              />
             </div>
             <button
               onClick={handleDeallocate}
               disabled={deallocating}
               className="w-full px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
             >
-              {deallocating ? 'מסיר...' : 'הורד חיילים'}
+              {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'הורד את כולם'}
             </button>
             {deallocMessage && (
               <div className={`p-3 rounded-lg text-xs ${deallocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>

@@ -530,7 +530,7 @@ export async function getSoldiersFromBattalion(battalionName: string): Promise<S
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-      `SELECT personal_number, first_name, last_name, mobile_phone FROM soldiers`
+      `SELECT personal_number, first_name, last_name, mobile_phone FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`
     );
     return rows as SoldierRow[];
   } finally {

@@ -24,28 +24,12 @@ export const BattalionImportPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [battalions, setBattalions] = useState<string[]>([]);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     api.get<{ battalions: string[] }>('/battalion/list')
       .then(({ data }) => setBattalions(data.battalions || []))
       .catch(() => {});
   }, []);
-
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
-    setDeleting(true);
-    try {
-      await api.delete(`/battalion/${encodeURIComponent(confirmDelete)}`);
-      setBattalions((prev) => prev.filter((b) => b !== confirmDelete));
-      setConfirmDelete(null);
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'שגיאה במחיקת הגדוד');
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   const handleDownloadTemplate = async () => {
     setTemplateLoading(true);
@@ -222,60 +206,10 @@ export const BattalionImportPage: React.FC = () => {
           <h2 className="text-lg font-semibold text-white mb-4">גדודים קיימים</h2>
           <div className="space-y-2">
             {battalions.map((bn) => (
-              <div key={bn} className="flex items-center justify-between px-4 py-2.5 bg-gray-800 rounded-lg">
+              <div key={bn} className="px-4 py-2.5 bg-gray-800 rounded-lg">
                 <span className="text-gray-200 text-sm">{bn}</span>
-                <button
-                  onClick={() => setConfirmDelete(bn)}
-                  className="flex items-center gap-1.5 px-3 py-1 text-xs text-red-400 border border-red-700/50 rounded-md hover:bg-red-900/30 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  מחק גדוד
-                </button>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation modal */}
-      {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" dir="rtl">
-          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-red-900/50 border border-red-700 rounded-full flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-white font-semibold">מחיקת גדוד</h3>
-                <p className="text-gray-400 text-sm">פעולה זו אינה הפיכה</p>
-              </div>
-            </div>
-            <p className="text-gray-300 text-sm mb-6">
-              האם אתה בטוח שברצונך למחוק את גדוד <strong className="text-white">"{confirmDelete}"</strong>?<br />
-              כל נתוני החיילים וההקצאות יימחקו לצמיתות.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                disabled={deleting}
-                className="flex-1 px-4 py-2 border border-gray-600 text-gray-200 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm"
-              >
-                ביטול
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-lg text-sm font-semibold disabled:opacity-50"
-              >
-                {deleting ? 'מוחק...' : 'כן, מחק'}
-              </button>
-            </div>
           </div>
         </div>
       )}

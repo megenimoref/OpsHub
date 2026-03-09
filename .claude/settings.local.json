@@ -35,7 +35,8 @@
       "Bash(docker compose -f docker-compose.dev.yml up --no-recreate)",
       "Bash(docker compose -f docker-compose.dev.yml up)",
       "Bash(where gh)",
-      "Bash(winget list GitHub.cli)"
+      "Bash(winget list GitHub.cli)",
+      "Bash(docker info)"
     ]
   }
 }
