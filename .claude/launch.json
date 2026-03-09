@@ -4,9 +4,15 @@
     {
       "name": "CRM Dev (Docker)",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd /c/CRM && docker compose -f docker-compose.dev.yml up 2>&1"],
+      "runtimeArgs": ["-c", "cd /Users/sh.azulay/crm/OpsHub && docker compose -f docker-compose.dev.yml up 2>&1"],
       "port": 5173,
       "autoPort": false
+    },
+    {
+      "name": "Frontend Dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/sh.azulay/crm/OpsHub/frontend && ./node_modules/.bin/vite --host 2>&1"],
+      "port": 5173
     }
   ]
 }

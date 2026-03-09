@@ -54,7 +54,9 @@ export const allocateSoldiers = async (req: Request, res: Response): Promise<voi
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
         'SELECT personal_number FROM soldiers ORDER BY id ASC'
       );
-      allSoldiers = rows.map((r) => ({ personal_number: r.personal_number as string }));
+      allSoldiers = rows
+        .filter((r) => r.personal_number != null && r.personal_number !== '')
+        .map((r) => ({ personal_number: r.personal_number as string }));
     } finally {
       await conn.end();
     }
@@ -240,10 +242,15 @@ export const getAllocationsByBattalion = async (req: Request, res: Response): Pr
 
 export const deallocateSoldiers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { battalionName, userId } = req.body;
+    const { battalionName, userId, count } = req.body;
 
     if (!battalionName || !userId) {
       res.status(400).json({ error: 'נדרשים battalionName ו-userId' });
+      return;
+    }
+
+    if (count !== undefined && (isNaN(Number(count)) || Number(count) <= 0)) {
+      res.status(400).json({ error: 'count חייב להיות מספר חיובי' });
       return;
     }
 
@@ -281,7 +288,10 @@ export const deallocateSoldiers = async (req: Request, res: Response): Promise<v
 
     // Step 3: Remove only soldiers whose status is NOT 'טופלה' / 'טופל'
     const HANDLED = ['טופלה', 'טופל'];
-    const toRemove = personalNumbers.filter((pn) => !HANDLED.includes(statusMap[pn]));
+    let toRemove = personalNumbers.filter((pn) => !HANDLED.includes(statusMap[pn]));
+    if (count !== undefined) {
+      toRemove = toRemove.slice(0, Number(count));
+    }
     const kept = personalNumbers.length - toRemove.length;
 
     if (toRemove.length > 0) {

@@ -393,13 +393,9 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Reset token has expired' });
     }
 
-    // Hash the new password (beforeUpdate hook doesn't work, so we do it manually)
-    const salt = await require('bcryptjs').genSalt(10);
-    const hashedPassword = await require('bcryptjs').hash(password, salt);
-
-    // Update password and clear reset fields
+    // Update password and clear reset fields (beforeUpdate hook handles hashing)
     await user.update({
-      password: hashedPassword,
+      password,
       passwordResetToken: null,
       passwordResetExpires: null,
     });
