@@ -4,8 +4,8 @@ import { authService } from '../services/authService';
 import { useAuthStore } from '../hooks/useAuth';
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState('admin@crm.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [preAuthToken, setPreAuthToken] = useState('');
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials');
