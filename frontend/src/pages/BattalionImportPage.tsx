@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { useAuthStore } from '../hooks/useAuth';
 
 interface ImportResult {
   success: boolean;
@@ -13,7 +12,6 @@ interface ImportResult {
 }
 
 export const BattalionImportPage: React.FC = () => {
-  const { user: currentUser } = useAuthStore();
   const [battalionName, setBattalionName] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
@@ -24,11 +22,14 @@ export const BattalionImportPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [battalions, setBattalions] = useState<string[]>([]);
+  const [battalionsLoading, setBattalionsLoading] = useState(true);
 
   useEffect(() => {
+    setBattalionsLoading(true);
     api.get<{ battalions: string[] }>('/battalion/list')
       .then(({ data }) => setBattalions(data.battalions || []))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setBattalionsLoading(false));
   }, []);
 
   const handleDownloadTemplate = async () => {
@@ -62,13 +63,13 @@ export const BattalionImportPage: React.FC = () => {
     setError('');
     setResult(null);
 
-    if (!battalionName.trim()) { setError('יש להזין שם גדוד'); return; }
+    if (!battalionName) { setError('יש לבחור גדוד'); return; }
     if (!file) { setError('יש לבחור קובץ Excel'); return; }
 
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('battalionName', battalionName.trim());
+      formData.append('battalionName', battalionName);
       formData.append('file', file);
       const response = await api.post<ImportResult>('/battalion/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -92,17 +93,38 @@ export const BattalionImportPage: React.FC = () => {
 
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Battalion name */}
+          {/* Battalion dropdown */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">שם הגדוד</label>
-            <input
-              type="text"
-              value={battalionName}
-              onChange={(e) => setBattalionName(e.target.value)}
-              placeholder="לדוגמה: גדוד 101"
-              className="w-full px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-right bg-gray-700 text-white placeholder-gray-400"
-              disabled={loading}
-            />
+            <label className="block text-sm font-medium text-gray-300 mb-1">גדוד</label>
+
+            {battalionsLoading ? (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-gray-400 text-sm">
+                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                טוען גדודים...
+              </div>
+            ) : battalions.length === 0 ? (
+              <div className="px-4 py-3 bg-yellow-900/30 border border-yellow-700/50 rounded-lg">
+                <p className="text-yellow-300 text-sm mb-1">אין גדודים קיימים במערכת.</p>
+                <Link
+                  to="/battalion/create"
+                  className="text-cyan-400 hover:text-cyan-300 text-sm underline"
+                >
+                  צור גדוד חדש
+                </Link>
+              </div>
+            ) : (
+              <select
+                value={battalionName}
+                onChange={(e) => { setBattalionName(e.target.value); setError(''); setResult(null); }}
+                className="w-full px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-right bg-gray-700 text-white disabled:opacity-50 cursor-pointer"
+                disabled={loading}
+              >
+                <option value="">— בחר גדוד —</option>
+                {battalions.map((bn) => (
+                  <option key={bn} value={bn}>{bn}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* File upload */}
@@ -151,12 +173,10 @@ export const BattalionImportPage: React.FC = () => {
 
           {/* Success result */}
           {result && (
-            <div className="space-y-3">
-              <div className="bg-green-900/40 border border-green-700 text-green-300 px-4 py-4 rounded-lg">
-                <p className="font-bold text-lg mb-1">✓ היבוא הצליח!</p>
-                <p>{result.message}</p>
-                <p className="text-sm mt-1">סה"כ שורות בקובץ: {result.totalRows} | יובאו: {result.insertedRows}</p>
-              </div>
+            <div className="bg-green-900/40 border border-green-700 text-green-300 px-4 py-4 rounded-lg">
+              <p className="font-bold text-lg mb-1">✓ היבוא הצליח!</p>
+              <p>{result.message}</p>
+              <p className="text-sm mt-1">סה"כ שורות בקובץ: {result.totalRows} | יובאו: {result.insertedRows}</p>
             </div>
           )}
 
@@ -164,7 +184,7 @@ export const BattalionImportPage: React.FC = () => {
           <div className="flex gap-3 justify-end">
             <button
               type="button"
-              onClick={() => navigate('/people')}
+              onClick={() => navigate('/')}
               className="px-4 py-2 border border-gray-600 text-gray-200 rounded-lg bg-gray-700 hover:bg-gray-600"
               disabled={loading}
             >
@@ -172,7 +192,7 @@ export const BattalionImportPage: React.FC = () => {
             </button>
             <button
               type="submit"
-              disabled={loading || !file || !battalionName.trim()}
+              disabled={loading || !file || !battalionName || battalionsLoading}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? 'מייבא...' : 'יבא גדוד'}
@@ -199,20 +219,6 @@ export const BattalionImportPage: React.FC = () => {
           הורד קובץ Excel לדוגמה
         </button>
       </div>
-
-      {/* Existing battalions list (admin only) */}
-      {currentUser?.role === 'admin' && battalions.length > 0 && (
-        <div className="mt-6 bg-gray-900 rounded-xl border border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">גדודים קיימים</h2>
-          <div className="space-y-2">
-            {battalions.map((bn) => (
-              <div key={bn} className="px-4 py-2.5 bg-gray-800 rounded-lg">
-                <span className="text-gray-200 text-sm">{bn}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

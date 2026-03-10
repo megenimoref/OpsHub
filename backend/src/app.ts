@@ -15,6 +15,8 @@ import chatRoutes from './routes/chat';
 import openaiRoutes from './routes/openai';
 import whatsappRoutes from './routes/whatsapp';
 import serviceCallsRoutes from './routes/serviceCalls';
+import backupRoutes from './routes/backup';
+import { startScheduler } from './services/backupService';
 import { logger } from './services/logger';
 
 const app = express();
@@ -36,6 +38,7 @@ app.use('/chat', chatRoutes);
 app.use('/openai', openaiRoutes);
 app.use('/whatsapp', whatsappRoutes);
 app.use('/service-calls', serviceCallsRoutes);
+app.use('/backup', backupRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -67,6 +70,9 @@ async function start() {
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
     });
+
+    // Start backup scheduler
+    await startScheduler();
   } catch (error) {
     console.error('Server startup failed:', error);
     process.exit(1);
