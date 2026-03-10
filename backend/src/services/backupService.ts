@@ -1,7 +1,7 @@
 import mysql from 'mysql2/promise';
 import fs from 'fs/promises';
 import path from 'path';
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { listBattalions, getBattalionDbName } from './battalionService';
 import { logger } from './logger';
 
@@ -207,7 +207,7 @@ export async function restoreFromFile(filename: string, battalionName: string): 
 
 // ─────────────────────────────── Scheduler ──────────────────────────────────
 
-let activeTask: cron.ScheduledTask | null = null;
+let activeTask: ScheduledTask | null = null;
 
 export function stopScheduler(): void {
   if (activeTask) {

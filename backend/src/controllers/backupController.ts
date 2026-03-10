@@ -56,7 +56,8 @@ export const triggerBackup = async (_req: Request, res: Response): Promise<void>
     res.json({
       success: true,
       message: `גובו ${result.success.length} גדודים${result.failed.length ? `, נכשלו: ${result.failed.join(', ')}` : ''}`,
-      ...result,
+      succeeded: result.success,
+      failed: result.failed,
     });
   } catch (error: any) {
     logger.error('Manual backup failed', { error: error.message });
