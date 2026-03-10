@@ -16,21 +16,12 @@ export interface User {
   firstName?: string;
   lastName?: string;
   role: 'admin' | 'staff' | 'super' | 'manager';
-  totpEnabled: boolean;
 }
 
 export interface AuthResponse {
   token: string;
   user: User;
-  requiresTotpSetup?: boolean;
 }
-
-export interface TotpChallengeResponse {
-  requiresTotp: true;
-  preAuthToken: string;
-}
-
-export type LoginResponse = AuthResponse | TotpChallengeResponse;
 
 export interface PeopleListResponse {
   total: number;

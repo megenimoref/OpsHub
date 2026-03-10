@@ -18,11 +18,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Force TOTP setup if not yet configured
-  if (user && !user.totpEnabled) {
-    return <Navigate to="/setup-totp" replace />;
-  }
-
   // Role-based path restrictions
   const staffAllowedPaths = ['/personal-area', '/battalion/soldier'];
   const superAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/allocate'];

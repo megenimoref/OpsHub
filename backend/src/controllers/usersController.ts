@@ -1,11 +1,10 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import speakeasy from 'speakeasy';
-import QRCode from 'qrcode';
 import User from '../models/user';
 import validator from 'validator';
-import { sendTotpResetEmail, sendWelcomeEmail } from '../services/emailService';
+import { sendWelcomeEmail } from '../services/emailService';
+import { PASSWORD_REGEX, PASSWORD_ERROR } from './authController';
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -19,8 +18,8 @@ export const createUser = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     const existingUser = await User.findOne({ where: { email } });
@@ -114,8 +113,8 @@ export const resetUserPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Password is required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     const user = await User.findByPk(targetId);
@@ -131,41 +130,6 @@ export const resetUserPassword = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Server error' });
-  }
-};
-
-export const sendTotpSetupEmail = async (req: Request, res: Response) => {
-  try {
-    const targetId = parseInt(req.params.id, 10);
-    if (isNaN(targetId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    const user = await User.findByPk(targetId);
-    if (!user) {
-      return res.status(404).json({ error: 'משתמש לא נמצא' });
-    }
-
-    const secret = speakeasy.generateSecret({ name: `CRM (${user.email})`, length: 20 });
-    const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url || '');
-
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000);
-
-    await user.update({
-      totpResetToken: tokenHash,
-      totpResetExpires: expires,
-      totpPendingSecret: secret.base32,
-    });
-
-    const confirmUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm-totp-reset?token=${rawToken}`;
-    await sendTotpResetEmail(user.email, qrCodeDataUrl, confirmUrl);
-
-    res.json({ success: true, message: `מייל Google Authenticator נשלח אל ${user.email}` });
-  } catch (error) {
-    console.error('Send TOTP setup email error:', error);
-    res.status(500).json({ error: 'שגיאה בשליחת המייל' });
   }
 };
 

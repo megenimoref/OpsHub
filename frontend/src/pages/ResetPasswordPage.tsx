@@ -28,8 +28,8 @@ export const ResetPasswordPage: React.FC = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('הסיסמה חייבת להיות לפחות 6 תווים');
+    if (!/^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) {
+      setError('הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה אחת, ספרה אחת וסימן מיוחד אחד');
       return;
     }
 
@@ -81,9 +81,9 @@ export const ResetPasswordPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="w-full px-4 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
-                placeholder="לפחות 6 תווים"
+                placeholder="8+ תווים, אות גדולה, ספרה, סימן מיוחד"
               />
             </div>
 
@@ -94,7 +94,7 @@ export const ResetPasswordPage: React.FC = () => {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="w-full px-4 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-gray-700 text-white placeholder-gray-400"
                 placeholder="אשר את הסיסמה"
               />

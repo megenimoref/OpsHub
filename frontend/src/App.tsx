@@ -10,7 +10,6 @@ import { BattalionAllocatePage } from './pages/BattalionAllocatePage';
 import { BattalionSoldierPage } from './pages/BattalionSoldierPage';
 import { MailingListPage } from './pages/MailingListPage';
 import { LogsPage } from './pages/LogsPage';
-import { TotpSetupPage } from './pages/TotpSetupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { BenefitsPage } from './pages/BenefitsPage';
@@ -18,8 +17,6 @@ import { OpenCallsPage } from './pages/OpenCallsPage';
 import { PersonalAreaPage } from './pages/PersonalAreaPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { ForgotTotpPage } from './pages/ForgotTotpPage';
-import { ConfirmTotpResetPage } from './pages/ConfirmTotpResetPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import './index.css';
@@ -80,7 +77,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const closeMenu = () => setSidebarOpen(false);
 
-  const hideSidebar = !user || location.pathname === '/login' || location.pathname === '/setup-totp';
+  const hideSidebar = !user || location.pathname === '/login';
 
   if (hideSidebar) {
     return <main>{children}</main>;
@@ -366,9 +363,6 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/forgot-totp" element={<ForgotTotpPage />} />
-          <Route path="/confirm-totp-reset" element={<ConfirmTotpResetPage />} />
-          <Route path="/setup-totp" element={<TotpSetupPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route
             path="/users/new"

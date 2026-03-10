@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import speakeasy from 'speakeasy';
-import QRCode from 'qrcode';
 import User from '../models/user';
 import validator from 'validator';
 import crypto from 'crypto';
-import { sendPasswordResetEmail, sendTotpResetEmail } from '../services/emailService';
+import { sendPasswordResetEmail } from '../services/emailService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+export const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
+export const PASSWORD_ERROR = 'הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה אחת, ספרה אחת וסימן מיוחד אחד';
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -25,226 +25,27 @@ export const login = async (req: Request, res: Response) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
     }
 
     const isPasswordValid = await user.validatePassword(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
     }
 
-    // User has not set up TOTP yet — give full token but flag setup required
-    if (!user.totpEnabled) {
-      // @ts-ignore
-      const token = jwt.sign(
-        { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
-        JWT_SECRET,
-        { expiresIn: JWT_EXPIRES_IN }
-      );
-      return res.json({
-        token,
-        user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, totpEnabled: false },
-        requiresTotpSetup: true,
-      });
-    }
-
-    // TOTP enabled — issue short-lived pre-auth token
     // @ts-ignore
-    const preAuthToken = jwt.sign(
-      { userId: user.id, preAuth: true },
+    const token = jwt.sign(
+      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
       JWT_SECRET,
-      { expiresIn: '5m' }
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
-    return res.json({ requiresTotp: true, preAuthToken });
+    return res.json({
+      token,
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+    });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-export const register = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
-    }
-
-    if (!validator.isEmail(email)) {
-      return res.status(400).json({ error: 'Invalid email format' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(409).json({ error: 'Email already registered' });
-    }
-
-    const user = await User.create({ email, password, role: 'staff' });
-
-    // @ts-ignore
-    const token = jwt.sign(
-      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    res.status(201).json({
-      token,
-      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, totpEnabled: false },
-      requiresTotpSetup: true,
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// POST /auth/setup-totp — requires full auth (not pre-auth)
-export const setupTotp = async (req: Request, res: Response) => {
-  try {
-    const user = await User.findByPk(req.userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Reuse existing secret if already generated (prevents React StrictMode double-call issues)
-    let base32Secret = user.totpSecret;
-    if (!base32Secret) {
-      const secret = speakeasy.generateSecret({
-        name: `CRM (${user.email})`,
-        length: 20,
-      });
-      base32Secret = secret.base32;
-      await user.update({ totpSecret: base32Secret });
-    }
-
-    const otpauthUrl = speakeasy.otpauthURL({
-      secret: base32Secret,
-      label: `CRM (${user.email})`,
-      encoding: 'base32',
-    });
-    const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
-
-    return res.json({
-      qrCodeUrl,
-      manualCode: base32Secret,
-    });
-  } catch (error) {
-    console.error('Setup TOTP error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// POST /auth/confirm-totp — requires full auth, verifies and enables TOTP
-export const confirmTotp = async (req: Request, res: Response) => {
-  try {
-    const { code } = req.body;
-
-    if (!code) {
-      return res.status(400).json({ error: 'Code required' });
-    }
-
-    const user = await User.findByPk(req.userId);
-    if (!user || !user.totpSecret) {
-      return res.status(400).json({ error: 'TOTP not set up. Call /auth/setup-totp first.' });
-    }
-
-    const isValid = speakeasy.totp.verify({
-      secret: user.totpSecret,
-      encoding: 'base32',
-      token: code,
-      window: 2,  // Allow ±60 seconds tolerance for time skew
-    });
-
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid code (or time out of sync)' });
-    }
-
-    await user.update({ totpEnabled: true });
-
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Confirm TOTP error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// POST /auth/verify-totp — no auth, completes login with TOTP code
-export const verifyTotp = async (req: Request, res: Response) => {
-  try {
-    const { preAuthToken, code } = req.body;
-
-    if (!preAuthToken || !code) {
-      return res.status(400).json({ error: 'preAuthToken and code required' });
-    }
-
-    let decoded: any;
-    try {
-      decoded = jwt.verify(preAuthToken, JWT_SECRET) as any;
-    } catch {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-
-    if (!decoded.preAuth) {
-      return res.status(401).json({ error: 'Invalid token type' });
-    }
-
-    const user = await User.findByPk(decoded.userId);
-    if (!user || !user.totpSecret) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const isValid = speakeasy.totp.verify({
-      secret: user.totpSecret,
-      encoding: 'base32',
-      token: code,
-      window: 2,  // Allow ±60 seconds tolerance for time skew
-    });
-
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid code (or time out of sync)' });
-    }
-
-    // @ts-ignore
-    const token = jwt.sign(
-      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    return res.json({
-      token,
-      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, totpEnabled: true },
-    });
-  } catch (error) {
-    console.error('Verify TOTP error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// DELETE /auth/reset-totp/:userId — admin only
-export const resetTotp = async (req: Request, res: Response) => {
-  try {
-    const targetId = parseInt(req.params.userId, 10);
-    if (isNaN(targetId)) {
-      return res.status(400).json({ error: 'Invalid user ID' });
-    }
-
-    const user = await User.findByPk(targetId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    await user.update({ totpSecret: null, totpEnabled: false });
-
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Reset TOTP error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
@@ -298,71 +99,6 @@ export const forgotPassword = async (req: Request, res: Response) => {
   }
 };
 
-export const forgotTotp = async (req: Request, res: Response) => {
-  try {
-    const { email } = req.body;
-    if (!email || !validator.isEmail(email)) {
-      return res.status(400).json({ error: 'כתובת אימייל לא תקינה' });
-    }
-
-    const user = await User.findOne({ where: { email } });
-    // Always return success to avoid email enumeration
-    if (!user || !user.totpEnabled) {
-      return res.json({ message: 'אם כתובת האימייל קיימת במערכת, נשלח אליה מייל עם הוראות.' });
-    }
-
-    // Generate new TOTP secret + QR code
-    const secret = speakeasy.generateSecret({ name: `CRM (${email})`, length: 20 });
-    const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url || '');
-
-    // Generate reset token
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await user.update({
-      totpResetToken: tokenHash,
-      totpResetExpires: expires,
-      totpPendingSecret: secret.base32,
-    });
-
-    const confirmUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/confirm-totp-reset?token=${rawToken}`;
-    await sendTotpResetEmail(email, qrCodeDataUrl, confirmUrl);
-
-    res.json({ message: 'אם כתובת האימייל קיימת במערכת, נשלח אליה מייל עם הוראות.' });
-  } catch (error) {
-    console.error('Forgot TOTP error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-export const confirmTotpReset = async (req: Request, res: Response) => {
-  try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'Token is required' });
-
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const user = await User.findOne({ where: { totpResetToken: tokenHash } });
-
-    if (!user || !user.totpResetExpires || new Date() > user.totpResetExpires || !user.totpPendingSecret) {
-      return res.status(400).json({ error: 'הקישור אינו תקף או שפג תוקפו' });
-    }
-
-    await user.update({
-      totpSecret: user.totpPendingSecret,
-      totpEnabled: true,
-      totpResetToken: null,
-      totpResetExpires: null,
-      totpPendingSecret: null,
-    });
-
-    res.json({ success: true, message: 'Google Authenticator אופס בהצלחה. ניתן להתחבר עם הקוד החדש.' });
-  } catch (error) {
-    console.error('Confirm TOTP reset error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
 export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { token, password } = req.body;
@@ -371,8 +107,8 @@ export const resetPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Token and password are required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     // Hash the provided token to compare with stored hash
