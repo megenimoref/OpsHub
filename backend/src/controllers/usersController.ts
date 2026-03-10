@@ -28,20 +28,23 @@ export const createUser = async (req: Request, res: Response) => {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const user = await User.create({
       email,
-      password,
+      password: hashedPassword,
       firstName: firstName || '',
       lastName: lastName || '',
       role: ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff',
-    });
+    }, { hooks: false });
 
     // Send welcome email with password setup link
     try {
       const resetToken = crypto.randomBytes(32).toString('hex');
       const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
       const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
-      await user.update({ passwordResetToken: tokenHash, passwordResetExpires: resetExpires });
+      await user.update({ passwordResetToken: tokenHash, passwordResetExpires: resetExpires }, { hooks: false });
       const setupUrl = `${process.env.CORS_ORIGIN}/reset-password?token=${resetToken}`;
       await sendWelcomeEmail(email, firstName || '', setupUrl);
     } catch (emailError) {
