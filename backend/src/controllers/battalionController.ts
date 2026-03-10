@@ -55,6 +55,34 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'פירוט/הערות': 'notes',
 };
 
+export const createBattalion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionName = req.body.battalionName?.trim();
+    if (!battalionName) {
+      res.status(400).json({ error: 'חסר מספר גדוד' });
+      return;
+    }
+
+    if (!/^\d+$/.test(battalionName)) {
+      res.status(400).json({ error: 'מספר הגדוד חייב להכיל ספרות בלבד' });
+      return;
+    }
+
+    const existing = await listBattalions();
+    if (existing.includes(battalionName)) {
+      res.status(409).json({ error: `גדוד "${battalionName}" כבר קיים` });
+      return;
+    }
+
+    await ensureBattalionDatabase(battalionName);
+    logger.info('Battalion created', { battalionName });
+    res.json({ success: true, message: `גדוד "${battalionName}" נוצר בהצלחה` });
+  } catch (error: any) {
+    logger.error('Create battalion failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה ביצירת הגדוד' });
+  }
+};
+
 export const importBattalion = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionName = req.body.battalionName?.trim();

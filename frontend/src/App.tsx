@@ -6,11 +6,11 @@ import { useInactivityLogout } from './hooks/useInactivityLogout';
 import { LoginPage } from './pages/LoginPage';
 import { UserCreatePage } from './pages/UserCreatePage';
 import { BattalionImportPage } from './pages/BattalionImportPage';
+import { BattalionCreatePage } from './pages/BattalionCreatePage';
 import { BattalionAllocatePage } from './pages/BattalionAllocatePage';
 import { BattalionSoldierPage } from './pages/BattalionSoldierPage';
 import { MailingListPage } from './pages/MailingListPage';
 import { LogsPage } from './pages/LogsPage';
-import { TotpSetupPage } from './pages/TotpSetupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { HomePage } from './pages/HomePage';
 import { BenefitsPage } from './pages/BenefitsPage';
@@ -18,8 +18,7 @@ import { OpenCallsPage } from './pages/OpenCallsPage';
 import { PersonalAreaPage } from './pages/PersonalAreaPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { ForgotTotpPage } from './pages/ForgotTotpPage';
-import { ConfirmTotpResetPage } from './pages/ConfirmTotpResetPage';
+import { BackupPage } from './pages/BackupPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import './index.css';
@@ -80,7 +79,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const closeMenu = () => setSidebarOpen(false);
 
-  const hideSidebar = !user || location.pathname === '/login' || location.pathname === '/setup-totp';
+  const hideSidebar = !user || location.pathname === '/login';
 
   if (hideSidebar) {
     return <main>{children}</main>;
@@ -215,6 +214,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               יבוא גדוד
             </NavLink>
 
+            <NavLink to="/battalion/create" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 4v16m8-8H4" />
+              </svg>
+              הוספת גדוד
+            </NavLink>
+
             <NavLink to="/battalion/soldier" onClick={closeMenu}>
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -252,6 +259,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               לוגי מערכת
+            </NavLink>
+
+            <NavLink to="/backup" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              גיבוי DB
             </NavLink>
           </>
         )}
@@ -366,9 +381,6 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/forgot-totp" element={<ForgotTotpPage />} />
-          <Route path="/confirm-totp-reset" element={<ConfirmTotpResetPage />} />
-          <Route path="/setup-totp" element={<TotpSetupPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           <Route
             path="/users/new"
@@ -391,6 +403,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <BattalionImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/battalion/create"
+            element={
+              <ProtectedRoute>
+                <BattalionCreatePage />
               </ProtectedRoute>
             }
           />
@@ -442,6 +462,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/backup" element={<ProtectedRoute><BackupPage /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         </Routes>
       </Layout>

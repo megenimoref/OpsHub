@@ -1,49 +1,12 @@
 import api from './api';
-import { AuthResponse, LoginResponse, PeopleListResponse, Person } from '../types';
+import { AuthResponse, PeopleListResponse, Person } from '../types';
 
 export const authService = {
-  login: async (email: string, password: string): Promise<LoginResponse> => {
+  login: async (email: string, password: string): Promise<AuthResponse> => {
     const { data } = await api.post('/auth/login', { email, password });
-    // If full auth returned (no TOTP or needs setup), store token
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-    }
-    return data;
-  },
-
-  register: async (email: string, password: string): Promise<AuthResponse> => {
-    const { data } = await api.post('/auth/register', { email, password });
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     return data;
-  },
-
-  verifyTotp: async (preAuthToken: string, code: string): Promise<AuthResponse> => {
-    const { data } = await api.post('/auth/verify-totp', { preAuthToken, code });
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    return data;
-  },
-
-  setupTotp: async (): Promise<{ qrCodeUrl: string; manualCode: string }> => {
-    const { data } = await api.post('/auth/setup-totp');
-    return data;
-  },
-
-  confirmTotp: async (code: string): Promise<void> => {
-    await api.post('/auth/confirm-totp', { code });
-    // Update stored user to reflect totpEnabled = true
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      user.totpEnabled = true;
-      localStorage.setItem('user', JSON.stringify(user));
-    }
-  },
-
-  resetUserTotp: async (userId: number): Promise<void> => {
-    await api.delete(`/auth/reset-totp/${userId}`);
   },
 
   resetUserPassword: async (userId: number, newPassword: string): Promise<void> => {

@@ -9,7 +9,6 @@ interface UserRecord {
   firstName?: string;
   lastName?: string;
   role: 'admin' | 'staff' | 'super' | 'manager';
-  totpEnabled: boolean;
 }
 
 export const UserCreatePage: React.FC = () => {
@@ -24,14 +23,12 @@ export const UserCreatePage: React.FC = () => {
   const [success, setSuccess] = useState('');
 
   const [users, setUsers] = useState<UserRecord[]>([]);
-  const [resettingId, setResettingId] = useState<number | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<number | null>(null);
   const [resetMsg, setResetMsg] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState<{ [key: number]: string }>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<{ [key: number]: Partial<UserRecord> }>({});
   const [changingRoleId, setChangingRoleId] = useState<number | null>(null);
-  const [sendingTotpEmailId, setSendingTotpEmailId] = useState<number | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -84,29 +81,14 @@ export const UserCreatePage: React.FC = () => {
     }
   };
 
-  const handleResetTotp = async (userId: number, userEmail: string) => {
-    if (!window.confirm(`אפס את ה-2FA של ${userEmail}?`)) return;
-    setResettingId(userId);
-    setResetMsg('');
-    try {
-      await authService.resetUserTotp(userId);
-      setResetMsg(`ה-2FA של ${userEmail} אופס בהצלחה`);
-      fetchUsers();
-    } catch (err: any) {
-      setResetMsg(err.response?.data?.error || 'שגיאה באיפוס');
-    } finally {
-      setResettingId(null);
-    }
-  };
-
   const handleResetPassword = async (userId: number, userEmail: string) => {
     const password = newPasswordInput[userId];
     if (!password) {
       setResetMsg('אנא הכנס סיסמה חדשה');
       return;
     }
-    if (password.length < 6) {
-      setResetMsg('הסיסמה חייבת להיות לפחות 6 תווים');
+    if (!/^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) {
+      setResetMsg('הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה, ספרה וסימן מיוחד');
       return;
     }
     if (!window.confirm(`אפס את הסיסמה של ${userEmail}?`)) return;
@@ -141,19 +123,6 @@ export const UserCreatePage: React.FC = () => {
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditData({});
-  };
-
-  const handleSendTotpEmail = async (user: UserRecord) => {
-    setSendingTotpEmailId(user.id);
-    setResetMsg('');
-    try {
-      await api.post(`/users/${user.id}/send-totp-email`);
-      setResetMsg(`מייל Google Authenticator נשלח בהצלחה אל ${user.email}`);
-    } catch (err: any) {
-      setResetMsg(err.response?.data?.error || 'שגיאה בשליחת המייל');
-    } finally {
-      setSendingTotpEmailId(null);
-    }
   };
 
   const handleRoleChange = async (user: UserRecord, newRole: 'staff' | 'admin' | 'super' | 'manager') => {
@@ -260,9 +229,9 @@ export const UserCreatePage: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={8}
               className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
-              placeholder="לפחות 6 תווים"
+              placeholder="8+ תווים, אות גדולה, ספרה, סימן מיוחד"
             />
           </div>
           <div>
@@ -399,9 +368,6 @@ export const UserCreatePage: React.FC = () => {
                             <span className="absolute left-1 top-0.5 text-xs animate-spin">⟳</span>
                           )}
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${u.totpEnabled ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`}>
-                          {u.totpEnabled ? '2FA פעיל' : '2FA לא מוגדר'}
-                        </span>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -409,21 +375,6 @@ export const UserCreatePage: React.FC = () => {
                           className="px-3 py-1 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-md"
                         >
                           ערוך
-                        </button>
-                        <button
-                          onClick={() => handleSendTotpEmail(u)}
-                          disabled={sendingTotpEmailId === u.id}
-                          className="px-3 py-1 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-md disabled:opacity-50 whitespace-nowrap"
-                          title={`שלח מייל Google Authenticator אל ${u.email}`}
-                        >
-                          {sendingTotpEmailId === u.id ? 'שולח...' : '📧 Google Auth'}
-                        </button>
-                        <button
-                          onClick={() => handleResetTotp(u.id, u.email)}
-                          disabled={resettingId === u.id}
-                          className="px-3 py-1 bg-red-700 hover:bg-red-600 text-white text-xs rounded-md disabled:opacity-50"
-                        >
-                          {resettingId === u.id ? 'מאפס...' : 'אפס 2FA'}
                         </button>
                         <button
                           onClick={() => handleDeleteUser(u.id, `${u.firstName} ${u.lastName}`)}
@@ -438,7 +389,7 @@ export const UserCreatePage: React.FC = () => {
                       <div className="flex-1">
                         <input
                           type="password"
-                          placeholder="סיסמה חדשה (לפחות 6 תווים)"
+                          placeholder="סיסמה חדשה (8+ תווים, אות גדולה, ספרה, סימן)"
                           value={newPasswordInput[u.id] || ''}
                           onChange={(e) => setNewPasswordInput({ ...newPasswordInput, [u.id]: e.target.value })}
                           className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
