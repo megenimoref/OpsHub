@@ -18,17 +18,17 @@ jobs:
     steps:
       - name: Pull latest code
         run: |
-          cd $HOME/OpsHub
+          cd $HOME/crm/OpsHub
           git pull origin main
 
       - name: Build & restart containers
         run: |
-          cd $HOME/OpsHub
+          cd $HOME/crm/OpsHub
           sudo docker compose --env-file .env -f docker-compose.prod.yml up -d --build
 
       - name: Health check
         run: |
           sleep 15
-          cd $HOME/OpsHub
+          cd $HOME/crm/OpsHub
           sudo docker compose -f docker-compose.prod.yml ps
           echo "Deploy complete"
