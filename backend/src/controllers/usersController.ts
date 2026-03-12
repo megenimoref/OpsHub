@@ -105,20 +105,26 @@ export const resetUserPassword = async (req: Request, res: Response) => {
     const targetId = parseInt(req.params.id, 10);
     const { password } = req.body;
 
+    console.log(`[resetUserPassword] called by userId=${req.userId} role=${req.userRole} targetId=${targetId}`);
+
     if (isNaN(targetId)) {
+      console.log(`[resetUserPassword] invalid targetId`);
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
     if (!password) {
+      console.log(`[resetUserPassword] missing password`);
       return res.status(400).json({ error: 'Password is required' });
     }
 
     if (!PASSWORD_REGEX.test(password)) {
+      console.log(`[resetUserPassword] password failed regex`);
       return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     const user = await User.findByPk(targetId);
     if (!user) {
+      console.log(`[resetUserPassword] user ${targetId} not found`);
       return res.status(404).json({ error: 'משתמש לא נמצא' });
     }
 
@@ -126,9 +132,10 @@ export const resetUserPassword = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     await user.update({ password: hashedPassword }, { hooks: false });
 
+    console.log(`[resetUserPassword] SUCCESS for user ${targetId}`);
     res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('[resetUserPassword] error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };
