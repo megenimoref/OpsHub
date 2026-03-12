@@ -50,7 +50,9 @@
       "Bash(git stash pop)",
       "Bash(git push origin mvp1-12)",
       "Bash(git add backend/src/controllers/usersController.ts backend/src/controllers/authController.ts backend/src/config/database.ts frontend/nginx.conf)",
-      "Bash(git commit -m \"fix: add password reset verification + full diagnostic logging:*)"
+      "Bash(git commit -m \"fix: add password reset verification + full diagnostic logging:*)",
+      "Bash(git checkout -b mvp1-13)",
+      "Bash(git push -u origin mvp1-13)"
     ]
   }
 }

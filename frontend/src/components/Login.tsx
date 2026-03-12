@@ -70,8 +70,8 @@ export const Login: React.FC = () => {
 
         <form className="mt-8 space-y-6" onSubmit={handleCredentialsSubmit}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm font-medium text-red-800">{error}</p>
+            <div className="rounded-md bg-red-900/70 border border-red-500 p-4">
+              <p className="text-sm font-semibold text-red-200 text-center">{error}</p>
             </div>
           )}
           <div className="rounded-md shadow-sm -space-y-px">
