@@ -5,6 +5,7 @@ import User from '../models/user';
 import validator from 'validator';
 import { sendWelcomeEmail } from '../services/emailService';
 import { PASSWORD_REGEX, PASSWORD_ERROR } from './authController';
+import { logger } from '../services/logger';
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -105,20 +106,26 @@ export const resetUserPassword = async (req: Request, res: Response) => {
     const targetId = parseInt(req.params.id, 10);
     const { password } = req.body;
 
+    logger.info(`resetUserPassword called`, { callerUserId: req.userId, callerRole: req.userRole, targetId });
+
     if (isNaN(targetId)) {
+      logger.error(`resetUserPassword invalid targetId`, { raw: req.params.id });
       return res.status(400).json({ error: 'Invalid user ID' });
     }
 
     if (!password) {
+      logger.error(`resetUserPassword missing password`, { targetId });
       return res.status(400).json({ error: 'Password is required' });
     }
 
     if (!PASSWORD_REGEX.test(password)) {
+      logger.error(`resetUserPassword password failed regex`, { targetId });
       return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     const user = await User.findByPk(targetId);
     if (!user) {
+      logger.error(`resetUserPassword user not found`, { targetId });
       return res.status(404).json({ error: 'משתמש לא נמצא' });
     }
 
@@ -126,9 +133,10 @@ export const resetUserPassword = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     await user.update({ password: hashedPassword }, { hooks: false });
 
+    logger.info(`resetUserPassword SUCCESS`, { targetId, email: user.email });
     res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
   } catch (error) {
-    console.error('Reset password error:', error);
+    logger.error(`resetUserPassword unhandled error`, { error: String(error) });
     res.status(500).json({ error: 'Server error' });
   }
 };
