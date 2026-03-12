@@ -64,6 +64,7 @@ export const UserCreatePage: React.FC = () => {
     }
   };
 
+  const [resetMessages, setResetMessages] = useState<{ [key: number]: { text: string; isError: boolean } }>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const handleDeleteUser = async (userId: number, userName: string) => {
@@ -81,26 +82,38 @@ export const UserCreatePage: React.FC = () => {
     }
   };
 
+  const setUserMsg = (userId: number, text: string, isError: boolean) => {
+    setResetMessages((prev) => ({ ...prev, [userId]: { text, isError } }));
+  };
+
+  const clearUserMsg = (userId: number) => {
+    setResetMessages((prev) => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
+  };
+
   const handleResetPassword = async (userId: number, userEmail: string) => {
     const password = newPasswordInput[userId];
     if (!password) {
-      setResetMsg('אנא הכנס סיסמה חדשה');
+      setUserMsg(userId, 'אנא הכנס סיסמה חדשה', true);
       return;
     }
     if (!/^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/.test(password)) {
-      setResetMsg('הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה, ספרה וסימן מיוחד');
+      setUserMsg(userId, 'הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה, ספרה וסימן מיוחד', true);
       return;
     }
     if (!window.confirm(`אפס את הסיסמה של ${userEmail}?`)) return;
     setResettingPasswordId(userId);
-    setResetMsg('');
+    clearUserMsg(userId);
     try {
       await authService.resetUserPassword(userId, password);
-      setResetMsg(`הסיסמה של ${userEmail} אופסה בהצלחה`);
+      setUserMsg(userId, `הסיסמה אופסה בהצלחה`, false);
       setNewPasswordInput({ ...newPasswordInput, [userId]: '' });
       fetchUsers();
     } catch (err: any) {
-      setResetMsg(err.response?.data?.error || 'שגיאה באיפוס הסיסמה');
+      setUserMsg(userId, err.response?.data?.error || 'שגיאה באיפוס הסיסמה', true);
     } finally {
       setResettingPasswordId(null);
     }
@@ -385,23 +398,35 @@ export const UserCreatePage: React.FC = () => {
                         </button>
                       </div>
                     </div>
-                    <div className="flex gap-2 items-end">
-                      <div className="flex-1">
-                        <input
-                          type="password"
-                          placeholder="סיסמה חדשה (8+ תווים, אות גדולה, ספרה, סימן)"
-                          value={newPasswordInput[u.id] || ''}
-                          onChange={(e) => setNewPasswordInput({ ...newPasswordInput, [u.id]: e.target.value })}
-                          className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                    <div className="flex flex-col gap-1">
+                      <div className="flex gap-2 items-center">
+                        <div className="flex-1">
+                          <input
+                            type="password"
+                            placeholder="סיסמה חדשה (8+ תווים, אות גדולה, ספרה, סימן)"
+                            value={newPasswordInput[u.id] || ''}
+                            onChange={(e) => {
+                              setNewPasswordInput({ ...newPasswordInput, [u.id]: e.target.value });
+                              clearUserMsg(u.id);
+                            }}
+                            className={`w-full px-2 py-1 text-xs border rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                              resetMessages[u.id]?.isError ? 'border-red-500' : 'border-gray-600'
+                            }`}
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleResetPassword(u.id, u.email)}
+                          disabled={resettingPasswordId === u.id}
+                          className="px-3 py-1 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-md disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {resettingPasswordId === u.id ? 'מאפס...' : 'אפס סיסמה'}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleResetPassword(u.id, u.email)}
-                        disabled={resettingPasswordId === u.id}
-                        className="px-3 py-1 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-md disabled:opacity-50 whitespace-nowrap"
-                      >
-                        {resettingPasswordId === u.id ? 'מאפס...' : 'אפס סיסמה'}
-                      </button>
+                      {resetMessages[u.id] && (
+                        <p className={`text-xs font-medium px-1 ${resetMessages[u.id].isError ? 'text-red-400' : 'text-green-400'}`}>
+                          {resetMessages[u.id].isError ? '✗ ' : '✓ '}{resetMessages[u.id].text}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}

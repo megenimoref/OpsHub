@@ -92,7 +92,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
       </div>
 
       {/* SVG pie */}
-      <svg viewBox="0 0 300 300" className="w-72 h-72">
+      <svg viewBox="0 0 300 300" className="w-96 h-96">
         {slices.length === 1 ? (
           /* Single user = full circle — SVG arc can't draw 360°, use <circle> instead */
           <circle cx={CX} cy={CY} r={R} fill={slices[0].color} stroke="#111827" strokeWidth="2.5" />

@@ -29,6 +29,7 @@ const FILTER_TABS: { label: string; key: string; color: string }[] = [
   { label: 'נדרש סיוע של ביטוח לאומי', key: 'נדרש סיוע של ביטוח לאומי', color: '#f97316' },
   { label: 'נדרש סיוע של עורך דין', key: 'נדרש סיוע של עורך דין', color: '#f472b6' },
   { label: 'אין מספר טלפון', key: 'אין מספר טלפון', color: '#6366f1' },
+  { label: 'לא נוצרה פניה', key: 'no_request', color: '#64748b' },
 ];
 
 const getStatusColor = (status: string): string => {
@@ -117,6 +118,7 @@ export const PersonalAreaPage: React.FC = () => {
     if (battalionFilter !== 'all') list = list.filter((s) => s.battalion_name === battalionFilter);
     if (activeFilter === 'all') return list;
     if (activeFilter === 'not_done') return list.filter((s) => s.request_status !== 'טופלה');
+    if (activeFilter === 'no_request') return list.filter((s) => !s.request_status?.trim());
     return list.filter((s) => s.request_status === activeFilter);
   }, [soldiers, activeFilter, battalionFilter]);
 
@@ -129,6 +131,7 @@ export const PersonalAreaPage: React.FC = () => {
     const base = battalionFilter === 'all' ? soldiers : soldiers.filter((s) => s.battalion_name === battalionFilter);
     if (key === 'all') return base.length;
     if (key === 'not_done') return base.filter((s) => s.request_status !== 'טופלה').length;
+    if (key === 'no_request') return base.filter((s) => !s.request_status?.trim()).length;
     return base.filter((s) => s.request_status === key).length;
   };
 
