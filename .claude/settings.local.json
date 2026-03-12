@@ -40,7 +40,17 @@
       "Bash(git log --oneline --branches --not --remotes -10)",
       "Bash(git push origin mvp1-8)",
       "Bash(git checkout -b mvp1-10)",
-      "Bash(node sanity.mjs)"
+      "Bash(node sanity.mjs)",
+      "Bash(git checkout -b mvp1-11)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(git checkout main)",
+      "Bash(git pull origin main)",
+      "Bash(git checkout -b mvp1-12)",
+      "Bash(git stash)",
+      "Bash(git stash pop)",
+      "Bash(git push origin mvp1-12)",
+      "Bash(git add backend/src/controllers/usersController.ts backend/src/controllers/authController.ts backend/src/config/database.ts frontend/nginx.conf)",
+      "Bash(git commit -m \"fix: add password reset verification + full diagnostic logging:*)"
     ]
   }
 }

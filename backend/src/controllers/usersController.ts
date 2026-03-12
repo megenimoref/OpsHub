@@ -131,9 +131,30 @@ export const resetUserPassword = async (req: Request, res: Response) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    logger.info(`resetUserPassword hashing`, { targetId, hashPrefix: hashedPassword.substring(0, 10) });
+
     await user.update({ password: hashedPassword }, { hooks: false });
 
-    logger.info(`resetUserPassword SUCCESS`, { targetId, email: user.email });
+    // Re-fetch from DB and verify the hash was saved and matches
+    const freshUser = await User.findByPk(targetId);
+    if (!freshUser) {
+      logger.error(`resetUserPassword verify: user disappeared after update`, { targetId });
+      return res.status(500).json({ error: 'שגיאה פנימית' });
+    }
+    const verifyMatch = await bcrypt.compare(password, freshUser.password);
+    logger.info(`resetUserPassword VERIFY`, {
+      targetId,
+      email: freshUser.email,
+      hashInDB: freshUser.password.substring(0, 10) + '...',
+      bcryptCompareResult: verifyMatch,
+    });
+
+    if (!verifyMatch) {
+      logger.error(`resetUserPassword CRITICAL: hash saved but compare returns false!`, { targetId });
+      return res.status(500).json({ error: 'שגיאה פנימית באיפוס סיסמה' });
+    }
+
+    logger.info(`resetUserPassword SUCCESS`, { targetId, email: freshUser.email });
     res.json({ success: true, message: 'הסיסמה אופסה בהצלחה' });
   } catch (error) {
     logger.error(`resetUserPassword unhandled error`, { error: String(error) });

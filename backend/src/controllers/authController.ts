@@ -5,6 +5,7 @@ import User from '../models/user';
 import validator from 'validator';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '../services/emailService';
+import { logger } from '../services/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -25,13 +26,17 @@ export const login = async (req: Request, res: Response) => {
 
     const user = await User.findOne({ where: { email } });
     if (!user) {
+      logger.error(`login failed: user not found`, { email });
       return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
     }
 
+    logger.info(`login attempt`, { email, userId: user.id, hashPrefix: user.password.substring(0, 10) });
     const isPasswordValid = await user.validatePassword(password);
     if (!isPasswordValid) {
+      logger.error(`login failed: password mismatch`, { email, userId: user.id, hashPrefix: user.password.substring(0, 10) });
       return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
     }
+    logger.info(`login success`, { email, userId: user.id });
 
     // @ts-ignore
     const token = jwt.sign(
