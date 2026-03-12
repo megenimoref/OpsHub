@@ -27,6 +27,21 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// HTTP request logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const meta = { method: req.method, url: req.url, status: res.statusCode, ms };
+    if (res.statusCode >= 400) {
+      logger.error(`HTTP ${req.method} ${req.url} → ${res.statusCode}`, meta);
+    } else {
+      logger.info(`HTTP ${req.method} ${req.url} → ${res.statusCode}`, meta);
+    }
+  });
+  next();
+});
+
 // Routes
 app.use('/auth', authRoutes);
 app.use('/people', peopleRoutes);
