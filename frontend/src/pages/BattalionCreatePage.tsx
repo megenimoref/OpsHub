@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 
 export const BattalionCreatePage: React.FC = () => {
@@ -7,6 +7,34 @@ export const BattalionCreatePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [battalions, setBattalions] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchBattalions = async () => {
+    try {
+      const res = await api.get<{ battalions: string[] }>('/battalion/list');
+      setBattalions(res.data.battalions);
+    } catch {}
+  };
+
+  useEffect(() => { fetchBattalions(); }, []);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/battalion/${encodeURIComponent(deleteTarget)}`);
+      setSuccess(`גדוד "${deleteTarget}" נמחק בהצלחה`);
+      setDeleteTarget(null);
+      fetchBattalions();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'שגיאה במחיקת הגדוד');
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, '');
@@ -87,6 +115,56 @@ export const BattalionCreatePage: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {/* Battalions list */}
+      {battalions.length > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 mt-6">
+          <h2 className="text-lg font-semibold text-white mb-4">גדודים קיימים</h2>
+          <div className="space-y-2">
+            {battalions.map((b) => (
+              <div key={b} className="flex items-center justify-between px-4 py-2 bg-gray-800 rounded-lg border border-gray-700">
+                <span className="text-white font-medium">גדוד {b}</span>
+                <button
+                  onClick={() => { setDeleteTarget(b); setError(''); setSuccess(''); }}
+                  className="px-3 py-1 bg-red-900 hover:bg-red-800 text-red-200 text-xs rounded-md"
+                >
+                  מחק
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center" dir="rtl">
+          <div className="bg-gray-900 border border-red-700 rounded-xl p-8 max-w-sm w-full mx-4 shadow-2xl">
+            <h2 className="text-lg font-bold text-white mb-4 text-center">אישור מחיקת גדוד</h2>
+            <p className="text-gray-300 text-center mb-2">
+              האם אתה בטוח שאתה רוצה למחוק את גדוד{' '}
+              <span className="font-bold text-red-400">{deleteTarget}</span>?
+            </p>
+            <p className="text-red-400 text-xs text-center mb-6">פעולה זו תמחק את כל נתוני הגדוד ולא ניתן לשחזר!</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 py-2 border border-gray-600 text-gray-200 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-2 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'מוחק...' : 'מחק לצמיתות'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation modal */}
       {showConfirm && (
