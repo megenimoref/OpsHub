@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import mysql from 'mysql2/promise';
+import { fn, col } from 'sequelize';
 import SoldierAllocation from '../models/soldierAllocation';
+import User from '../models/user';
 import {
   ensureBattalionDatabase,
   importSoldiers,
@@ -371,18 +373,35 @@ export const getSoldierChangesHandler = async (req: Request, res: Response): Pro
 
 const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 
+async function getUsersAllocation(): Promise<{ id: number; firstName: string; lastName: string; email: string; role: string; allocated: number }[]> {
+  const [users, counts] = await Promise.all([
+    User.findAll({ attributes: ['id', 'firstName', 'lastName', 'email', 'role'], raw: true }),
+    SoldierAllocation.findAll({
+      attributes: ['user_id', [fn('COUNT', col('id')), 'cnt']],
+      group: ['user_id'],
+      raw: true,
+    }),
+  ]);
+  const countMap: Record<number, number> = {};
+  (counts as any[]).forEach((c) => { countMap[c.user_id] = Number(c.cnt) || 0; });
+  return (users as any[])
+    .map((u) => ({ ...u, allocated: countMap[u.id] || 0 }))
+    .sort((a, b) => b.allocated - a.allocated);
+}
+
 export const getDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionFilter = req.query.battalion ? String(req.query.battalion) : undefined;
-    const [people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown] = await Promise.all([
+    const [people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation] = await Promise.all([
       getDashboardData(DASHBOARD_PEOPLE, battalionFilter),
       getGlobalStats(battalionFilter),
       listBattalions(),
       getBattalionPieStats(battalionFilter),
       getAssistanceStats(battalionFilter),
       getBattalionStatusBreakdown(battalionFilter),
+      getUsersAllocation(),
     ]);
-    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown });
+    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation });
   } catch (error: any) {
     logger.error('Dashboard error', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בטעינת דשבורד' });

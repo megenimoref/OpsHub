@@ -44,6 +44,15 @@ interface BattalionStatusBreakdown {
   byStatus: { status: string; count: number }[];
 }
 
+interface UserAllocation {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  allocated: number;
+}
+
 interface DashboardResponse {
   people: PersonDashboard[];
   globalStats: GlobalStats;
@@ -51,6 +60,7 @@ interface DashboardResponse {
   battalionPieStats: BattalionPieStat[];
   assistanceStats: AssistanceStat[];
   battalionStatusBreakdown: BattalionStatusBreakdown[];
+  usersAllocation: UserAllocation[];
 }
 
 const PERSON_COLORS: Record<string, string> = {
@@ -74,11 +84,12 @@ export const DashboardPage: React.FC = () => {
   const [battalionPieStats, setBattalionPieStats] = useState<BattalionPieStat[]>([]);
   const [assistanceStats, setAssistanceStats] = useState<AssistanceStat[]>([]);
   const [battalionStatusBreakdown, setBattalionStatusBreakdown] = useState<BattalionStatusBreakdown[]>([]);
+  const [usersAllocation, setUsersAllocation] = useState<UserAllocation[]>([]);
   const [expandedBar, setExpandedBar] = useState<{ battalion: string; type: string } | null>(null);
   const [expandedSoldiers, setExpandedSoldiers] = useState<AssistanceSoldier[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [selectedBattalion, setSelectedBattalion] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'battalionStatus' | 'comparison'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'battalionStatus' | 'comparison' | 'users'>('general');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -101,6 +112,9 @@ export const DashboardPage: React.FC = () => {
         }
         if (res.data.battalionStatusBreakdown) {
           setBattalionStatusBreakdown(res.data.battalionStatusBreakdown);
+        }
+        if (res.data.usersAllocation) {
+          setUsersAllocation(res.data.usersAllocation);
         }
       })
       .catch(() => setError('שגיאה בטעינת הדשבורד'))
@@ -161,6 +175,7 @@ export const DashboardPage: React.FC = () => {
     { key: 'general', label: 'כללי' },
     { key: 'battalionStatus', label: 'סטטוס פניות לפי גדוד' },
     { key: 'comparison', label: 'השוואה בין גדודים' },
+    { key: 'users', label: 'משתמשים' },
   ] as const;
 
   // --- Comparison tab derived data ---
@@ -497,6 +512,49 @@ export const DashboardPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Users Allocation */}
+      {activeTab === 'users' && (
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+          <h2 className="text-base font-semibold text-white mb-4">משתמשים וחיילים מוקצים</h2>
+          {usersAllocation.length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-right">
+                <thead>
+                  <tr className="border-b border-gray-700 text-gray-400 text-xs">
+                    <th className="py-2 px-3">שם</th>
+                    <th className="py-2 px-3">אימייל</th>
+                    <th className="py-2 px-3">תפקיד</th>
+                    <th className="py-2 px-3">חיילים מוקצים</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersAllocation.map((u) => {
+                    const ROLE_LABELS: Record<string, string> = { admin: 'מנהל מערכת', super: 'סופרוויזר', manager: 'דרג פיקודי', staff: 'צוות' };
+                    const ROLE_COLORS: Record<string, string> = { admin: 'text-red-400', super: 'text-purple-400', manager: 'text-blue-400', staff: 'text-gray-300' };
+                    return (
+                      <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                        <td className="py-2.5 px-3 font-medium text-white">{u.firstName} {u.lastName}</td>
+                        <td className="py-2.5 px-3 text-gray-400">{u.email}</td>
+                        <td className={`py-2.5 px-3 font-medium ${ROLE_COLORS[u.role] || 'text-gray-300'}`}>
+                          {ROLE_LABELS[u.role] || u.role}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className={`font-bold text-base ${u.allocated > 0 ? 'text-cyan-400' : 'text-gray-500'}`}>
+                            {u.allocated}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

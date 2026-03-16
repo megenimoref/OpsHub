@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { authService } from '../services/authService';
+import { useAuthStore } from '../hooks/useAuth';
 
 interface SoldierChange {
   id: number;
@@ -130,6 +131,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   onSave,
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const readOnly = user?.role === 'manager';
   const [battalions, setBattalions] = useState<string[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState('');
   const [searchPersonalNumber, setSearchPersonalNumber] = useState('');
@@ -316,10 +319,21 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
 
   return (
     <div className={embedded ? 'w-full' : 'p-6 max-w-4xl mx-auto'} dir="rtl">
-      {!embedded && <h1 className="text-2xl font-bold text-white mb-6">חיפוש ועריכת חייל</h1>}
+      {!embedded && (
+        <div className="flex items-center gap-3 mb-6">
+          <h1 className="text-2xl font-bold text-white">
+            {readOnly ? 'צפייה בכרטיס חייל' : 'חיפוש ועריכת חייל'}
+          </h1>
+          {readOnly && (
+            <span className="text-xs px-2 py-1 bg-blue-900/60 border border-blue-700 text-blue-300 rounded-full">
+              מצב צפייה בלבד
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Search bar */}
-      <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
+      {/* Search bar — hidden for manager (they navigate here via dashboard link) */}
+      {!readOnly && <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
         <div className="flex flex-col gap-3">
           {/* Battalion select */}
           <div className="w-full">
@@ -372,7 +386,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
             {searchError}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Soldier form */}
       {soldier && (
@@ -382,13 +396,15 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
               {soldier.first_name} {soldier.last_name}
               <span className="text-sm font-normal text-gray-400 mr-2">({soldier.personal_number})</span>
             </h2>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {saving ? 'שומר...' : 'שמור שינויים'}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {saving ? 'שומר...' : 'שמור שינויים'}
+              </button>
+            )}
           </div>
 
           {saveSuccess && (
@@ -418,7 +434,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       <select
                         value={(formData[key] as string) || ''}
                         onChange={(e) => handleChange(key, e.target.value)}
-                        className="w-full px-3 pr-8 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        disabled={readOnly}
+                        className="w-full px-3 pr-8 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <option value="">-- בחר סטטוס --</option>
                         {STATUS_OPTIONS.map((opt) => (
@@ -432,7 +449,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                     <select
                       value={(formData[key] as string) || ''}
                       onChange={(e) => handleChange(key, e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      disabled={readOnly}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">-- בחר משתמש --</option>
                       {systemUsers.map((u) => {
@@ -449,7 +467,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       type="date"
                       value={(formData[key] as string) || TODAY}
                       onChange={(e) => handleChange(key, e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      disabled={readOnly}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   ) : selectWithDetail && parsed ? (
                     <div className="space-y-2">
@@ -459,7 +478,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                           const newSelected = e.target.value;
                           handleChange(key, buildSelectWithDetail(newSelected, selectWithDetail.detailOn.includes(newSelected) ? parsed.detail : ''));
                         }}
-                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        disabled={readOnly}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <option value="">-- בחר --</option>
                         {selectWithDetail.options.map((opt) => (
@@ -472,7 +492,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                           value={parsed.detail}
                           onChange={(e) => handleChange(key, buildSelectWithDetail(parsed.selected, e.target.value))}
                           placeholder="פרט..."
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          disabled={readOnly}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       )}
                     </div>
@@ -480,7 +501,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                     <select
                       value={(formData[key] as string) || ''}
                       onChange={(e) => handleChange(key, e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      disabled={readOnly}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">-- בחר --</option>
                       {options.map((opt) => (
@@ -492,14 +514,16 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       value={(formData[key] as string) || ''}
                       onChange={(e) => handleChange(key, e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+                      disabled={readOnly}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   ) : (
                     <input
                       type="text"
                       value={(formData[key] as string) || ''}
                       onChange={(e) => handleChange(key, e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      disabled={readOnly}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   )}
                   {fieldChanges.length > 0 && (
@@ -527,15 +551,17 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
             })}
           </div>
 
-          <div className="mt-5 flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {saving ? 'שומר...' : 'שמור שינויים'}
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {saving ? 'שומר...' : 'שמור שינויים'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
