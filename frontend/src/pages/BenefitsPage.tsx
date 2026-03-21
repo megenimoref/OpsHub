@@ -464,33 +464,33 @@ export const BenefitsPage: React.FC = () => {
       id: 'fund', title: 'קרן הסיוע למשרתי המילואים', icon: '🤝', color: 'cyan',
       content: (
         <>
-          <div className="bg-gray-800/60 rounded-lg p-3 border border-gray-700/50 mb-3">
-            <p>קרן הסיוע למשרתי המילואים תמשיך לפעול גם בשנת 2026 ותעניק מגוון מענים כלכליים וחברתיים למשרתי מילואים.</p>
-            <p className="font-semibold text-cyan-300 mt-1">חדשות משמחות! מרבית מהמענים מקרן הסיוע יינתנו גם בגין שירות מילואים בצו שגרה.</p>
-            <p className="mt-1">תקנון קרן הסיוע המלא והמעודכן לשנת 2026 יפורסם בהמשך באתר המילואים.</p>
+          <div className="bg-gray-800/60 rounded-lg p-4 border border-gray-700/50 mb-4">
+            <p className="text-base">קרן הסיוע למשרתי המילואים תמשיך לפעול גם בשנת 2026 ותעניק מגוון מענים כלכליים וחברתיים למשרתי מילואים.</p>
+            <p className="font-semibold text-cyan-300 mt-2 text-base">חדשות משמחות! מרבית מהמענים מקרן הסיוע יינתנו גם בגין שירות מילואים בצו שגרה.</p>
+            <p className="mt-2 text-base">תקנון קרן הסיוע המלא והמעודכן לשנת 2026 יפורסם בהמשך באתר המילואים.</p>
           </div>
-          <p className="text-xs text-gray-400 mb-3">בחרו נושא כדי לפתוח פירוט מלא:</p>
+          <p className="text-sm text-gray-400 mb-3">בחרו נושא כדי לפתוח פירוט מלא:</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {benefitsData.map((b) => {
               const open = activeId === b.id;
               return (
                 <div
                   key={b.id}
-                  className={`bg-gray-900/80 border rounded-xl p-3 text-xs cursor-pointer transition-all duration-200 ${
+                  className={`bg-gray-900/80 border rounded-xl p-4 cursor-pointer transition-all duration-200 ${
                     open ? 'border-orange-400 shadow-lg shadow-orange-900/30' : 'border-gray-700 hover:border-orange-500/80 hover:shadow-md hover:shadow-orange-900/20'
                   }`}
                   onClick={(e) => { e.stopPropagation(); setActiveId(open ? null : b.id); }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-semibold text-gray-100 text-sm mb-1">{b.title}</p>
-                      <p className="text-[11px] text-gray-400">{b.summary}</p>
+                      <p className="font-semibold text-gray-100 text-base mb-1">{b.title}</p>
+                      <p className="text-sm text-gray-400">{b.summary}</p>
                     </div>
-                    <span className={`mt-1 inline-flex items-center justify-center w-6 h-6 rounded-full border text-[11px] transition-transform ${open ? 'border-orange-400 text-orange-300 rotate-90' : 'border-gray-600 text-gray-400'}`}>
+                    <span className={`mt-1 inline-flex items-center justify-center w-6 h-6 rounded-full border text-xs transition-transform ${open ? 'border-orange-400 text-orange-300 rotate-90' : 'border-gray-600 text-gray-400'}`}>
                       &gt;
                     </span>
                   </div>
-                  {open && <div className="mt-3 text-[11px] text-gray-200 space-y-1 whitespace-pre-wrap">{b.content}</div>}
+                  {open && <div className="mt-3 text-sm text-gray-200 space-y-2 whitespace-pre-wrap leading-relaxed">{b.content}</div>}
                 </div>
               );
             })}
