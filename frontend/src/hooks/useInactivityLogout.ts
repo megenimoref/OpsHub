@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-const TIMEOUT_MS = 20 * 60 * 1000;  // 20 minutes → logout
-const WARNING_MS = 19 * 60 * 1000;  // 19 minutes → show warning (1 min before)
+const TIMEOUT_MS = 2 * 60 * 60 * 1000;        // 2 hours → logout
+const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000; // 5 minutes before logout → show warning
 
 interface Options {
   onWarning: () => void;   // called when warning should appear
@@ -42,15 +42,23 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
   useEffect(() => {
     if (!enabled) return;
 
-    const events = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll', 'click'];
+    // keydown instead of keypress (keypress is deprecated and misses Hebrew input)
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
 
     const handleActivity = () => resetTimers();
 
+    // Also reset when user returns to the tab (visibility change)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') resetTimers();
+    };
+
     events.forEach((e) => window.addEventListener(e, handleActivity, { passive: true }));
+    document.addEventListener('visibilitychange', handleVisibility);
     resetTimers(); // start timers on mount
 
     return () => {
       events.forEach((e) => window.removeEventListener(e, handleActivity));
+      document.removeEventListener('visibilitychange', handleVisibility);
       clearTimers();
     };
   }, [enabled, resetTimers, clearTimers]);

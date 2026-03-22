@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { authService } from '../services/authService';
@@ -73,7 +73,7 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'first_name', label: 'שם פרטי' },
   { key: 'mobile_phone', label: 'טלפון נייד' },
   { key: 'request_status', label: 'סטטוס פנייה', statusSelect: true },
-  { key: 'marital_status', label: 'מצב משפחתי', options: ['רווק', 'נשוי', 'גרוש'] },
+  { key: 'marital_status', label: 'מצב משפחתי', options: ['רווק', 'נשוי', 'גרוש', 'אלמן'] },
   { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
   { key: 'student_indicator', label: 'אינדיקציית סטודנט', options: ['כן', 'לא'] },
   { key: 'spouse', label: 'בן/בת זוג' },
@@ -82,7 +82,7 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'contact_by', label: 'מי יצרה קשר', userSelect: true },
   { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
   { key: 'contact_with', label: 'מול מי נוצר קשר', selectWithDetail: { options: ['החייל', 'קרוב'], detailOn: ['קרוב'] } },
-  { key: 'employment_status', label: 'סטטוס תעסוקתי', selectWithDetail: { options: ['עצמאי', 'שכיר', 'אחר'], detailOn: ['אחר'] } },
+  { key: 'employment_status', label: 'סטטוס תעסוקתי', selectWithDetail: { options: ['עצמאי', 'שכיר', 'מובטל', 'אחר'], detailOn: ['אחר'] } },
   { key: 'welfare_fund', label: 'קרן סיוע', multiline: true },
   { key: 'national_insurance', label: 'ביטוח לאומי', selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
   { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
@@ -147,6 +147,63 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const [saveError, setSaveError] = useState('');
   const [changes, setChanges] = useState<SoldierChange[]>([]);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
+  const [pendingDraft, setPendingDraft] = useState<{ data: Partial<Soldier>; savedAt: string } | null>(null);
+  const draftKeyRef = useRef<string | null>(null);
+  const isDraftPendingRef = useRef(false);
+
+  // Helper: draft localStorage key
+  const getDraftKey = (battalion: string, personalNumber: string) =>
+    `opshub_draft_${battalion}_${personalNumber}`;
+
+  // Auto-save formData to localStorage on every change (when no pending draft banner)
+  useEffect(() => {
+    if (!soldier || !draftKeyRef.current || isDraftPendingRef.current) return;
+    const hasChanges = Object.keys(formData).some(
+      (k) => String((formData as any)[k] ?? '') !== String((soldier as any)[k] ?? '')
+    );
+    if (hasChanges) {
+      localStorage.setItem(
+        draftKeyRef.current,
+        JSON.stringify({ data: formData, savedAt: new Date().toISOString() })
+      );
+    }
+  }, [formData]);
+
+  // Helper: called after every soldier load — sets soldier+formData and checks for draft
+  const afterSoldierLoad = (battalion: string, soldierData: Soldier, fd: Partial<Soldier>) => {
+    setSoldier(soldierData);
+    setFormData(fd);
+    const key = getDraftKey(battalion, soldierData.personal_number);
+    draftKeyRef.current = key;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try {
+        const { data, savedAt } = JSON.parse(raw);
+        setPendingDraft({ data, savedAt });
+        isDraftPendingRef.current = true;
+      } catch {
+        localStorage.removeItem(key);
+        setPendingDraft(null);
+        isDraftPendingRef.current = false;
+      }
+    } else {
+      setPendingDraft(null);
+      isDraftPendingRef.current = false;
+    }
+  };
+
+  const restoreDraft = () => {
+    if (!pendingDraft) return;
+    setFormData(pendingDraft.data);
+    setPendingDraft(null);
+    isDraftPendingRef.current = false;
+  };
+
+  const discardDraft = () => {
+    if (draftKeyRef.current) localStorage.removeItem(draftKeyRef.current);
+    setPendingDraft(null);
+    isDraftPendingRef.current = false;
+  };
 
   useEffect(() => {
     api.get('/battalion/list').then((res) => {
@@ -170,12 +227,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
       }).then((res) => {
         const user = authService.getStoredUser();
         const userName = user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : '';
-        setSoldier(res.data.soldier);
-        setFormData({
-          ...res.data.soldier,
-          contact_date: res.data.soldier.contact_date || TODAY,
-          contact_by: res.data.soldier.contact_by || userName,
-        });
+        const fd = { ...res.data.soldier, contact_date: res.data.soldier.contact_date || TODAY, contact_by: res.data.soldier.contact_by || userName };
+        afterSoldierLoad(battalionParam, res.data.soldier, fd);
         fetchChanges(battalionParam, res.data.soldier.id);
       }).catch((err: any) => {
         setSearchError(err.response?.data?.error || 'חייל לא נמצא');
@@ -200,12 +253,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     }).then((res) => {
       const user = authService.getStoredUser();
       const userName = user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : '';
-      setSoldier(res.data.soldier);
-      setFormData({
-        ...res.data.soldier,
-        contact_date: res.data.soldier.contact_date || TODAY,
-        contact_by: res.data.soldier.contact_by || userName,
-      });
+      const fd = { ...res.data.soldier, contact_date: res.data.soldier.contact_date || TODAY, contact_by: res.data.soldier.contact_by || userName };
+      afterSoldierLoad(initialBattalion, res.data.soldier, fd);
       fetchChanges(initialBattalion, res.data.soldier.id);
     }).catch((err: any) => {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');
@@ -268,12 +317,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
       const userName = user?.firstName && user?.lastName
         ? `${user.firstName} ${user.lastName}`
         : '';
-      setSoldier(res.data.soldier);
-      setFormData({
-        ...res.data.soldier,
-        contact_date: res.data.soldier.contact_date || TODAY,
-        contact_by: res.data.soldier.contact_by || userName,
-      });
+      const fd = { ...res.data.soldier, contact_date: res.data.soldier.contact_date || TODAY, contact_by: res.data.soldier.contact_by || userName };
+      afterSoldierLoad(selectedBattalion, res.data.soldier, fd);
       setSearchPersonalNumber(selectedSoldier.personal_number);
       setShowSuggestions(false);
       fetchChanges(selectedBattalion, res.data.soldier.id);
@@ -291,6 +336,10 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     setSaveError('');
     try {
       await api.put(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/${soldier.id}`, formData);
+      // Clear draft — data is now saved to server
+      if (draftKeyRef.current) localStorage.removeItem(draftKeyRef.current);
+      setPendingDraft(null);
+      isDraftPendingRef.current = false;
       setSaveSuccess(true);
       onSave?.(soldier.personal_number, (formData.request_status as string) || '');
       fetchChanges(selectedBattalion, soldier.id);
@@ -407,6 +456,29 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
             )}
           </div>
 
+          {/* Draft restore banner — shown when unsaved changes were detected from a previous session */}
+          {pendingDraft && (
+            <div className="mb-4 p-3 bg-amber-900/40 border border-amber-600 rounded-lg flex items-center justify-between gap-3 text-sm">
+              <span className="text-amber-300">
+                ⚠️ נמצאו שינויים שלא נשמרו מ-{new Date(pendingDraft.savedAt).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} — האם לשחזר?
+              </span>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={restoreDraft}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-medium transition-colors"
+                >
+                  שחזר שינויים
+                </button>
+                <button
+                  onClick={discardDraft}
+                  className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs font-medium transition-colors"
+                >
+                  התעלם
+                </button>
+              </div>
+            </div>
+          )}
+
           {saveSuccess && (
             <div className="mb-4 p-3 bg-green-900/40 border border-green-700 rounded-lg text-sm text-green-300">
               הנתונים נשמרו בהצלחה
@@ -505,6 +577,13 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">-- בחר --</option>
+                      {/* If the DB value doesn't match any known option (e.g. imported from Excel with different spelling), show it as an extra option */}
+                      {(() => {
+                        const current = (formData[key] as string) || '';
+                        return current && !options.includes(current)
+                          ? <option key="_imported" value={current}>{current}</option>
+                          : null;
+                      })()}
                       {options.map((opt) => (
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
