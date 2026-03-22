@@ -486,7 +486,7 @@ export const BenefitsPage: React.FC = () => {
                       <p className="font-semibold text-gray-100 text-base mb-1">{b.title}</p>
                       <p className="text-sm text-gray-400">{b.summary}</p>
                     </div>
-                    <span className={`mt-1 inline-flex items-center justify-center w-6 h-6 rounded-full border text-[11px] transition-transform ${open ? 'border-orange-400 text-orange-300 rotate-90' : 'border-gray-600 text-gray-400'}`}>
+                    <span className={`mt-1 inline-flex items-center justify-center w-6 h-6 rounded-full border text-xs transition-transform ${open ? 'border-orange-400 text-orange-300 rotate-90' : 'border-gray-600 text-gray-400'}`}>
                       &gt;
                     </span>
                   </div>

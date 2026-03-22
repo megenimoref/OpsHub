@@ -22,6 +22,7 @@ import {
   getSoldiersByAssistanceType,
   getBattalionDbName,
   SoldierRow,
+  SoldierRowWithExtras,
 } from '../services/battalionService';
 import { logger } from '../services/logger';
 
@@ -118,7 +119,9 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     // Read header row (first row)
     const headerRow = worksheet.getRow(1);
     const columnIndexMap: Record<number, keyof SoldierRow> = {};
+    const extraColumnIndexMap: Record<number, string> = {};
     const seenFields = new Set<keyof SoldierRow>();
+    const seenExtraFields = new Set<string>();
     const unknownHeaders: string[] = [];
     const allRawHeaders: string[] = [];
 
@@ -133,7 +136,13 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           seenFields.add(field);
         }
       } else {
-        unknownHeaders.push(header);
+        // Sanitize: remove backticks, limit length
+        const safeHeader = header.replace(/`/g, '').substring(0, 64);
+        if (safeHeader && !seenExtraFields.has(safeHeader)) {
+          extraColumnIndexMap[colNumber] = safeHeader;
+          seenExtraFields.add(safeHeader);
+          unknownHeaders.push(header);
+        }
       }
     });
 
@@ -169,19 +178,24 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     }
 
     // Parse data rows
-    const soldiers: SoldierRow[] = [];
+    const soldiers: SoldierRowWithExtras[] = [];
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
 
-      const soldier: SoldierRow = {};
+      const soldier: SoldierRowWithExtras = {};
       let hasData = false;
 
       row.eachCell((cell, colNumber) => {
+        const value = cell.text?.trim() || '';
+        if (!value) return;
         const field = columnIndexMap[colNumber];
         if (field) {
-          const value = cell.text?.trim() || '';
-          if (value) {
-            (soldier as any)[field] = value;
+          (soldier as any)[field] = value;
+          hasData = true;
+        } else {
+          const extraField = extraColumnIndexMap[colNumber];
+          if (extraField) {
+            soldier[extraField] = value;
             hasData = true;
           }
         }
@@ -201,8 +215,11 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     // Create DB and table if not exists
     await ensureBattalionDatabase(battalionName);
 
-    // Import soldiers
-    const insertedCount = await importSoldiers(battalionName, soldiers);
+    // Import soldiers (including any new dynamic columns)
+    const extraColumns = Object.values(extraColumnIndexMap).filter(
+      (v, i, arr) => arr.indexOf(v) === i
+    );
+    const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns);
 
     logger.info('Battalion import completed', {
       battalionName,

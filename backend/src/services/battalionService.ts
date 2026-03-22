@@ -138,63 +138,55 @@ export interface SoldierRow {
   notes?: string;
 }
 
-export async function importSoldiers(battalionName: string, soldiers: SoldierRow[]): Promise<number> {
+export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
+
+const FIXED_COLUMNS = [
+  'personal_number', 'last_name', 'first_name', 'mobile_phone',
+  'request_status', 'marital_status', 'children_count',
+  'student_indicator', 'spouse', 'spouse_phone', 'data_indicators',
+  'contact_by', 'contact_date', 'contact_with', 'employment_status',
+  'welfare_fund', 'national_insurance', 'other_assistance',
+  'applications_needed', 'notes',
+];
+
+// Import never overwrites existing data — only fills in missing (null/empty) fields
+const ALWAYS_OVERWRITE = new Set<string>();
+
+export async function importSoldiers(
+  battalionName: string,
+  soldiers: SoldierRowWithExtras[],
+  extraColumns: string[] = []
+): Promise<number> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
 
   let insertedCount = 0;
   try {
+    // Add any new columns to the table dynamically
+    for (const col of extraColumns) {
+      await conn.execute(`ALTER TABLE soldiers ADD COLUMN IF NOT EXISTS \`${col}\` TEXT`);
+    }
+
+    const allColumns = [...FIXED_COLUMNS, ...extraColumns];
+
     for (const soldier of soldiers) {
+      const colList = allColumns.map((c) => `\`${c}\``).join(', ');
+      const placeholders = allColumns.map(() => '?').join(', ');
+
+      const updates = allColumns
+        .filter((c) => c !== 'personal_number')
+        .map((c) => {
+          const q = `\`${c}\``;
+          if (ALWAYS_OVERWRITE.has(c)) return `${q} = VALUES(${q})`;
+          return `${q} = IF(${q} IS NULL OR TRIM(${q}) = '', VALUES(${q}), ${q})`;
+        })
+        .join(',\n');
+
+      const values = allColumns.map((c) => soldier[c] || null);
+
       await conn.execute(
-        `INSERT INTO soldiers (
-          personal_number, last_name, first_name, mobile_phone,
-          request_status, marital_status, children_count,
-          student_indicator, spouse, spouse_phone, data_indicators, contact_by,
-          contact_date, contact_with, employment_status, welfare_fund, national_insurance,
-          other_assistance, applications_needed, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          last_name = VALUES(last_name),
-          first_name = VALUES(first_name),
-          mobile_phone = VALUES(mobile_phone),
-          request_status    = IF(request_status    IS NULL OR TRIM(request_status)    = '', VALUES(request_status),    request_status),
-          marital_status    = IF(marital_status    IS NULL OR TRIM(marital_status)    = '', VALUES(marital_status),    marital_status),
-          children_count    = IF(children_count    IS NULL OR TRIM(children_count)    = '', VALUES(children_count),    children_count),
-          student_indicator = IF(student_indicator IS NULL OR TRIM(student_indicator) = '', VALUES(student_indicator), student_indicator),
-          spouse            = IF(spouse            IS NULL OR TRIM(spouse)            = '', VALUES(spouse),            spouse),
-          spouse_phone      = IF(spouse_phone      IS NULL OR TRIM(spouse_phone)      = '', VALUES(spouse_phone),      spouse_phone),
-          data_indicators   = IF(data_indicators   IS NULL OR TRIM(data_indicators)   = '', VALUES(data_indicators),   data_indicators),
-          contact_by        = IF(contact_by        IS NULL OR TRIM(contact_by)        = '', VALUES(contact_by),        contact_by),
-          contact_date      = IF(contact_date      IS NULL OR TRIM(contact_date)      = '', VALUES(contact_date),      contact_date),
-          contact_with      = IF(contact_with      IS NULL OR TRIM(contact_with)      = '', VALUES(contact_with),      contact_with),
-          employment_status = IF(employment_status IS NULL OR TRIM(employment_status) = '', VALUES(employment_status), employment_status),
-          welfare_fund      = IF(welfare_fund      IS NULL OR TRIM(welfare_fund)      = '', VALUES(welfare_fund),      welfare_fund),
-          national_insurance= IF(national_insurance IS NULL OR TRIM(national_insurance)= '', VALUES(national_insurance),national_insurance),
-          other_assistance  = IF(other_assistance  IS NULL OR TRIM(other_assistance)  = '', VALUES(other_assistance),  other_assistance),
-          applications_needed= IF(applications_needed IS NULL OR TRIM(applications_needed)= '', VALUES(applications_needed), applications_needed),
-          notes             = IF(notes             IS NULL OR TRIM(notes)             = '', VALUES(notes),             notes)`,
-        [
-          soldier.personal_number || null,
-          soldier.last_name || null,
-          soldier.first_name || null,
-          soldier.mobile_phone || null,
-          soldier.request_status || null,
-          soldier.marital_status || null,
-          soldier.children_count || null,
-          soldier.student_indicator || null,
-          soldier.spouse || null,
-          soldier.spouse_phone || null,
-          soldier.data_indicators || null,
-          soldier.contact_by || null,
-          soldier.contact_date || null,
-          soldier.contact_with || null,
-          soldier.employment_status || null,
-          soldier.welfare_fund || null,
-          soldier.national_insurance || null,
-          soldier.other_assistance || null,
-          soldier.applications_needed || null,
-          soldier.notes || null,
-        ]
+        `INSERT INTO soldiers (${colList}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updates}`,
+        values
       );
       insertedCount++;
     }

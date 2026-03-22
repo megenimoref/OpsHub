@@ -3,7 +3,7 @@ import mysql from 'mysql2/promise';
 import { fn, col } from 'sequelize';
 import SoldierAllocation from '../models/soldierAllocation';
 import User from '../models/user';
-import { getBattalionDbName } from '../services/battalionService';
+import { getBattalionDbName, listBattalions } from '../services/battalionService';
 import { logger } from '../services/logger';
 
 const dbConfig = {
@@ -139,6 +139,81 @@ interface SoldierData {
   battalion_name: string;
 }
 
+async function getSoldiersByAllocation(userId: number): Promise<SoldierData[]> {
+  const allocations = await SoldierAllocation.findAll({
+    where: { user_id: userId },
+    attributes: ['battalion_name', 'soldier_personal_number'],
+  });
+
+  const byBattalion: Record<string, string[]> = {};
+  for (const alloc of allocations) {
+    if (!byBattalion[alloc.battalion_name]) byBattalion[alloc.battalion_name] = [];
+    byBattalion[alloc.battalion_name].push(alloc.soldier_personal_number);
+  }
+
+  const results: SoldierData[] = [];
+  for (const [battalionName, personalNumbers] of Object.entries(byBattalion)) {
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const placeholders = personalNumbers.map(() => '?').join(',');
+      const [rows] = await conn.execute<SoldierAllocationRow[]>(
+        `SELECT personal_number, first_name, last_name, request_status FROM soldiers WHERE personal_number IN (${placeholders})`,
+        personalNumbers
+      );
+      for (const row of rows) {
+        results.push({
+          personal_number: row.personal_number,
+          first_name: row.first_name || '',
+          last_name: row.last_name || '',
+          request_status: row.request_status || '',
+          battalion_name: battalionName,
+        });
+      }
+    } finally {
+      await conn.end();
+    }
+  }
+  return results;
+}
+
+async function getSoldiersByContactBy(contactName: string): Promise<SoldierData[]> {
+  const battalions = await listBattalions();
+  const results: SoldierData[] = [];
+
+  await Promise.all(
+    battalions.map(async (battalionName) => {
+      const dbName = getBattalionDbName(battalionName);
+      try {
+        const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+        try {
+          const [rows] = await conn.execute<SoldierAllocationRow[]>(
+            `SELECT personal_number, first_name, last_name, request_status
+             FROM soldiers
+             WHERE contact_by = ? AND personal_number IS NOT NULL AND personal_number != ''`,
+            [contactName]
+          );
+          for (const row of rows) {
+            results.push({
+              personal_number: row.personal_number,
+              first_name: row.first_name || '',
+              last_name: row.last_name || '',
+              request_status: row.request_status || '',
+              battalion_name: battalionName,
+            });
+          }
+        } finally {
+          await conn.end();
+        }
+      } catch {
+        // Battalion DB might be inaccessible — skip silently
+      }
+    })
+  );
+
+  return results;
+}
+
 export const getMySoldiers = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.userId) {
@@ -148,57 +223,32 @@ export const getMySoldiers = async (req: Request, res: Response): Promise<void> 
 
     logger.info('Get my soldiers started', { userId: req.userId });
 
-    // Step 1: Query allocations for current user
-    const allocations = await SoldierAllocation.findAll({
-      where: { user_id: req.userId },
-      attributes: ['battalion_name', 'soldier_personal_number'],
+    const contactName = req.userFirstName || '';
+
+    const [allocationSoldiers, contactBySoldiers] = await Promise.all([
+      getSoldiersByAllocation(req.userId),
+      contactName ? getSoldiersByContactBy(contactName) : Promise.resolve([]),
+    ]);
+
+    // Merge and deduplicate (allocation takes priority)
+    const seen = new Set<string>();
+    const merged: SoldierData[] = [];
+    for (const s of [...allocationSoldiers, ...contactBySoldiers]) {
+      const key = `${s.battalion_name}:${s.personal_number}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(s);
+      }
+    }
+
+    logger.info('Get my soldiers completed', {
+      userId: req.userId,
+      fromAllocation: allocationSoldiers.length,
+      fromContactBy: contactBySoldiers.length,
+      total: merged.length,
     });
 
-    if (allocations.length === 0) {
-      res.json([]);
-      return;
-    }
-
-    // Step 2: Group by battalion_name
-    const byBattalion: Record<string, string[]> = {};
-    for (const alloc of allocations) {
-      if (!byBattalion[alloc.battalion_name]) {
-        byBattalion[alloc.battalion_name] = [];
-      }
-      byBattalion[alloc.battalion_name].push(alloc.soldier_personal_number);
-    }
-
-    // Step 3: Query each battalion DB for soldier details
-    const results: SoldierData[] = [];
-
-    for (const [battalionName, personalNumbers] of Object.entries(byBattalion)) {
-      const dbName = getBattalionDbName(battalionName);
-      const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
-
-      try {
-        const placeholders = personalNumbers.map(() => '?').join(',');
-        const [rows] = await conn.execute<SoldierAllocationRow[]>(
-          `SELECT personal_number, first_name, last_name, request_status FROM soldiers WHERE personal_number IN (${placeholders})`,
-          personalNumbers
-        );
-
-        for (const row of rows) {
-          results.push({
-            personal_number: row.personal_number,
-            first_name: row.first_name || '',
-            last_name: row.last_name || '',
-            request_status: row.request_status || '',
-            battalion_name: battalionName,
-          });
-        }
-      } finally {
-        await conn.end();
-      }
-    }
-
-    logger.info('Get my soldiers completed', { userId: req.userId, count: results.length });
-
-    res.json(results);
+    res.json(merged);
   } catch (error: any) {
     logger.error('Get my soldiers failed', { userId: req.userId, errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בשליפת החיילים שלך' });
