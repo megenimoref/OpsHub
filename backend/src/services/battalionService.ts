@@ -149,8 +149,13 @@ const FIXED_COLUMNS = [
   'applications_needed', 'notes',
 ];
 
-// Import never overwrites existing data — only fills in missing (null/empty) fields
-const ALWAYS_OVERWRITE = new Set<string>();
+// Army-managed data fields: always overwrite from Excel (can change between imports)
+// Team work fields (contact info, status, notes): only fill if currently empty in DB
+const ALWAYS_OVERWRITE = new Set<string>([
+  'last_name', 'first_name', 'mobile_phone',
+  'marital_status', 'children_count', 'student_indicator',
+  'spouse', 'spouse_phone', 'data_indicators',
+]);
 
 export async function importSoldiers(
   battalionName: string,
