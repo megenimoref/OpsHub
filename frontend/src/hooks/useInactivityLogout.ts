@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
-const TIMEOUT_MS = 5 * 60 * 1000;   // 5 minutes → logout
-const WARNING_MS = 4 * 60 * 1000;   // 4 minutes → show warning (1 min before)
+const TIMEOUT_MS = 20 * 60 * 1000;  // 20 minutes → logout
+const WARNING_MS = 19 * 60 * 1000;  // 19 minutes → show warning (1 min before)
 
 interface Options {
   onWarning: () => void;   // called when warning should appear

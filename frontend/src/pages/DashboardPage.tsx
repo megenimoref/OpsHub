@@ -71,6 +71,18 @@ const PERSON_COLORS: Record<string, string> = {
   'יקי': 'cyan',
 };
 
+const CYCLE_COLORS = ['cyan', 'purple', 'green', 'pink', 'blue', 'amber', 'red'];
+const _personColorCache: Record<string, string> = {};
+let _personColorCounter = 0;
+function getPersonColor(name: string): string {
+  if (PERSON_COLORS[name]) return PERSON_COLORS[name];
+  if (!_personColorCache[name]) {
+    _personColorCache[name] = CYCLE_COLORS[_personColorCounter % CYCLE_COLORS.length];
+    _personColorCounter++;
+  }
+  return _personColorCache[name];
+}
+
 const COLOR_CLASSES: Record<string, { border: string; title: string; badge: string; bar: string }> = {
   cyan:   { border: 'border-cyan-700',   title: 'text-cyan-300',   badge: 'bg-cyan-900 text-cyan-200',   bar: 'bg-cyan-500' },
   purple: { border: 'border-purple-700', title: 'text-purple-300', badge: 'bg-purple-900 text-purple-200', bar: 'bg-purple-500' },
@@ -317,7 +329,7 @@ export const DashboardPage: React.FC = () => {
           <h2 className="text-lg font-semibold text-white mb-4">לפי מטפל</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {people.map((person) => {
-              const color = PERSON_COLORS[person.name] || 'cyan';
+              const color = getPersonColor(person.name);
               const cls = COLOR_CLASSES[color];
               const maxCount = Math.max(...person.byStatus.map((s) => s.count), 1);
 

@@ -149,8 +149,7 @@ const FIXED_COLUMNS = [
   'applications_needed', 'notes',
 ];
 
-// Import never overwrites existing data — only fills in missing (null/empty) fields
-const ALWAYS_OVERWRITE = new Set<string>();
+// Import always overwrites all fields from Excel — Excel is the single source of truth
 
 export async function importSoldiers(
   battalionName: string,
@@ -175,11 +174,7 @@ export async function importSoldiers(
 
       const updates = allColumns
         .filter((c) => c !== 'personal_number')
-        .map((c) => {
-          const q = `\`${c}\``;
-          if (ALWAYS_OVERWRITE.has(c)) return `${q} = VALUES(${q})`;
-          return `${q} = IF(${q} IS NULL OR TRIM(${q}) = '', VALUES(${q}), ${q})`;
-        })
+        .map((c) => `\`${c}\` = VALUES(\`${c}\`)`)
         .join(',\n');
 
       const values = allColumns.map((c) => soldier[c] || null);
