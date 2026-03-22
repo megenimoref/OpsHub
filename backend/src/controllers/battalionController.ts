@@ -223,39 +223,49 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
 
     // Auto-allocate soldiers to users based on contact_by field matching user firstName
     let allocatedCount = 0;
+    const unmatchedContactNames: string[] = [];
     try {
       const uniqueContactByNames = [
         ...new Set(
           soldiers
             .filter((s) => s.contact_by && s.personal_number)
-            .map((s) => s.contact_by as string)
+            .map((s) => (s.contact_by as string).trim())
         ),
       ];
 
       if (uniqueContactByNames.length > 0) {
-        const matchingUsers = await User.findAll({
-          where: { firstName: { [Op.in]: uniqueContactByNames } },
+        // Fetch all users and build a trimmed-firstName → userId map
+        const allUsers = await User.findAll({
           attributes: ['id', 'firstName'],
           raw: true,
         });
 
-        if ((matchingUsers as any[]).length > 0) {
-          const nameToUserId: Record<string, number> = {};
-          (matchingUsers as any[]).forEach((u: any) => {
-            nameToUserId[u.firstName] = u.id;
-          });
+        const nameToUserId: Record<string, number> = {};
+        (allUsers as any[]).forEach((u: any) => {
+          if (u.firstName) nameToUserId[u.firstName.trim()] = u.id;
+        });
 
-          for (const soldier of soldiers) {
-            const contactBy = soldier.contact_by as string | undefined;
-            if (contactBy && soldier.personal_number && nameToUserId[contactBy]) {
-              await SoldierAllocation.upsert({
-                user_id: nameToUserId[contactBy],
-                battalion_name: battalionName,
-                soldier_personal_number: soldier.personal_number as string,
-              });
-              allocatedCount++;
-            }
+        // Track which contact_by names had no matching user
+        uniqueContactByNames.forEach((name) => {
+          if (!nameToUserId[name]) unmatchedContactNames.push(name);
+        });
+
+        // Build allocation records — ignoreDuplicates so we never overwrite existing manual allocations
+        const allocationsToInsert: { user_id: number; battalion_name: string; soldier_personal_number: string }[] = [];
+        for (const soldier of soldiers) {
+          const contactBy = (soldier.contact_by as string | undefined)?.trim();
+          if (contactBy && soldier.personal_number && nameToUserId[contactBy]) {
+            allocationsToInsert.push({
+              user_id: nameToUserId[contactBy],
+              battalion_name: battalionName,
+              soldier_personal_number: soldier.personal_number as string,
+            });
           }
+        }
+
+        if (allocationsToInsert.length > 0) {
+          await SoldierAllocation.bulkCreate(allocationsToInsert, { ignoreDuplicates: true });
+          allocatedCount = allocationsToInsert.length;
         }
       }
     } catch (allocErr: any) {
@@ -270,6 +280,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       totalRows: soldiers.length,
       insertedRows: insertedCount,
       allocatedSoldiers: allocatedCount,
+      unmatchedContactNames,
     });
 
     res.json({
@@ -278,6 +289,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       totalRows: soldiers.length,
       insertedRows: insertedCount,
       allocatedSoldiers: allocatedCount,
+      unmatchedContactNames,
       unknownHeaders,
       message: `יובאו ${insertedCount} חיילים לגדוד "${battalionName}"`,
     });
