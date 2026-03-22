@@ -39,7 +39,7 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'שם משפחה': 'last_name',
   'שם פרטי': 'first_name',
   'טלפון נייד': 'mobile_phone',
-  'סטוס פנייה': 'request_status',
+  'סטטוס פנייה': 'request_status',
   'מצב משפחתי': 'marital_status',
   'מספר ילדים': 'children_count',
   'אינדיקציית סטודנט': 'student_indicator',
