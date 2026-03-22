@@ -448,19 +448,67 @@ export const getSoldierChangesHandler = async (req: Request, res: Response): Pro
 
 const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 
-async function getUsersAllocation(): Promise<{ id: number; firstName: string; lastName: string; email: string; role: string; allocated: number }[]> {
-  const [users, counts] = await Promise.all([
-    User.findAll({ attributes: ['id', 'firstName', 'lastName', 'email', 'role'], raw: true }),
-    SoldierAllocation.findAll({
-      attributes: ['user_id', [fn('COUNT', col('id')), 'cnt']],
-      group: ['user_id'],
-      raw: true,
-    }),
-  ]);
-  const countMap: Record<number, number> = {};
-  (counts as any[]).forEach((c) => { countMap[c.user_id] = Number(c.cnt) || 0; });
+async function getUsersAllocation(battalionFilter?: string): Promise<{ id: number; firstName: string; lastName: string; email: string; role: string; allocated: number; byStatus: { status: string; count: number }[] }[]> {
+  const users = await User.findAll({ attributes: ['id', 'firstName', 'lastName', 'email', 'role'], raw: true });
+
+  const whereClause = battalionFilter ? { battalion_name: battalionFilter } : {};
+  const allocations = await SoldierAllocation.findAll({
+    where: whereClause,
+    attributes: ['user_id', 'battalion_name', 'soldier_personal_number'],
+    raw: true,
+  });
+
+  // Group allocations: userId → battalionName → personalNumbers[]
+  const userBattalionMap: Record<number, Record<string, string[]>> = {};
+  for (const alloc of allocations as any[]) {
+    if (!userBattalionMap[alloc.user_id]) userBattalionMap[alloc.user_id] = {};
+    if (!userBattalionMap[alloc.user_id][alloc.battalion_name]) userBattalionMap[alloc.user_id][alloc.battalion_name] = [];
+    userBattalionMap[alloc.user_id][alloc.battalion_name].push(alloc.soldier_personal_number);
+  }
+
+  // Query each battalion DB for request_status counts per user
+  const userStatusMap: Record<number, Record<string, number>> = {};
+  const userAllocatedMap: Record<number, number> = {};
+
+  for (const [userIdStr, battalionMap] of Object.entries(userBattalionMap)) {
+    const userId = Number(userIdStr);
+    userAllocatedMap[userId] = 0;
+    userStatusMap[userId] = {};
+
+    for (const [battalionName, personalNumbers] of Object.entries(battalionMap)) {
+      if (personalNumbers.length === 0) continue;
+      userAllocatedMap[userId] += personalNumbers.length;
+
+      const dbName = getBattalionDbName(battalionName);
+      try {
+        const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+        try {
+          const placeholders = personalNumbers.map(() => '?').join(',');
+          const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+            `SELECT request_status, COUNT(*) as cnt FROM soldiers WHERE personal_number IN (${placeholders}) GROUP BY request_status`,
+            personalNumbers
+          );
+          for (const row of rows) {
+            const status = row.request_status || '';
+            userStatusMap[userId][status] = (userStatusMap[userId][status] || 0) + Number(row.cnt);
+          }
+        } finally {
+          await conn.end();
+        }
+      } catch {
+        // Battalion DB might be inaccessible — skip silently
+      }
+    }
+  }
+
   return (users as any[])
-    .map((u) => ({ ...u, allocated: countMap[u.id] || 0 }))
+    .map((u) => ({
+      ...u,
+      allocated: userAllocatedMap[u.id] || 0,
+      byStatus: Object.entries(userStatusMap[u.id] || {})
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count),
+    }))
     .sort((a, b) => b.allocated - a.allocated);
 }
 
@@ -474,7 +522,7 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
       getBattalionPieStats(battalionFilter),
       getAssistanceStats(battalionFilter),
       getBattalionStatusBreakdown(battalionFilter),
-      getUsersAllocation(),
+      getUsersAllocation(battalionFilter),
     ]);
     res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation });
   } catch (error: any) {
@@ -501,6 +549,74 @@ export const getAssistanceSoldiers = async (req: Request, res: Response): Promis
   } catch (error: any) {
     logger.error('Get assistance soldiers failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בשליפת חיילים לפי סיוע' });
+  }
+};
+
+// Reverse map: DB field → Hebrew header (for export)
+const REVERSE_COLUMN_MAP: Record<string, string> = Object.entries(COLUMN_MAP).reduce(
+  (acc, [heb, field]) => ({ ...acc, [field]: acc[field] ?? heb }),
+  {} as Record<string, string>
+);
+
+const EXPORT_SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
+
+export const exportBattalion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionName = decodeURIComponent(req.params.name || '');
+    if (!battalionName) {
+      res.status(400).json({ error: 'חסר שם גדוד' });
+      return;
+    }
+
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+
+    let rows: mysql.RowDataPacket[] = [];
+    let columns: string[] = [];
+    try {
+      const [colRows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'
+         ORDER BY ORDINAL_POSITION`,
+        [dbName]
+      );
+      columns = (colRows as any[])
+        .map((r: any) => r.COLUMN_NAME as string)
+        .filter((c) => !EXPORT_SKIP_COLUMNS.has(c));
+
+      [rows] = await conn.execute<mysql.RowDataPacket[]>('SELECT * FROM soldiers ORDER BY id ASC');
+    } finally {
+      await conn.end();
+    }
+
+    // Build Excel
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(battalionName, { views: [{ rightToLeft: true }] });
+
+    // Header row — use Hebrew label where available, else raw column name
+    const headers = columns.map((c) => REVERSE_COLUMN_MAP[c] || c);
+    sheet.addRow(headers);
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } };
+    headerRow.alignment = { horizontal: 'center' };
+    columns.forEach((_, i) => { sheet.getColumn(i + 1).width = 22; });
+
+    // Data rows
+    for (const row of rows) {
+      sheet.addRow(columns.map((c) => row[c] ?? ''));
+    }
+
+    logger.info('Battalion export completed', { battalionName, rows: rows.length });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${battalionName}_export.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    logger.error('Battalion export failed', { battalionName: req.params?.name, errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה ביצוא הגדוד' });
   }
 };
 
