@@ -53,7 +53,8 @@
       "Bash(git commit -m \"fix: add password reset verification + full diagnostic logging:*)",
       "Bash(git checkout -b mvp1-13)",
       "Bash(git push -u origin mvp1-13)",
-      "Bash(git checkout -b mvp1-19)"
+      "Bash(git checkout -b mvp1-19)",
+      "Bash(docker ps --format \"table {{.Names}}\\\\t{{.Status}}\")"
     ]
   }
 }
