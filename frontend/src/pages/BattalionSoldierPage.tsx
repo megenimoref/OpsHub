@@ -73,7 +73,7 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'first_name', label: 'שם פרטי' },
   { key: 'mobile_phone', label: 'טלפון נייד' },
   { key: 'request_status', label: 'סטטוס פנייה', statusSelect: true },
-  { key: 'marital_status', label: 'מצב משפחתי', options: ['רווק', 'נשוי', 'גרוש'] },
+  { key: 'marital_status', label: 'מצב משפחתי', options: ['רווק', 'נשוי', 'גרוש', 'אלמן'] },
   { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
   { key: 'student_indicator', label: 'אינדיקציית סטודנט', options: ['כן', 'לא'] },
   { key: 'spouse', label: 'בן/בת זוג' },
@@ -505,6 +505,13 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">-- בחר --</option>
+                      {/* If the DB value doesn't match any known option (e.g. imported from Excel with different spelling), show it as an extra option */}
+                      {(() => {
+                        const current = (formData[key] as string) || '';
+                        return current && !options.includes(current)
+                          ? <option key="_imported" value={current}>{current}</option>
+                          : null;
+                      })()}
                       {options.map((opt) => (
                         <option key={opt} value={opt}>{opt}</option>
                       ))}

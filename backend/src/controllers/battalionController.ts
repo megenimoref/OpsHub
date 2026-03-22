@@ -33,6 +33,35 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || '1qaz!QAZ',
 };
 
+// Normalize imported field values to match frontend dropdown options
+function normalizeImportedValue(field: keyof SoldierRow, raw: string): string {
+  const v = raw.trim();
+  if (!v) return v;
+
+  if (field === 'marital_status') {
+    if (/^נשו/.test(v)) return 'נשוי';      // נשוי, נשוי/ה, נשואה
+    if (/^רווק/.test(v)) return 'רווק';     // רווק, רווק/ה, רווקה
+    if (/^גרוש/.test(v)) return 'גרוש';    // גרוש, גרוש/ה, גרושה
+    if (/^אלמ/.test(v)) return 'אלמן';      // אלמן, אלמנה
+    return v;
+  }
+
+  if (field === 'student_indicator') {
+    if (v === 'כן' || v === 'y' || v === 'yes' || v === '1' || v === 'true') return 'כן';
+    if (v === 'לא' || v === 'n' || v === 'no' || v === '0' || v === 'false') return 'לא';
+    return v;
+  }
+
+  if (field === 'children_count') {
+    // Excel may store as number; keep as string digit
+    const n = parseInt(v, 10);
+    if (!isNaN(n) && n >= 0) return String(n);
+    return v;
+  }
+
+  return v;
+}
+
 // Hebrew column headers mapped to DB field names
 const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'מספר אישי': 'personal_number',
@@ -190,7 +219,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
         if (!value) return;
         const field = columnIndexMap[colNumber];
         if (field) {
-          (soldier as any)[field] = value;
+          (soldier as any)[field] = normalizeImportedValue(field, value);
           hasData = true;
         } else {
           const extraField = extraColumnIndexMap[colNumber];
