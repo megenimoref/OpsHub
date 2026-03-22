@@ -82,7 +82,7 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'contact_by', label: 'מי יצרה קשר', userSelect: true },
   { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
   { key: 'contact_with', label: 'מול מי נוצר קשר', selectWithDetail: { options: ['החייל', 'קרוב'], detailOn: ['קרוב'] } },
-  { key: 'employment_status', label: 'סטטוס תעסוקתי', selectWithDetail: { options: ['עצמאי', 'שכיר', 'אחר'], detailOn: ['אחר'] } },
+  { key: 'employment_status', label: 'סטטוס תעסוקתי', selectWithDetail: { options: ['עצמאי', 'שכיר', 'מובטל', 'אחר'], detailOn: ['אחר'] } },
   { key: 'welfare_fund', label: 'קרן סיוע', multiline: true },
   { key: 'national_insurance', label: 'ביטוח לאומי', selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
   { key: 'other_assistance', label: 'סיוע אחר', multiline: true },

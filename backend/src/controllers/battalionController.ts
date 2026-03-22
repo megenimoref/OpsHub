@@ -59,6 +59,13 @@ function normalizeImportedValue(field: keyof SoldierRow, raw: string): string {
     return v;
   }
 
+  if (field === 'employment_status') {
+    if (/^מובטל/.test(v)) return 'מובטל';   // מובטל, מובטלת
+    if (/^עצמאי/.test(v)) return 'עצמאי';   // עצמאי, עצמאית
+    if (/^שכיר/.test(v)) return 'שכיר';     // שכיר, שכירה
+    return v;
+  }
+
   return v;
 }
 
