@@ -516,6 +516,82 @@ export const BenefitsPage: React.FC = () => {
       ),
     },
     {
+      id: 'lion-roar', title: 'מבצע שאגת הארי', icon: '🦁', color: 'teal',
+      content: (
+        <>
+          <div className="bg-gray-800/60 rounded-lg p-4 border border-gray-700/50 mb-4">
+            <p className="text-base font-semibold text-teal-300 mb-2">זכויות וסיוע למשרתי מילואים שגויסו במסגרת מבצע שאגת הארי</p>
+            <p className="text-base">משרתי מילואים שגויסו למבצע שאגת הארי זכאים למגוון הטבות – הן מהמדינה, הן מבנק ישראל והן מגופים עצמאיים כגון אוגן.</p>
+          </div>
+
+          {/* הלוואה ללא ריבית - אוגן */}
+          <div className="mb-4">
+            <p className="font-semibold text-teal-300 text-base mb-2">💰 הלוואה ללא ריבית – מסלול יובל (אוגן)</p>
+            <p className="text-sm mb-2">
+              ארגון אוגן (ארגון ללא מטרות רווח, מעל 35 שנות פעילות) מציע למשרתי ומשרתות המילואים הלוואה ללא ריבית וללא ערבים.
+            </p>
+            <p className="font-semibold text-sm text-gray-100 mt-2">תנאי זכאות:</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>גויסו למבצע שאגת הארי, <span className="font-medium">או</span> שירתו 30+ ימי מילואים בשנה האחרונה</li>
+              <li>גיל: מעל 21</li>
+              <li>הכנסה אישית חודשית: עד 25,000 ש"ח</li>
+            </ul>
+            <p className="font-semibold text-sm text-gray-100 mt-2">תקרות הכנסה למשק בית (נטו, כולל קצבאות):</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>זוג ללא ילדים – 3,000–15,000 ש"ח</li>
+              <li>זוג + ילד אחד מתחת לגיל 18 – 3,000–18,000 ש"ח</li>
+              <li>זוג + 2 ילדים – 3,000–22,000 ש"ח</li>
+              <li>זוג + 3 ילדים ומעלה – 3,000–25,000 ש"ח</li>
+            </ul>
+            <p className="font-semibold text-sm text-gray-100 mt-2">סכומי ההלוואה:</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>נשוי / גרוש עם ילדים / אלמן עם ילדים – עד 50,000 ש"ח</li>
+              <li>רווק – עד 35,000 ש"ח</li>
+            </ul>
+            <p className="font-semibold text-sm text-gray-100 mt-2">תנאי ההלוואה:</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>ריבית: 0%</li>
+              <li>תקופת החזר: עד 5 שנים</li>
+              <li>ללא ערבים ובטחונות</li>
+              <li>עמלת פתיחת תיק: 5% מסכום ההלוואה</li>
+              <li>זמן טיפול: כ-7 ימי עסקים</li>
+            </ul>
+            <p className="text-sm mt-2 text-teal-200">
+              לפרטים ולהגשת בקשה: <span className="font-bold" dir="ltr">lp.ogen.org/lions</span>
+            </p>
+          </div>
+
+          {/* הקלות בנקאיות */}
+          <div className="mb-4">
+            <p className="font-semibold text-teal-300 text-base mb-2">🏦 הקלות בנקאיות – מתווה בנק ישראל</p>
+            <p className="text-sm mb-2">בנק ישראל אישר מתווה סיוע מיוחד לנפגעי מבצע שאגת הארי.</p>
+
+            <p className="font-semibold text-sm text-gray-100 mt-2">לבעלי עסקים שגויסו למילואים (שירות בין 01.02.2026 – 01.04.2026):</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>פטור ריבית <span className="font-medium text-white">אוטומטי</span> על מינוס בחשבון עסקי – עד 30,000 ש"ח לחודשיים</li>
+              <li>תנאי: מחזור עסקי שנתי עד 25 מיליון ש"ח</li>
+              <li>ניתן אוטומטית למי שהבנק מזהה כמשרת מילואים</li>
+            </ul>
+
+            <p className="font-semibold text-sm text-gray-100 mt-2">למשקי בית שפונו או שביתם ניזוק:</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>דחיית תשלומי משכנתא: 3 חודשים, ללא ריבית/עמלות (ללא הגבלת סכום)</li>
+              <li>דחיית הלוואות צרכניות: עד 100,000 ש"ח, 3 חודשים, ריבית 0%</li>
+            </ul>
+
+            <p className="font-semibold text-sm text-gray-100 mt-2">לעסקים זעירים וקטנים שנפגעו:</p>
+            <ul className="list-disc pr-5 text-sm space-y-1">
+              <li>דחיית הלוואות: עד 2 מיליון ש"ח, חודשיים, ריבית 0%</li>
+            </ul>
+
+            <p className="text-sm mt-2 bg-amber-950/40 border border-amber-800/50 rounded-lg p-2">
+              <span className="font-semibold text-amber-300">⏰ חלון הגשת בקשות:</span> 16.03.2026 – 16.04.2026. יש לפנות ישירות לבנק שלכם.
+            </p>
+          </div>
+        </>
+      ),
+    },
+    {
       id: 'definitions', title: 'הגדרות', icon: '📖', color: 'rose',
       content: (
         <div className="space-y-3">
@@ -545,6 +621,7 @@ export const BenefitsPage: React.FC = () => {
     cyan:    { bg: 'bg-cyan-950/40',    border: 'border-cyan-800/50',    borderActive: 'border-cyan-400',    icon: 'text-cyan-400',    glow: 'bg-cyan-500',    shadow: 'shadow-cyan-500/30' },
     orange:  { bg: 'bg-orange-950/40',  border: 'border-orange-800/50',  borderActive: 'border-orange-400',  icon: 'text-orange-400',  glow: 'bg-orange-500',  shadow: 'shadow-orange-500/30' },
     rose:    { bg: 'bg-rose-950/40',    border: 'border-rose-800/50',    borderActive: 'border-rose-400',    icon: 'text-rose-400',    glow: 'bg-rose-500',    shadow: 'shadow-rose-500/30' },
+    teal:    { bg: 'bg-teal-950/40',    border: 'border-teal-800/50',    borderActive: 'border-teal-400',    icon: 'text-teal-400',    glow: 'bg-teal-500',    shadow: 'shadow-teal-500/30' },
   };
 
   return (
