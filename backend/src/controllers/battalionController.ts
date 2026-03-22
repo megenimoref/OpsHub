@@ -448,19 +448,67 @@ export const getSoldierChangesHandler = async (req: Request, res: Response): Pro
 
 const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 
-async function getUsersAllocation(): Promise<{ id: number; firstName: string; lastName: string; email: string; role: string; allocated: number }[]> {
-  const [users, counts] = await Promise.all([
-    User.findAll({ attributes: ['id', 'firstName', 'lastName', 'email', 'role'], raw: true }),
-    SoldierAllocation.findAll({
-      attributes: ['user_id', [fn('COUNT', col('id')), 'cnt']],
-      group: ['user_id'],
-      raw: true,
-    }),
-  ]);
-  const countMap: Record<number, number> = {};
-  (counts as any[]).forEach((c) => { countMap[c.user_id] = Number(c.cnt) || 0; });
+async function getUsersAllocation(battalionFilter?: string): Promise<{ id: number; firstName: string; lastName: string; email: string; role: string; allocated: number; byStatus: { status: string; count: number }[] }[]> {
+  const users = await User.findAll({ attributes: ['id', 'firstName', 'lastName', 'email', 'role'], raw: true });
+
+  const whereClause = battalionFilter ? { battalion_name: battalionFilter } : {};
+  const allocations = await SoldierAllocation.findAll({
+    where: whereClause,
+    attributes: ['user_id', 'battalion_name', 'soldier_personal_number'],
+    raw: true,
+  });
+
+  // Group allocations: userId → battalionName → personalNumbers[]
+  const userBattalionMap: Record<number, Record<string, string[]>> = {};
+  for (const alloc of allocations as any[]) {
+    if (!userBattalionMap[alloc.user_id]) userBattalionMap[alloc.user_id] = {};
+    if (!userBattalionMap[alloc.user_id][alloc.battalion_name]) userBattalionMap[alloc.user_id][alloc.battalion_name] = [];
+    userBattalionMap[alloc.user_id][alloc.battalion_name].push(alloc.soldier_personal_number);
+  }
+
+  // Query each battalion DB for request_status counts per user
+  const userStatusMap: Record<number, Record<string, number>> = {};
+  const userAllocatedMap: Record<number, number> = {};
+
+  for (const [userIdStr, battalionMap] of Object.entries(userBattalionMap)) {
+    const userId = Number(userIdStr);
+    userAllocatedMap[userId] = 0;
+    userStatusMap[userId] = {};
+
+    for (const [battalionName, personalNumbers] of Object.entries(battalionMap)) {
+      if (personalNumbers.length === 0) continue;
+      userAllocatedMap[userId] += personalNumbers.length;
+
+      const dbName = getBattalionDbName(battalionName);
+      try {
+        const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+        try {
+          const placeholders = personalNumbers.map(() => '?').join(',');
+          const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+            `SELECT request_status, COUNT(*) as cnt FROM soldiers WHERE personal_number IN (${placeholders}) GROUP BY request_status`,
+            personalNumbers
+          );
+          for (const row of rows) {
+            const status = row.request_status || '';
+            userStatusMap[userId][status] = (userStatusMap[userId][status] || 0) + Number(row.cnt);
+          }
+        } finally {
+          await conn.end();
+        }
+      } catch {
+        // Battalion DB might be inaccessible — skip silently
+      }
+    }
+  }
+
   return (users as any[])
-    .map((u) => ({ ...u, allocated: countMap[u.id] || 0 }))
+    .map((u) => ({
+      ...u,
+      allocated: userAllocatedMap[u.id] || 0,
+      byStatus: Object.entries(userStatusMap[u.id] || {})
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count),
+    }))
     .sort((a, b) => b.allocated - a.allocated);
 }
 
@@ -474,7 +522,7 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
       getBattalionPieStats(battalionFilter),
       getAssistanceStats(battalionFilter),
       getBattalionStatusBreakdown(battalionFilter),
-      getUsersAllocation(),
+      getUsersAllocation(battalionFilter),
     ]);
     res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation });
   } catch (error: any) {

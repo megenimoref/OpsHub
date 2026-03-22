@@ -51,6 +51,7 @@ interface UserAllocation {
   email: string;
   role: string;
   allocated: number;
+  byStatus: { status: string; count: number }[];
 }
 
 interface DashboardResponse {
@@ -75,6 +76,23 @@ const COLOR_CLASSES: Record<string, { border: string; title: string; badge: stri
   purple: { border: 'border-purple-700', title: 'text-purple-300', badge: 'bg-purple-900 text-purple-200', bar: 'bg-purple-500' },
   green:  { border: 'border-green-700',  title: 'text-green-300',  badge: 'bg-green-900 text-green-200',  bar: 'bg-green-500' },
   pink:   { border: 'border-pink-700',   title: 'text-pink-300',   badge: 'bg-pink-900 text-pink-200',    bar: 'bg-pink-500' },
+  blue:   { border: 'border-blue-700',   title: 'text-blue-300',   badge: 'bg-blue-900 text-blue-200',    bar: 'bg-blue-500' },
+  red:    { border: 'border-red-700',    title: 'text-red-300',    badge: 'bg-red-900 text-red-200',      bar: 'bg-red-500' },
+  amber:  { border: 'border-amber-700',  title: 'text-amber-300',  badge: 'bg-amber-900 text-amber-200',  bar: 'bg-amber-500' },
+};
+
+const USER_ROLE_COLORS: Record<string, string> = {
+  admin: 'red',
+  super: 'purple',
+  manager: 'blue',
+  staff: 'cyan',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'מנהל מערכת',
+  super: 'סופרוויזר',
+  manager: 'דרג פיקודי',
+  staff: 'צוות',
 };
 
 export const DashboardPage: React.FC = () => {
@@ -519,42 +537,61 @@ export const DashboardPage: React.FC = () => {
 
       {/* Tab: Users Allocation */}
       {activeTab === 'users' && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+        <div>
           <h2 className="text-base font-semibold text-white mb-4">משתמשים וחיילים מוקצים</h2>
-          {usersAllocation.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+          {usersAllocation.filter((u) => u.allocated > 0).length === 0 ? (
+            <p className="text-gray-500 text-sm text-center py-6">אין חיילים מוקצים</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-right">
-                <thead>
-                  <tr className="border-b border-gray-700 text-gray-400 text-xs">
-                    <th className="py-2 px-3">שם</th>
-                    <th className="py-2 px-3">אימייל</th>
-                    <th className="py-2 px-3">תפקיד</th>
-                    <th className="py-2 px-3">חיילים מוקצים</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usersAllocation.map((u) => {
-                    const ROLE_LABELS: Record<string, string> = { admin: 'מנהל מערכת', super: 'סופרוויזר', manager: 'דרג פיקודי', staff: 'צוות' };
-                    const ROLE_COLORS: Record<string, string> = { admin: 'text-red-400', super: 'text-purple-400', manager: 'text-blue-400', staff: 'text-gray-300' };
-                    return (
-                      <tr key={u.id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
-                        <td className="py-2.5 px-3 font-medium text-white">{u.firstName} {u.lastName}</td>
-                        <td className="py-2.5 px-3 text-gray-400">{u.email}</td>
-                        <td className={`py-2.5 px-3 font-medium ${ROLE_COLORS[u.role] || 'text-gray-300'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {usersAllocation.filter((u) => u.allocated > 0).map((u) => {
+                const color = USER_ROLE_COLORS[u.role] || 'cyan';
+                const cls = COLOR_CLASSES[color] || COLOR_CLASSES.cyan;
+                const maxCount = Math.max(...u.byStatus.map((s) => s.count), 1);
+                return (
+                  <div
+                    key={u.id}
+                    className={`bg-gray-900 rounded-xl border ${cls.border} p-5 flex flex-col gap-3`}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h3 className={`text-base font-bold ${cls.title}`}>{u.firstName} {u.lastName}</h3>
+                      <div className="flex gap-2 flex-wrap">
+                        <span className={`text-xs px-2 py-1 rounded-full ${cls.badge}`}>
                           {ROLE_LABELS[u.role] || u.role}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span className={`font-bold text-base ${u.allocated > 0 ? 'text-cyan-400' : 'text-gray-500'}`}>
-                            {u.allocated}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </span>
+                        <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-200">
+                          סה"כ: {u.allocated}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status breakdown */}
+                    {u.byStatus.length > 0 ? (
+                      <div>
+                        <p className="text-xs text-gray-400 mb-2 font-medium">פילוח לפי סטטוס פנייה</p>
+                        <div className="space-y-2">
+                          {u.byStatus.map(({ status, count }) => (
+                            <div key={status}>
+                              <div className="flex justify-between text-xs text-gray-300 mb-1">
+                                <span className="truncate max-w-[70%]">{status || '(ללא סטטוס)'}</span>
+                                <span>{count}</span>
+                              </div>
+                              <div className="w-full bg-gray-700 rounded-full h-1.5">
+                                <div
+                                  className={`${cls.bar} h-1.5 rounded-full`}
+                                  style={{ width: `${(count / maxCount) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">אין פילוח סטטוס זמין</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
