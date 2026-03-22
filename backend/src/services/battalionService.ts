@@ -149,13 +149,7 @@ const FIXED_COLUMNS = [
   'applications_needed', 'notes',
 ];
 
-// Army-managed data fields: always overwrite from Excel (can change between imports)
-// Team work fields (contact info, status, notes): only fill if currently empty in DB
-const ALWAYS_OVERWRITE = new Set<string>([
-  'last_name', 'first_name', 'mobile_phone',
-  'marital_status', 'children_count', 'student_indicator',
-  'spouse', 'spouse_phone', 'data_indicators',
-]);
+// Import always overwrites all fields from Excel — Excel is the single source of truth
 
 export async function importSoldiers(
   battalionName: string,
@@ -180,11 +174,7 @@ export async function importSoldiers(
 
       const updates = allColumns
         .filter((c) => c !== 'personal_number')
-        .map((c) => {
-          const q = `\`${c}\``;
-          if (ALWAYS_OVERWRITE.has(c)) return `${q} = VALUES(${q})`;
-          return `${q} = IF(${q} IS NULL OR TRIM(${q}) = '', VALUES(${q}), ${q})`;
-        })
+        .map((c) => `\`${c}\` = VALUES(\`${c}\`)`)
         .join(',\n');
 
       const values = allColumns.map((c) => soldier[c] || null);
