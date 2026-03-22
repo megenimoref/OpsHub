@@ -634,8 +634,8 @@ export async function updateSoldier(
     );
     const current = currentRows[0] as Record<string, any> | undefined;
 
-    // Perform the update
-    const fields = keys.map((k) => `${k} = ?`);
+    // Perform the update — wrap column names in backticks to support Hebrew/dynamic column names
+    const fields = keys.map((k) => `\`${k}\` = ?`);
     const values = keys.map((k) => (data as any)[k]);
     await conn.execute(
       `UPDATE soldiers SET ${fields.join(', ')} WHERE id = ?`,

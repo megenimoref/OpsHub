@@ -124,6 +124,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </NavLink>
         )}
 
+        {/* Staff — מיצוי זכויות */}
+        {user.role === 'staff' && (
+          <NavLink to="/benefits" onClick={closeMenu}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 8c1.657 0 3-1.343 3-3S13.657 2 12 2 9 3.343 9 5s1.343 3 3 3zm6 4a2 2 0 00-2-2h-1.172a3 3 0 01-5.656 0H8a2 2 0 00-2 2v7a3 3 0 003 3h6a3 3 0 003-3v-7z" />
+            </svg>
+            מיצוי זכויות
+          </NavLink>
+        )}
+
         {/* Super + Admin — הקצאת חיילים */}
         {(user.role === 'super' || user.role === 'admin') && (
           <NavLink to="/battalion/allocate" onClick={closeMenu}>
