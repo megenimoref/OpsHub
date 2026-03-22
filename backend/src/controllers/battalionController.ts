@@ -446,7 +446,6 @@ export const getSoldierChangesHandler = async (req: Request, res: Response): Pro
   }
 };
 
-const DASHBOARD_PEOPLE = ['כוכב', 'נימרוד', 'לילך', 'יקי'];
 
 async function getUsersAllocation(battalionFilter?: string): Promise<{ id: number; firstName: string; lastName: string; email: string; role: string; allocated: number; byStatus: { status: string; count: number }[] }[]> {
   const users = await User.findAll({ attributes: ['id', 'firstName', 'lastName', 'email', 'role'], raw: true });
@@ -515,8 +514,15 @@ async function getUsersAllocation(battalionFilter?: string): Promise<{ id: numbe
 export const getDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionFilter = req.query.battalion ? String(req.query.battalion) : undefined;
+
+    // Dynamically load all user firstNames for the "by handler" general tab section
+    const allUsersRaw = await User.findAll({ attributes: ['firstName'], raw: true });
+    const peopleNames = [...new Set(
+      (allUsersRaw as any[]).map((u: any) => u.firstName).filter(Boolean)
+    )];
+
     const [people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation] = await Promise.all([
-      getDashboardData(DASHBOARD_PEOPLE, battalionFilter),
+      getDashboardData(peopleNames, battalionFilter),
       getGlobalStats(battalionFilter),
       listBattalions(),
       getBattalionPieStats(battalionFilter),
