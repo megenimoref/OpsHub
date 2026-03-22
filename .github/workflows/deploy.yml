@@ -19,7 +19,11 @@ jobs:
       - name: Pull latest code
         run: |
           cd $HOME/crm/OpsHub
-          git pull origin main
+          for i in 1 2 3; do
+            git pull origin main && break
+            echo "git pull failed (attempt $i/3), retrying in 10s..."
+            sleep 10
+          done
 
       - name: Run deploy script
         run: bash $HOME/crm/OpsHub/devops/deploy.sh
