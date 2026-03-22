@@ -259,7 +259,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
         }
       }
     } catch (allocErr: any) {
-      logger.warn('Auto-allocation after import failed (non-fatal)', {
+      logger.error('Auto-allocation after import failed (non-fatal)', {
         battalionName,
         errorMessage: allocErr.message,
       });
