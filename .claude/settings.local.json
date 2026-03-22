@@ -54,7 +54,13 @@
       "Bash(git checkout -b mvp1-13)",
       "Bash(git push -u origin mvp1-13)",
       "Bash(git checkout -b mvp1-19)",
-      "Bash(docker ps --format \"table {{.Names}}\\\\t{{.Status}}\")"
+      "Bash(docker ps --format \"table {{.Names}}\\\\t{{.Status}}\")",
+      "Bash(git push -u origin mvp1-20)",
+      "WebFetch(domain:www.miluim.idf.il)",
+      "WebFetch(domain:www.kolzchut.org.il)",
+      "WebFetch(domain:www.boi.org.il)",
+      "WebFetch(domain:lp.ogen.org)",
+      "Bash(git push origin mvp1-20)"
     ]
   }
 }
