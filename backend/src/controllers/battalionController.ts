@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import ExcelJS from 'exceljs';
 import mysql from 'mysql2/promise';
-import { fn, col } from 'sequelize';
+import { fn, col, Op } from 'sequelize';
 import SoldierAllocation from '../models/soldierAllocation';
 import User from '../models/user';
 import {
@@ -221,10 +221,55 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     );
     const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns);
 
+    // Auto-allocate soldiers to users based on contact_by field matching user firstName
+    let allocatedCount = 0;
+    try {
+      const uniqueContactByNames = [
+        ...new Set(
+          soldiers
+            .filter((s) => s.contact_by && s.personal_number)
+            .map((s) => s.contact_by as string)
+        ),
+      ];
+
+      if (uniqueContactByNames.length > 0) {
+        const matchingUsers = await User.findAll({
+          where: { firstName: { [Op.in]: uniqueContactByNames } },
+          attributes: ['id', 'firstName'],
+          raw: true,
+        });
+
+        if ((matchingUsers as any[]).length > 0) {
+          const nameToUserId: Record<string, number> = {};
+          (matchingUsers as any[]).forEach((u: any) => {
+            nameToUserId[u.firstName] = u.id;
+          });
+
+          for (const soldier of soldiers) {
+            const contactBy = soldier.contact_by as string | undefined;
+            if (contactBy && soldier.personal_number && nameToUserId[contactBy]) {
+              await SoldierAllocation.upsert({
+                user_id: nameToUserId[contactBy],
+                battalion_name: battalionName,
+                soldier_personal_number: soldier.personal_number as string,
+              });
+              allocatedCount++;
+            }
+          }
+        }
+      }
+    } catch (allocErr: any) {
+      logger.warn('Auto-allocation after import failed (non-fatal)', {
+        battalionName,
+        errorMessage: allocErr.message,
+      });
+    }
+
     logger.info('Battalion import completed', {
       battalionName,
       totalRows: soldiers.length,
       insertedRows: insertedCount,
+      allocatedSoldiers: allocatedCount,
     });
 
     res.json({
@@ -232,6 +277,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       battalionName,
       totalRows: soldiers.length,
       insertedRows: insertedCount,
+      allocatedSoldiers: allocatedCount,
       unknownHeaders,
       message: `יובאו ${insertedCount} חיילים לגדוד "${battalionName}"`,
     });
