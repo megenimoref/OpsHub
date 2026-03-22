@@ -504,6 +504,74 @@ export const getAssistanceSoldiers = async (req: Request, res: Response): Promis
   }
 };
 
+// Reverse map: DB field → Hebrew header (for export)
+const REVERSE_COLUMN_MAP: Record<string, string> = Object.entries(COLUMN_MAP).reduce(
+  (acc, [heb, field]) => ({ ...acc, [field]: acc[field] ?? heb }),
+  {} as Record<string, string>
+);
+
+const EXPORT_SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
+
+export const exportBattalion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionName = decodeURIComponent(req.params.name || '');
+    if (!battalionName) {
+      res.status(400).json({ error: 'חסר שם גדוד' });
+      return;
+    }
+
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+
+    let rows: mysql.RowDataPacket[] = [];
+    let columns: string[] = [];
+    try {
+      const [colRows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'
+         ORDER BY ORDINAL_POSITION`,
+        [dbName]
+      );
+      columns = (colRows as any[])
+        .map((r: any) => r.COLUMN_NAME as string)
+        .filter((c) => !EXPORT_SKIP_COLUMNS.has(c));
+
+      [rows] = await conn.execute<mysql.RowDataPacket[]>('SELECT * FROM soldiers ORDER BY id ASC');
+    } finally {
+      await conn.end();
+    }
+
+    // Build Excel
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet(battalionName, { views: [{ rightToLeft: true }] });
+
+    // Header row — use Hebrew label where available, else raw column name
+    const headers = columns.map((c) => REVERSE_COLUMN_MAP[c] || c);
+    sheet.addRow(headers);
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } };
+    headerRow.alignment = { horizontal: 'center' };
+    columns.forEach((_, i) => { sheet.getColumn(i + 1).width = 22; });
+
+    // Data rows
+    for (const row of rows) {
+      sheet.addRow(columns.map((c) => row[c] ?? ''));
+    }
+
+    logger.info('Battalion export completed', { battalionName, rows: rows.length });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${battalionName}_export.xlsx"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error: any) {
+    logger.error('Battalion export failed', { battalionName: req.params?.name, errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה ביצוא הגדוד' });
+  }
+};
+
 export const downloadTemplate = async (_req: Request, res: Response): Promise<void> => {
   const headers = [
     'מספר אישי', 'שם משפחה', 'שם פרטי', 'טלפון נייד',
