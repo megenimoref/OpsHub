@@ -66,6 +66,26 @@ function normalizeImportedValue(field: keyof SoldierRow, raw: string): string {
     return v;
   }
 
+  if (field === 'contact_with') {
+    if (/^החייל/.test(v)) return 'החייל';   // החייל, החיילת
+    if (/^קרוב/.test(v)) return 'קרוב';     // קרוב, קרובה, קרוב משפחה
+    return v;
+  }
+
+  if (field === 'national_insurance') {
+    if (v === 'לא' || v === 'לא נדרש') return 'לא נדרש';
+    if (v === 'כן' || v === 'נדרש') return 'נדרש';
+    if (v === 'לא נדרש' || v === 'נדרש' || v === 'אחר') return v;
+    // Any other text → treat as 'אחר' with detail
+    if (!v.startsWith('אחר - ')) return `אחר - ${v}`;
+    return v;
+  }
+
+  if (field === 'contact_date') {
+    // Already converted from Date object before calling this function
+    return v;
+  }
+
   return v;
 }
 
@@ -222,7 +242,15 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       let hasData = false;
 
       row.eachCell((cell, colNumber) => {
-        const value = cell.text?.trim() || '';
+        // Handle Date objects (ExcelJS returns Date for date cells; cell.text is empty for them)
+        let value: string;
+        const cv = cell.value;
+        if (cv instanceof Date) {
+          const d = cv;
+          value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        } else {
+          value = cell.text?.trim() || '';
+        }
         if (!value) return;
         const field = columnIndexMap[colNumber];
         if (field) {
@@ -236,6 +264,11 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           }
         }
       });
+
+      // Default: if national_insurance not set (empty in Excel) → 'לא נדרש'
+      if (hasData && seenFields.has('national_insurance') && !(soldier as any).national_insurance) {
+        (soldier as any).national_insurance = 'לא נדרש';
+      }
 
       if (hasData) {
         soldiers.push(soldier);
