@@ -525,6 +525,14 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <option value="">-- בחר משתמש --</option>
+                      {/* If DB value doesn't match any system user full name (e.g. imported as first name only), show it */}
+                      {(() => {
+                        const current = (formData[key] as string) || '';
+                        const allFullNames = systemUsers.map((u) => `${u.firstName} ${u.lastName}`.trim());
+                        return current && !allFullNames.includes(current)
+                          ? <option key="_imported" value={current}>{current}</option>
+                          : null;
+                      })()}
                       {systemUsers.map((u) => {
                         const fullName = `${u.firstName} ${u.lastName}`.trim();
                         return (
