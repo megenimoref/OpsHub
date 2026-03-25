@@ -342,6 +342,12 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
       isDraftPendingRef.current = false;
       setSaveSuccess(true);
       onSave?.(soldier.personal_number, (formData.request_status as string) || '');
+      // Notify 360 page in other tabs to update this soldier's status
+      localStorage.setItem('soldier_status_update', JSON.stringify({
+        personalNumber: soldier.personal_number,
+        status: (formData.request_status as string) || '',
+        ts: Date.now(),
+      }));
       fetchChanges(selectedBattalion, soldier.id);
     } catch (err: any) {
       setSaveError(err.response?.data?.error || 'שגיאה בשמירה');

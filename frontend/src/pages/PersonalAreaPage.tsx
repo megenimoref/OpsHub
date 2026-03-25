@@ -76,6 +76,19 @@ export const PersonalAreaPage: React.FC = () => {
 
   useEffect(() => { fetchSoldiers(); }, [fetchSoldiers]);
 
+  // Listen for status updates from soldier card (opened in another tab)
+  useEffect(() => {
+    const handleStorageUpdate = (e: StorageEvent) => {
+      if (e.key !== 'soldier_status_update' || !e.newValue) return;
+      const { personalNumber, status } = JSON.parse(e.newValue);
+      setSoldiers((prev) =>
+        prev.map((s) => s.personal_number === personalNumber ? { ...s, request_status: status } : s)
+      );
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+    return () => window.removeEventListener('storage', handleStorageUpdate);
+  }, []);
+
   const openSearch = (key: string) => {
     setSearchingKey(key);
     setSearchInput('');

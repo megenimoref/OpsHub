@@ -49,14 +49,14 @@ export const allocateSoldiers = async (req: Request, res: Response): Promise<voi
 
     // Step 1: Query battalion DB for all soldiers ordered by id
     const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
-    let allSoldiers: { personal_number: string }[] = [];
+    let allSoldiers: { personal_number: string; contact_by: string }[] = [];
     try {
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        'SELECT personal_number FROM soldiers ORDER BY id ASC'
+        'SELECT personal_number, contact_by FROM soldiers ORDER BY id ASC'
       );
       allSoldiers = rows
         .filter((r) => r.personal_number != null && r.personal_number !== '')
-        .map((r) => ({ personal_number: r.personal_number as string }));
+        .map((r) => ({ personal_number: r.personal_number as string, contact_by: (r.contact_by as string) || '' }));
     } finally {
       await conn.end();
     }
@@ -68,8 +68,8 @@ export const allocateSoldiers = async (req: Request, res: Response): Promise<voi
     });
     const allocatedSet = new Set(allocated.map((a) => a.soldier_personal_number));
 
-    // Step 3: Filter out already-allocated soldiers
-    const unallocated = allSoldiers.filter((s) => !allocatedSet.has(s.personal_number));
+    // Step 3: Filter out already-allocated soldiers and soldiers with contact_by set
+    const unallocated = allSoldiers.filter((s) => !allocatedSet.has(s.personal_number) && !s.contact_by.trim());
 
     logger.info('Allocation calculation', {
       battalionName,
@@ -322,26 +322,36 @@ export const deallocateSoldiers = async (req: Request, res: Response): Promise<v
 
     const personalNumbers = allocations.map((a) => a.soldier_personal_number);
 
-    // Step 2: Query battalion DB for request_status
+    // Step 2: Fetch target user's full name (for contact_by comparison)
+    const targetUser = await User.findOne({ where: { id: userId }, attributes: ['firstName', 'lastName'] });
+    const userFullName = targetUser ? `${targetUser.firstName} ${targetUser.lastName}`.trim() : '';
+
+    // Step 3: Query battalion DB for request_status and contact_by
     const dbName = getBattalionDbName(battalionName);
     const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
     const statusMap: Record<string, string> = {};
+    const contactByMap: Record<string, string> = {};
     try {
       const placeholders = personalNumbers.map(() => '?').join(',');
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        `SELECT personal_number, request_status FROM soldiers WHERE personal_number IN (${placeholders})`,
+        `SELECT personal_number, request_status, contact_by FROM soldiers WHERE personal_number IN (${placeholders})`,
         personalNumbers
       );
       for (const row of rows) {
         statusMap[row.personal_number] = row.request_status || '';
+        contactByMap[row.personal_number] = row.contact_by || '';
       }
     } finally {
       await conn.end();
     }
 
-    // Step 3: Remove only soldiers whose status is NOT 'טופלה' / 'טופל'
+    // Step 4: Remove only soldiers whose status is NOT 'טופלה'/'טופל' AND contact_by does NOT match this user
     const HANDLED = ['טופלה', 'טופל'];
-    let toRemove = personalNumbers.filter((pn) => !HANDLED.includes(statusMap[pn]));
+    let toRemove = personalNumbers.filter((pn) => {
+      if (HANDLED.includes(statusMap[pn])) return false;
+      if (userFullName && contactByMap[pn].trim() === userFullName) return false;
+      return true;
+    });
     if (count !== undefined) {
       toRemove = toRemove.slice(0, Number(count));
     }
