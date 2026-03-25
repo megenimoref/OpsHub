@@ -1,11 +1,20 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import mysql from 'mysql2/promise';
 import User from '../models/user';
 import validator from 'validator';
 import { sendWelcomeEmail } from '../services/emailService';
 import { PASSWORD_REGEX, PASSWORD_ERROR } from './authController';
 import { logger } from '../services/logger';
+import { listBattalions, getBattalionDbName } from '../services/battalionService';
+
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
+  user: process.env.DB_USER || 'crm_user',
+  password: process.env.DB_PASSWORD || '1qaz!QAZ',
+};
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -185,11 +194,42 @@ export const updateUser = async (req: Request, res: Response) => {
       user.email = email;
     }
 
+    const oldFullName = `${user.firstName} ${user.lastName}`.trim();
+    const oldFirstName = user.firstName;
+
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (role !== undefined) user.role = ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff';
 
     await user.save();
+
+    const newFullName = `${user.firstName} ${user.lastName}`.trim();
+    const nameChanged = oldFullName !== newFullName || oldFirstName !== user.firstName;
+
+    // Update contact_by in all battalion DBs when the user's name changes
+    if (nameChanged) {
+      try {
+        const battalions = await listBattalions();
+        const oldNames = [oldFullName, oldFirstName].filter(Boolean);
+        await Promise.all(
+          battalions.map(async (bn) => {
+            const conn = await mysql.createConnection({ ...dbConfig, database: getBattalionDbName(bn) });
+            try {
+              for (const oldName of oldNames) {
+                await conn.execute(
+                  `UPDATE soldiers SET contact_by = ? WHERE contact_by = ?`,
+                  [newFullName, oldName]
+                );
+              }
+            } finally {
+              await conn.end();
+            }
+          })
+        );
+      } catch (err: any) {
+        logger.error('Failed to update contact_by after name change', { errorMessage: err.message });
+      }
+    }
 
     res.json({
       id: user.id,

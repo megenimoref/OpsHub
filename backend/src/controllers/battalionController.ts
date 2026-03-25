@@ -4,6 +4,7 @@ import mysql from 'mysql2/promise';
 import { fn, col, Op } from 'sequelize';
 import SoldierAllocation from '../models/soldierAllocation';
 import User from '../models/user';
+import Notification from '../models/notification';
 import {
   ensureBattalionDatabase,
   importSoldiers,
@@ -305,13 +306,15 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       if (uniqueContactByNames.length > 0) {
         // Fetch all users and build a trimmed-firstName → userId map
         const allUsers = await User.findAll({
-          attributes: ['id', 'firstName'],
+          attributes: ['id', 'firstName', 'lastName'],
           raw: true,
         });
 
         const nameToUserId: Record<string, number> = {};
         (allUsers as any[]).forEach((u: any) => {
           if (u.firstName) nameToUserId[u.firstName.trim()] = u.id;
+          const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+          if (fullName) nameToUserId[fullName] = u.id;
         });
 
         // Track which contact_by names had no matching user
@@ -335,6 +338,12 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
         if (allocationsToInsert.length > 0) {
           await SoldierAllocation.bulkCreate(allocationsToInsert, { ignoreDuplicates: true });
           allocatedCount = allocationsToInsert.length;
+          // Create notifications for each allocated soldier
+          const notificationsToInsert = allocationsToInsert.map((a) => ({
+            user_id: a.user_id,
+            message: `יובא לטיפולך חייל ${a.soldier_personal_number} מגדוד ${battalionName}`,
+          }));
+          await Notification.bulkCreate(notificationsToInsert);
         }
       }
     } catch (allocErr: any) {
@@ -352,12 +361,15 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       unmatchedContactNames,
     });
 
+    const withoutContactBy = soldiers.filter((s) => !s.contact_by || !(s.contact_by as string).trim()).length;
+
     res.json({
       success: true,
       battalionName,
       totalRows: soldiers.length,
       insertedRows: insertedCount,
       allocatedSoldiers: allocatedCount,
+      withoutContactBy,
       unmatchedContactNames,
       unknownHeaders,
       message: `יובאו ${insertedCount} חיילים לגדוד "${battalionName}"`,
@@ -489,10 +501,41 @@ export const updateSoldierHandler = async (req: Request, res: Response): Promise
       res.status(400).json({ error: 'חסר שם גדוד או מזהה חייל' });
       return;
     }
+    const battalionName = decodeURIComponent(name);
     const changedBy = req.userFirstName && req.userLastName
       ? `${req.userFirstName} ${req.userLastName}`
       : req.userEmail;
-    await updateSoldier(decodeURIComponent(name), Number(id), req.body, changedBy);
+    const { personalNumber } = await updateSoldier(battalionName, Number(id), req.body, changedBy);
+
+    // Auto-allocate to the user matching contact_by when it changes
+    const contactBy = (req.body.contact_by || '').trim();
+    if (contactBy && personalNumber) {
+      const [firstName, ...lastParts] = contactBy.split(' ');
+      const lastName = lastParts.join(' ');
+      const targetUser = await User.findOne({
+        where: { firstName, ...(lastName ? { lastName } : {}) },
+      });
+      if (targetUser) {
+        const existing = await SoldierAllocation.findOne({
+          where: { battalion_name: battalionName, soldier_personal_number: personalNumber },
+        });
+        if (existing) {
+          await existing.update({ user_id: targetUser.id });
+        } else {
+          await SoldierAllocation.create({
+            user_id: targetUser.id,
+            battalion_name: battalionName,
+            soldier_personal_number: personalNumber,
+          });
+        }
+        // Notify the target user
+        await Notification.create({
+          user_id: targetUser.id,
+          message: `${changedBy || 'מישהו'} העביר/ה לטיפולך פנייה של חייל ${personalNumber} מגדוד ${battalionName}`,
+        });
+      }
+    }
+
     res.json({ success: true });
   } catch (error: any) {
     logger.error('Update soldier failed', { errorMessage: error.message, stack: error.stack });

@@ -21,6 +21,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BackupPage } from './pages/BackupPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
+import { NotificationBell } from './components/NotificationBell';
 import './index.css';
 
 const NavLink: React.FC<{ to: string; onClick: () => void; children: React.ReactNode }> = ({ to, onClick, children }) => (
@@ -96,9 +97,12 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </h1>
         {user && (
           <div className="mt-3 text-center">
-            <p className="text-sm font-medium text-gray-200 leading-tight">
-              {user.firstName} {user.lastName}
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-sm font-medium text-gray-200 leading-tight">
+                {user.firstName} {user.lastName}
+              </p>
+              <NotificationBell />
+            </div>
             <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
               user.role === 'admin' ? 'bg-red-900/60 text-red-300' :
               user.role === 'super' ? 'bg-purple-900/60 text-purple-300' :
