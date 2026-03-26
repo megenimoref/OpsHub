@@ -631,21 +631,21 @@ export async function updateSoldier(
   id: number,
   data: Partial<SoldierRow>,
   changedBy?: string
-): Promise<void> {
+): Promise<{ personalNumber: string }> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
     await ensureChangesTable(conn);
-    const READONLY_FIELDS = new Set(['id', 'created_at', 'updated_at']);
-    const keys = Object.keys(data).filter((k) => !READONLY_FIELDS.has(k));
-    if (keys.length === 0) return;
-
     // Fetch current soldier data to detect changes
     const [currentRows] = await conn.execute<mysql.RowDataPacket[]>(
       `SELECT * FROM soldiers WHERE id = ? LIMIT 1`,
       [id]
     );
     const current = currentRows[0] as Record<string, any> | undefined;
+
+    const READONLY_FIELDS = new Set(['id', 'created_at', 'updated_at']);
+    const keys = Object.keys(data).filter((k) => !READONLY_FIELDS.has(k));
+    if (keys.length === 0) return { personalNumber: current?.personal_number || '' };
 
     // Perform the update — wrap column names in backticks to support Hebrew/dynamic column names
     const fields = keys.map((k) => `\`${k}\` = ?`);
@@ -669,6 +669,7 @@ export async function updateSoldier(
         }
       }
     }
+    return { personalNumber: current?.personal_number || '' };
   } finally {
     await conn.end();
   }

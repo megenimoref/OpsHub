@@ -7,6 +7,9 @@ interface ImportResult {
   battalionName: string;
   totalRows: number;
   insertedRows: number;
+  allocatedSoldiers: number;
+  withoutContactBy: number;
+  unmatchedContactNames: string[];
   message: string;
   unknownHeaders?: string[];
 }
@@ -194,10 +197,23 @@ export const BattalionImportPage: React.FC = () => {
 
           {/* Success result */}
           {result && (
-            <div className="bg-green-900/40 border border-green-700 text-green-300 px-4 py-4 rounded-lg">
-              <p className="font-bold text-lg mb-1">✓ היבוא הצליח!</p>
-              <p>{result.message}</p>
-              <p className="text-sm mt-1">סה"כ שורות בקובץ: {result.totalRows} | יובאו: {result.insertedRows}</p>
+            <div className="space-y-2">
+              <div className="bg-green-900/40 border border-green-700 text-green-300 px-4 py-4 rounded-lg">
+                <p className="font-bold text-lg mb-2">✓ היבוא הצליח!</p>
+                <p className="text-sm">{result.message}</p>
+                <div className="mt-3 space-y-1 text-sm">
+                  <p>📋 סה"כ חיילים בקובץ: <span className="font-semibold">{result.totalRows}</span></p>
+                  {result.allocatedSoldiers > 0 && (
+                    <p>✅ הוקצו אוטומטית לפי "מי יצרה קשר": <span className="font-semibold">{result.allocatedSoldiers}</span></p>
+                  )}
+                  {result.withoutContactBy > 0 && (
+                    <p>📌 ללא "מי יצרה קשר" — זמינים להקצאה ידנית: <span className="font-semibold text-yellow-300">{result.withoutContactBy}</span></p>
+                  )}
+                  {result.unmatchedContactNames?.length > 0 && (
+                    <p className="text-yellow-300">⚠️ שמות שלא נמצאו במערכת: <span className="font-semibold">{result.unmatchedContactNames.join(', ')}</span></p>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

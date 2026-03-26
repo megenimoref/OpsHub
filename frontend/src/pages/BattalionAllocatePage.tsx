@@ -143,6 +143,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
 
 export const BattalionAllocatePage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
+  const canAllocate = currentUser?.role === 'admin' || currentUser?.role === 'super' || currentUser?.role === 'manager';
   const [battalions, setBattalions] = useState<string[]>([]);
   const [staffUsers, setStaffUsers] = useState<UserItem[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState<string | null>(null);
@@ -371,33 +372,39 @@ export const BattalionAllocatePage: React.FC = () => {
 
         {/* Allocation form */}
         {selectedBattalion && selectedUser && stats && (
-          <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-            <div>
-              <label className="block text-gray-300 text-xs mb-2">כמות חיילים להקצאה:</label>
-              <input
-                type="number"
-                min="0"
-                max={stats.unallocated}
-                value={allocationCount}
-                onChange={(e) => { setAllocationCount(e.target.value); setAllocMessage(null); }}
-                placeholder="0"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm"
-              />
-              <p className="text-gray-400 text-xs mt-1">ניתן להקצות עד {stats.unallocated} חיילים</p>
-            </div>
-            <button
-              onClick={handleAllocate}
-              disabled={allocating || !allocationCount || parseInt(allocationCount) > stats.unallocated}
-              className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
-            >
-              {allocating ? 'מקצה...' : 'הקצה'}
-            </button>
-            {allocMessage && (
-              <div className={`p-3 rounded-lg text-xs ${allocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
-                {allocMessage.text}
+          canAllocate ? (
+            <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+              <div>
+                <label className="block text-gray-300 text-xs mb-2">כמות חיילים להקצאה:</label>
+                <input
+                  type="number"
+                  min="0"
+                  max={stats.unallocated}
+                  value={allocationCount}
+                  onChange={(e) => { setAllocationCount(e.target.value); setAllocMessage(null); }}
+                  placeholder="0"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500 text-sm"
+                />
+                <p className="text-gray-400 text-xs mt-1">ניתן להקצות עד {stats.unallocated} חיילים</p>
               </div>
-            )}
-          </div>
+              <button
+                onClick={handleAllocate}
+                disabled={allocating || !allocationCount || parseInt(allocationCount) > stats.unallocated}
+                className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {allocating ? 'מקצה...' : 'הקצה'}
+              </button>
+              {allocMessage && (
+                <div className={`p-3 rounded-lg text-xs ${allocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
+                  {allocMessage.text}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 text-center">
+              <p className="text-yellow-300 text-sm">אין לך הרשאות לביצוע הקצאות. נדרש תפקיד מנהל.</p>
+            </div>
+          )
         )}
 
         {/* Refresh allocations by contact_by */}
@@ -428,35 +435,37 @@ export const BattalionAllocatePage: React.FC = () => {
 
         {/* Deallocate section */}
         {selectedBattalion && selectedUser && (
-          <div className="bg-gray-800 rounded-lg p-4 space-y-3 border border-red-800/50">
-            <div>
-              <p className="text-red-300 text-xs font-semibold mb-1">הורדת חיילים מהמשתמש</p>
-              <p className="text-gray-400 text-xs">מוריד חיילים שסטטוסם אינו "טופלה" / "טופל". השאר ריק להורדת כולם.</p>
-            </div>
-            <div>
-              <label className="block text-gray-300 text-xs mb-2">כמות חיילים להורדה (אופציונלי):</label>
-              <input
-                type="number"
-                min="1"
-                value={deallocCount}
-                onChange={(e) => { setDeallocCount(e.target.value); setDeallocMessage(null); }}
-                placeholder="השאר ריק להורדת הכל"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 text-sm"
-              />
-            </div>
-            <button
-              onClick={handleDeallocate}
-              disabled={deallocating}
-              className="w-full px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
-            >
-              {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'הורד את כולם'}
-            </button>
-            {deallocMessage && (
-              <div className={`p-3 rounded-lg text-xs ${deallocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
-                {deallocMessage.text}
+          canAllocate ? (
+            <div className="bg-gray-800 rounded-lg p-4 space-y-3 border border-red-800/50">
+              <div>
+                <p className="text-red-300 text-xs font-semibold mb-1">הורדת חיילים מהמשתמש</p>
+                <p className="text-gray-400 text-xs">מוריד חיילים שסטטוסם אינו "טופלה" / "טופל". השאר ריק להורדת כולם.</p>
               </div>
-            )}
-          </div>
+              <div>
+                <label className="block text-gray-300 text-xs mb-2">כמות חיילים להורדה (אופציונלי):</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={deallocCount}
+                  onChange={(e) => { setDeallocCount(e.target.value); setDeallocMessage(null); }}
+                  placeholder="השאר ריק להורדת הכל"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 text-sm"
+                />
+              </div>
+              <button
+                onClick={handleDeallocate}
+                disabled={deallocating}
+                className="w-full px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'הורד את כולם'}
+              </button>
+              {deallocMessage && (
+                <div className={`p-3 rounded-lg text-xs ${deallocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
+                  {deallocMessage.text}
+                </div>
+              )}
+            </div>
+          ) : null
         )}
       </div>
 

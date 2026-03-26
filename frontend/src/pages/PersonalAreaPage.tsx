@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
 
 interface SoldierBasic {
@@ -7,6 +7,7 @@ interface SoldierBasic {
   last_name: string;
   request_status: string;
   battalion_name: string;
+  contact_date: string;
 }
 
 const STATUS_OPTIONS: { value: string; color: string }[] = [
@@ -42,31 +43,50 @@ const PAGE_SIZE = 20;
 export const PersonalAreaPage: React.FC = () => {
   const [soldiers, setSoldiers] = useState<SoldierBasic[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [battalionFilter, setBattalionFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [searchingKey, setSearchingKey] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
 
+  const fetchSoldiers = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      const response = await api.get<SoldierBasic[]>('/battalion/my-soldiers');
+      setSoldiers(response.data || []);
+      setLastUpdated(new Date());
+      setError('');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'שגיאה בטעינת הנתונים';
+      setError(msg);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchSoldiers(); }, [fetchSoldiers]);
+
+  // Listen for status updates from soldier card (opened in another tab)
   useEffect(() => {
-    const fetchSoldiers = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get<SoldierBasic[]>('/battalion/my-soldiers');
-        setSoldiers(response.data || []);
-        setError('');
-      } catch (err: any) {
-        const msg = err.response?.data?.error || err.message || 'שגיאה בטעינת הנתונים';
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
+    const handleStorageUpdate = (e: StorageEvent) => {
+      if (e.key !== 'soldier_status_update' || !e.newValue) return;
+      const { personalNumber, status } = JSON.parse(e.newValue);
+      setSoldiers((prev) =>
+        prev.map((s) => s.personal_number === personalNumber ? { ...s, request_status: status } : s)
+      );
     };
-    fetchSoldiers();
+    window.addEventListener('storage', handleStorageUpdate);
+    return () => window.removeEventListener('storage', handleStorageUpdate);
   }, []);
 
   const openSearch = (key: string) => {
@@ -116,11 +136,13 @@ export const PersonalAreaPage: React.FC = () => {
   const filteredSoldiers = useMemo(() => {
     let list = soldiers;
     if (battalionFilter !== 'all') list = list.filter((s) => s.battalion_name === battalionFilter);
+    if (dateFrom) list = list.filter((s) => s.contact_date && s.contact_date >= dateFrom);
+    if (dateTo) list = list.filter((s) => s.contact_date && s.contact_date <= dateTo);
     if (activeFilter === 'all') return list;
     if (activeFilter === 'not_done') return list.filter((s) => s.request_status !== 'טופלה');
     if (activeFilter === 'no_request') return list.filter((s) => !s.request_status?.trim());
     return list.filter((s) => s.request_status === activeFilter);
-  }, [soldiers, activeFilter, battalionFilter]);
+  }, [soldiers, activeFilter, battalionFilter, dateFrom, dateTo]);
 
   const handleFilterChange = (key: string) => {
     setActiveFilter(key);
@@ -186,26 +208,85 @@ export const PersonalAreaPage: React.FC = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto" dir="rtl">
       {/* Header */}
-      <div className="mb-5 flex items-center justify-between gap-4">
+      <div className="mb-5 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">אזור אישי 360</h1>
-          <p className="text-gray-400 text-sm">חיילים המוקצים לך — לחץ על העין לטעינת כרטיס החייל</p>
-        </div>
-        {battalionNames.length >= 1 && (
-          <div className="flex flex-col items-end gap-1">
-            <label className="text-xs text-gray-400">סנן לפי גדוד</label>
-            <select
-              value={battalionFilter}
-              onChange={(e) => { setBattalionFilter(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[140px]"
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-3xl font-bold text-white">אזור אישי 360</h1>
+            <button
+              onClick={() => fetchSoldiers(true)}
+              disabled={refreshing}
+              title="רענן נתונים"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-200 text-xs rounded-lg border border-gray-600 transition-colors"
             >
-              <option value="all">כל הגדודים</option>
-              {battalionNames.map((bn) => (
-                <option key={bn} value={bn}>{bn}</option>
-              ))}
-            </select>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {refreshing ? 'מרענן...' : 'רענן'}
+            </button>
           </div>
-        )}
+          <p className="text-gray-400 text-sm">
+            חיילים המוקצים לך — לחץ על העין לטעינת כרטיס החייל
+            {lastUpdated && (
+              <span className="mr-2 text-gray-500 text-xs">
+                · עודכן {lastUpdated.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </p>
+        </div>
+
+        {/* Filters: battalion + date range */}
+        <div className="flex flex-wrap items-end gap-3">
+          {/* Date range filter */}
+          <div className="flex items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-400">מתאריך קשר</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                className="px-2 py-1.5 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-400">עד תאריך קשר</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                className="px-2 py-1.5 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); setCurrentPage(1); }}
+                className="pb-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+                title="נקה פילטר תאריך"
+              >
+                ✕ נקה
+              </button>
+            )}
+          </div>
+
+          {battalionNames.length >= 1 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-400">סנן לפי גדוד</label>
+              <select
+                value={battalionFilter}
+                onChange={(e) => { setBattalionFilter(e.target.value); setCurrentPage(1); }}
+                className="px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[140px]"
+              >
+                <option value="all">כל הגדודים</option>
+                {battalionNames.map((bn) => (
+                  <option key={bn} value={bn}>{bn}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filter — slide-down dropdown */}
@@ -287,6 +368,7 @@ export const PersonalAreaPage: React.FC = () => {
                   <th className="px-3 py-3 w-10"></th>
                   <th className="px-4 py-3 font-semibold text-gray-200">גדוד</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">סטטוס פנייה</th>
+                  <th className="px-4 py-3 font-semibold text-gray-200">תאריך קשר</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם משפחה</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם פרטי</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">מספר אישי</th>
@@ -328,6 +410,11 @@ export const PersonalAreaPage: React.FC = () => {
                             <span className="text-gray-500 text-xs">-</span>
                           )}
                         </td>
+                        <td className="px-4 py-3 text-gray-400 text-sm whitespace-nowrap">
+                          {soldier.contact_date
+                            ? new Date(soldier.contact_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            : <span className="text-gray-600">-</span>}
+                        </td>
                         {/* Clickable name/number cells */}
                         <td
                           className="px-4 py-3 text-gray-300 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
@@ -354,7 +441,7 @@ export const PersonalAreaPage: React.FC = () => {
                       {/* Inline search row */}
                       {isSearching && (
                         <tr className="border-b border-blue-800 bg-blue-950/40">
-                          <td colSpan={6} className="px-4 py-3">
+                          <td colSpan={7} className="px-4 py-3">
                             <form onSubmit={handleGlobalSearch} className="flex items-center gap-2">
                               <span className="text-blue-300 text-xs font-medium whitespace-nowrap">חיפוש חייל לפי מספר אישי:</span>
                               <input

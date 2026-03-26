@@ -60,7 +60,24 @@
       "WebFetch(domain:www.kolzchut.org.il)",
       "WebFetch(domain:www.boi.org.il)",
       "WebFetch(domain:lp.ogen.org)",
-      "Bash(git push origin mvp1-20)"
+      "Bash(git push origin mvp1-20)",
+      "Bash(git push origin mvp1-22)",
+      "Bash(gh pr:*)",
+      "Bash(brew install gh)",
+      "Bash(/opt/homebrew/bin/gh pr:*)",
+      "Bash(python3 -:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(git checkout -b mvp1-23)",
+      "Bash(git push -u origin mvp1-23)",
+      "Bash(git checkout -b mvp1-24)",
+      "Bash(git push -u origin mvp1-24)",
+      "Bash(git push)",
+      "Bash(git pull)",
+      "Bash(git checkout -b mvp1-25)",
+      "Bash(git push -u origin mvp1-25)",
+      "Bash(python3 -c \":*)",
+      "Bash(git checkout -b mvp1-26)",
+      "Bash(git push -u origin mvp1-26)"
     ]
   }
 }
