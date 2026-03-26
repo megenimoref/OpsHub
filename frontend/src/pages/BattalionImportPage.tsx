@@ -82,8 +82,7 @@ export const BattalionImportPage: React.FC = () => {
     setResult(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (importMode: 'new' | 'existing') => {
     setError('');
     setResult(null);
 
@@ -94,6 +93,7 @@ export const BattalionImportPage: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('battalionName', battalionName);
+      formData.append('importMode', importMode);
       formData.append('file', file);
       const response = await api.post<ImportResult>('/battalion/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -116,7 +116,7 @@ export const BattalionImportPage: React.FC = () => {
       </div>
 
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           {/* Battalion dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">גדוד</label>
@@ -244,14 +244,25 @@ export const BattalionImportPage: React.FC = () => {
               {exportLoading ? 'מייצא...' : 'ייצא גדוד'}
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={() => handleSubmit('new')}
               disabled={loading || !file || !battalionName || battalionsLoading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="px-5 py-2 bg-purple-700 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              title="מייבא הכל מהאקסל - מדרוס כל ערך קיים"
             >
-              {loading ? 'מייבא...' : 'יבא גדוד'}
+              {loading ? 'מייבא...' : 'ייבא גדוד חדש'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSubmit('existing')}
+              disabled={loading || !file || !battalionName || battalionsLoading}
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              title="מייבא רק שדות עם ערך - לא מדרוס ערכים קיימים"
+            >
+              {loading ? 'מייבא...' : 'ייבא גדוד קיים'}
             </button>
           </div>
-        </form>
+        </div>
       </div>
 
       {/* Template download */}

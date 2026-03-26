@@ -154,7 +154,8 @@ const FIXED_COLUMNS = [
 export async function importSoldiers(
   battalionName: string,
   soldiers: SoldierRowWithExtras[],
-  extraColumns: string[] = []
+  extraColumns: string[] = [],
+  isNewBattalion: boolean = false
 ): Promise<number> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
@@ -172,20 +173,19 @@ export async function importSoldiers(
       const colList = allColumns.map((c) => `\`${c}\``).join(', ');
       const placeholders = allColumns.map(() => '?').join(', ');
 
-      // Fields entered manually in the CRM — never overwrite with Excel data
+      // Fields entered manually in the CRM — never overwrite with Excel data (on existing battalions)
       const PROTECTED_FIELDS = new Set([
         'contact_by', 'contact_date', 'contact_with',
         'request_status', 'notes', 'other_assistance', 'applications_needed',
       ]);
-
-      // On duplicate:
-      // - Protected (operational) fields: keep DB value if exists
-      // - Basic info fields: Excel overwrites DB (source of truth is the import file)
-      // - Extra/dynamic columns: keep DB value if exists (unknown origin)
       const extraSet = new Set(extraColumns);
       const updates = allColumns
         .filter((c) => c !== 'personal_number')
         .map((c) => {
+          if (isNewBattalion) {
+            // New battalion: no existing CRM data to protect, overwrite everything
+            return `\`${c}\` = VALUES(\`${c}\`)`;
+          }
           if (PROTECTED_FIELDS.has(c) || extraSet.has(c)) {
             // Protected: keep DB value if it exists, fill only if DB is empty
             return `\`${c}\` = COALESCE(NULLIF(\`${c}\`, ''), VALUES(\`${c}\`))`;

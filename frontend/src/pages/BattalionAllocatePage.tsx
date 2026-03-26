@@ -158,6 +158,8 @@ export const BattalionAllocatePage: React.FC = () => {
   const [deallocating, setDeallocating] = useState(false);
   const [deallocMessage, setDeallocMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deallocCount, setDeallocCount] = useState<string>('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const fetchUserAllocStats = async () => {
     try {
@@ -256,6 +258,26 @@ export const BattalionAllocatePage: React.FC = () => {
       setAllocMessage({ type: 'error', text: err.response?.data?.error || 'שגיאה בהקצאת חיילים' });
     } finally {
       setAllocating(false);
+    }
+  };
+
+  const handleRefreshAllocations = async () => {
+    if (!selectedBattalion) return;
+    setRefreshing(true);
+    setRefreshMessage(null);
+    try {
+      const { data } = await api.post<{ updated: number; unmatched: string[]; message: string }>(
+        `/battalion/${encodeURIComponent(selectedBattalion)}/refresh-allocations`
+      );
+      const unmatchedNote = data.unmatched.length > 0
+        ? ` (לא נמצאו: ${data.unmatched.join(', ')})`
+        : '';
+      setRefreshMessage({ type: 'success', text: `${data.message}${unmatchedNote}` });
+      await Promise.all([refreshStats(), fetchUserAllocStats()]);
+    } catch (err: any) {
+      setRefreshMessage({ type: 'error', text: err.response?.data?.error || 'שגיאה ברענון הקצאות' });
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -383,6 +405,26 @@ export const BattalionAllocatePage: React.FC = () => {
               <p className="text-yellow-300 text-sm">אין לך הרשאות לביצוע הקצאות. נדרש תפקיד מנהל.</p>
             </div>
           )
+        )}
+
+        {/* Refresh allocations by contact_by */}
+        {selectedBattalion && (
+          <div className="bg-gray-800 rounded-lg p-4 space-y-2 border border-cyan-800/50">
+            <p className="text-cyan-300 text-xs font-semibold">רענון הקצאות לפי "מי יצרה קשר"</p>
+            <p className="text-gray-400 text-xs">עובר על כל החיילים בגדוד ומשייך אותם למשתמש לפי שדה "מי יצרה קשר". חייל עם שם שמותאם ייוקצה בלעדית למשתמש הזה.</p>
+            <button
+              onClick={handleRefreshAllocations}
+              disabled={refreshing}
+              className="w-full px-3 py-2 bg-cyan-700 hover:bg-cyan-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+            >
+              {refreshing ? 'מרענן...' : 'רענן משתמשים'}
+            </button>
+            {refreshMessage && (
+              <div className={`p-3 rounded-lg text-xs ${refreshMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
+                {refreshMessage.text}
+              </div>
+            )}
+          </div>
         )}
 
         {selectedBattalion && !selectedUser && (
