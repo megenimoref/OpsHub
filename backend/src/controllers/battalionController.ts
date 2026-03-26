@@ -281,9 +281,10 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Check if battalion already exists before creating it
-    const existingBattalions = await listBattalions();
-    const isNewBattalion = !existingBattalions.includes(battalionName);
+    // importMode: 'new' = overwrite all fields + skip existing allocations
+    //             'existing' = only update non-empty fields + upsert allocations by contact_by
+    const importMode: 'new' | 'existing' = req.body.importMode === 'new' ? 'new' : 'existing';
+    const isNewImport = importMode === 'new';
 
     // Create DB and table if not exists
     await ensureBattalionDatabase(battalionName);
@@ -292,7 +293,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     const extraColumns = Object.values(extraColumnIndexMap).filter(
       (v, i, arr) => arr.indexOf(v) === i
     );
-    const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns, isNewBattalion);
+    const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns, isNewImport);
 
     // Auto-allocate soldiers to users based on contact_by field matching user firstName
     let allocatedCount = 0;
@@ -323,7 +324,6 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           if (!nameToUserId[name]) unmatchedContactNames.push(name);
         });
 
-        // Build allocation records — ignoreDuplicates so we never overwrite existing manual allocations
         const allocationsToInsert: { user_id: number; battalion_name: string; soldier_personal_number: string }[] = [];
         for (const soldier of soldiers) {
           const contactBy = (soldier.contact_by as string | undefined)?.trim();
@@ -337,7 +337,15 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
         }
 
         if (allocationsToInsert.length > 0) {
-          await SoldierAllocation.bulkCreate(allocationsToInsert, { ignoreDuplicates: true });
+          if (isNewImport) {
+            // New import: skip soldiers that are already allocated
+            await SoldierAllocation.bulkCreate(allocationsToInsert, { ignoreDuplicates: true });
+          } else {
+            // Existing import: overwrite allocation based on contact_by (one user per soldier)
+            await SoldierAllocation.bulkCreate(allocationsToInsert, {
+              updateOnDuplicate: ['user_id', 'updatedAt'],
+            });
+          }
           allocatedCount = allocationsToInsert.length;
         }
       }
@@ -384,6 +392,77 @@ export const getBattalions = async (req: Request, res: Response): Promise<void> 
   } catch (error: any) {
     logger.error('Get battalions failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בקבלת רשימת גדודים' });
+  }
+};
+
+// Refresh allocations for a battalion based on contact_by field in soldiers table.
+// For each soldier with a contact_by that matches a user firstName, upsert the allocation.
+// Soldiers without contact_by are left as-is (unallocated).
+export const refreshAllocations = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionName = decodeURIComponent(req.params.name);
+    if (!battalionName) {
+      res.status(400).json({ error: 'חסר שם גדוד' });
+      return;
+    }
+
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    let soldiers: { personal_number: string; contact_by: string | null }[] = [];
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        'SELECT personal_number, contact_by FROM soldiers'
+      );
+      soldiers = rows as { personal_number: string; contact_by: string | null }[];
+    } finally {
+      await conn.end();
+    }
+
+    const allUsers = await User.findAll({ attributes: ['id', 'firstName'], raw: true });
+    const nameToUserId: Record<string, number> = {};
+    (allUsers as any[]).forEach((u: any) => {
+      if (u.firstName) nameToUserId[u.firstName.trim()] = u.id;
+    });
+
+    const allocationsToUpsert: { user_id: number; battalion_name: string; soldier_personal_number: string }[] = [];
+    const unmatched: string[] = [];
+
+    for (const s of soldiers) {
+      const contactBy = s.contact_by?.trim();
+      if (!contactBy) continue;
+      const userId = nameToUserId[contactBy];
+      if (userId) {
+        allocationsToUpsert.push({
+          user_id: userId,
+          battalion_name: battalionName,
+          soldier_personal_number: s.personal_number,
+        });
+      } else {
+        if (!unmatched.includes(contactBy)) unmatched.push(contactBy);
+      }
+    }
+
+    if (allocationsToUpsert.length > 0) {
+      await SoldierAllocation.bulkCreate(allocationsToUpsert, {
+        updateOnDuplicate: ['user_id', 'updatedAt'],
+      });
+    }
+
+    logger.info('Refresh allocations completed', {
+      battalionName,
+      updated: allocationsToUpsert.length,
+      unmatched,
+    });
+
+    res.json({
+      success: true,
+      updated: allocationsToUpsert.length,
+      unmatched,
+      message: `עודכנו ${allocationsToUpsert.length} הקצאות לגדוד "${battalionName}"`,
+    });
+  } catch (error: any) {
+    logger.error('Refresh allocations failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה ברענון הקצאות' });
   }
 };
 
