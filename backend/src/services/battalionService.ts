@@ -154,7 +154,8 @@ const FIXED_COLUMNS = [
 export async function importSoldiers(
   battalionName: string,
   soldiers: SoldierRowWithExtras[],
-  extraColumns: string[] = []
+  extraColumns: string[] = [],
+  isNewBattalion: boolean = false
 ): Promise<number> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
@@ -172,9 +173,14 @@ export async function importSoldiers(
       const colList = allColumns.map((c) => `\`${c}\``).join(', ');
       const placeholders = allColumns.map(() => '?').join(', ');
 
+      // New battalion: overwrite everything. Existing battalion: only update non-null values from Excel.
       const updates = allColumns
         .filter((c) => c !== 'personal_number')
-        .map((c) => `\`${c}\` = VALUES(\`${c}\`)`)
+        .map((c) =>
+          isNewBattalion
+            ? `\`${c}\` = VALUES(\`${c}\`)`
+            : `\`${c}\` = COALESCE(VALUES(\`${c}\`), \`${c}\`)`
+        )
         .join(',\n');
 
       const values = allColumns.map((c) => soldier[c] || null);

@@ -281,6 +281,10 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    // Check if battalion already exists before creating it
+    const existingBattalions = await listBattalions();
+    const isNewBattalion = !existingBattalions.includes(battalionName);
+
     // Create DB and table if not exists
     await ensureBattalionDatabase(battalionName);
 
@@ -288,7 +292,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     const extraColumns = Object.values(extraColumnIndexMap).filter(
       (v, i, arr) => arr.indexOf(v) === i
     );
-    const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns);
+    const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns, isNewBattalion);
 
     // Auto-allocate soldiers to users based on contact_by field matching user firstName
     let allocatedCount = 0;
