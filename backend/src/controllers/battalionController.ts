@@ -331,17 +331,30 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           if (fullName) nameToUserId[fullName] = u.id;
         });
 
+        // Resolve a contact_by value (may contain "/" separated names) to a user ID.
+        // Tries the full value first, then each individual part split by "/".
+        const resolveContactBy = (contactBy: string): number | undefined => {
+          const full = contactBy.trim();
+          if (nameToUserId[full]) return nameToUserId[full];
+          const parts = full.split('/').map((p) => p.trim()).filter(Boolean);
+          for (const part of parts) {
+            if (nameToUserId[part]) return nameToUserId[part];
+          }
+          return undefined;
+        };
+
         // Track which contact_by names had no matching user
         uniqueContactByNames.forEach((name) => {
-          if (!nameToUserId[name]) unmatchedContactNames.push(name);
+          if (!resolveContactBy(name)) unmatchedContactNames.push(name);
         });
 
         const allocationsToInsert: { user_id: number; battalion_name: string; soldier_personal_number: string }[] = [];
         for (const soldier of soldiers) {
           const contactBy = (soldier.contact_by as string | undefined)?.trim();
-          if (contactBy && soldier.personal_number && nameToUserId[contactBy]) {
+          const userId = contactBy ? resolveContactBy(contactBy) : undefined;
+          if (contactBy && soldier.personal_number && userId) {
             allocationsToInsert.push({
-              user_id: nameToUserId[contactBy],
+              user_id: userId,
               battalion_name: battalionName,
               soldier_personal_number: soldier.personal_number as string,
             });
@@ -439,11 +452,24 @@ export const refreshAllocations = async (req: Request, res: Response): Promise<v
       await conn.end();
     }
 
-    const allUsers = await User.findAll({ attributes: ['id', 'firstName'], raw: true });
+    const allUsers = await User.findAll({ attributes: ['id', 'firstName', 'lastName'], raw: true });
     const nameToUserId: Record<string, number> = {};
     (allUsers as any[]).forEach((u: any) => {
       if (u.firstName) nameToUserId[u.firstName.trim()] = u.id;
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+      if (fullName) nameToUserId[fullName] = u.id;
     });
+
+    // Resolve a contact_by value (may contain "/" separated names) to a user ID
+    const resolveContactBy = (contactBy: string): number | undefined => {
+      const full = contactBy.trim();
+      if (nameToUserId[full]) return nameToUserId[full];
+      const parts = full.split('/').map((p) => p.trim()).filter(Boolean);
+      for (const part of parts) {
+        if (nameToUserId[part]) return nameToUserId[part];
+      }
+      return undefined;
+    };
 
     const allocationsToUpsert: { user_id: number; battalion_name: string; soldier_personal_number: string }[] = [];
     const unmatched: string[] = [];
@@ -451,7 +477,7 @@ export const refreshAllocations = async (req: Request, res: Response): Promise<v
     for (const s of soldiers) {
       const contactBy = s.contact_by?.trim();
       if (!contactBy) continue;
-      const userId = nameToUserId[contactBy];
+      const userId = resolveContactBy(contactBy);
       if (userId) {
         allocationsToUpsert.push({
           user_id: userId,
