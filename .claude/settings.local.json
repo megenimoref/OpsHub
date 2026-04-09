@@ -79,7 +79,17 @@
       "Bash(git checkout -b mvp1-26)",
       "Bash(git push -u origin mvp1-26)",
       "Bash(grep -B 2 -A 2 \"^\\\\d+$\" /Users/sh.azulay/crm/OpsHub/backend/src/controllers/battalionController.ts)",
-      "Bash(git -C /Users/sh.azulay/crm/OpsHub rm --cached .claude/worktrees/vigilant-khayyam)"
+      "Bash(git -C /Users/sh.azulay/crm/OpsHub rm --cached .claude/worktrees/vigilant-khayyam)",
+      "Read(//usr/local/bin/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//opt/homebrew/var/**)",
+      "Read(//var/run/mysqld/**)",
+      "Read(//private/tmp/**)",
+      "Bash(pm2 list:*)",
+      "Bash(~/.nvm/versions/node/*/bin/pm2)",
+      "Bash(list)",
+      "Bash(/opt/homebrew/bin/pm2 list:*)",
+      "Bash(npx pm2:*)"
     ]
   }
 }
