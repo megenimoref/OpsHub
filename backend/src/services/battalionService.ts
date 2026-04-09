@@ -11,10 +11,11 @@ const dbConfig = {
 };
 
 export function sanitizeBattalionName(name: string): string {
-  // Convert to ASCII-safe: replace Hebrew and special chars with their hex code points
+  // Allow Hebrew letters, English letters, digits, and underscores as-is
+  // Convert spaces/dashes to underscores; encode anything else to hex
   let result = '';
   for (const char of name.trim()) {
-    if (/[a-zA-Z0-9]/.test(char)) {
+    if (/[a-zA-Z0-9\u05D0-\u05EA\u05F0-\u05F4_]/.test(char)) {
       result += char;
     } else if (char === ' ' || char === '-') {
       result += '_';
@@ -169,16 +170,21 @@ export async function importSoldiers(
 
     const allColumns = [...FIXED_COLUMNS, ...extraColumns];
 
+    const PROTECTED_FIELDS = new Set([
+      'contact_by', 'contact_date', 'contact_with',
+      'request_status', 'notes', 'other_assistance', 'applications_needed',
+    ]);
+    const extraSet = new Set(extraColumns);
+
     for (const soldier of soldiers) {
       const colList = allColumns.map((c) => `\`${c}\``).join(', ');
       const placeholders = allColumns.map(() => '?').join(', ');
 
-      // Fields entered manually in the CRM — never overwrite with Excel data (on existing battalions)
-      const PROTECTED_FIELDS = new Set([
-        'contact_by', 'contact_date', 'contact_with',
-        'request_status', 'notes', 'other_assistance', 'applications_needed',
-      ]);
-      const extraSet = new Set(extraColumns);
+      // If Excel has an actionable status (anything other than "לא נוצר קשר" or empty),
+      // overwrite all fields from Excel. Otherwise, keep existing CRM values protected.
+      const excelStatus = (soldier.request_status || '').trim();
+      const hasActionableStatus = excelStatus !== '' && excelStatus !== 'לא נוצר קשר';
+
       const updates = allColumns
         .filter((c) => c !== 'personal_number')
         .map((c) => {
@@ -186,8 +192,12 @@ export async function importSoldiers(
             // New battalion: no existing CRM data to protect, overwrite everything
             return `\`${c}\` = VALUES(\`${c}\`)`;
           }
+          if (hasActionableStatus) {
+            // Excel has actual status → overwrite all fields (but don't clear with empty Excel values)
+            return `\`${c}\` = COALESCE(NULLIF(VALUES(\`${c}\`), ''), \`${c}\`)`;
+          }
           if (PROTECTED_FIELDS.has(c) || extraSet.has(c)) {
-            // Protected: keep DB value if it exists, fill only if DB is empty
+            // No actionable status → keep existing DB CRM values, fill only if DB is empty
             return `\`${c}\` = COALESCE(NULLIF(\`${c}\`, ''), VALUES(\`${c}\`))`;
           }
           // Basic info: Excel overwrites DB — but only if Excel has an actual value

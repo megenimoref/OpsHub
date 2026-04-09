@@ -123,8 +123,12 @@ export const createBattalion = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    if (!/^\d+$/.test(battalionName)) {
-      res.status(400).json({ error: 'מספר הגדוד חייב להכיל ספרות בלבד' });
+    if (battalionName.includes(' ')) {
+      res.status(400).json({ error: 'שם הגדוד לא יכול להכיל רווחים. השתמש בקו תחתון במקום רווח (לדוגמה: מפקדה_גדוד)' });
+      return;
+    }
+    if (!/^[\u05D0-\u05EA\u05F0-\u05F4a-zA-Z0-9_]+$/.test(battalionName)) {
+      res.status(400).json({ error: 'שם הגדוד יכול להכיל אותיות עבריות/אנגליות, ספרות וקו תחתון בלבד' });
       return;
     }
 
