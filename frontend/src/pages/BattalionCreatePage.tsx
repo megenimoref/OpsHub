@@ -9,7 +9,7 @@ export const BattalionCreatePage: React.FC = () => {
   const [error, setError] = useState('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '');
+    const val = e.target.value;
     setBattalionNumber(val);
     setError('');
     setSuccess('');
@@ -18,7 +18,15 @@ export const BattalionCreatePage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!battalionNumber) {
-      setError('יש להזין מספר גדוד');
+      setError('יש להזין שם גדוד');
+      return;
+    }
+    if (battalionNumber.includes(' ')) {
+      setError('שם הגדוד לא יכול להכיל רווחים. השתמש בקו תחתון במקום רווח (לדוגמה: מפקדה_גדוד)');
+      return;
+    }
+    if (!/^[\u05D0-\u05EA\u05F0-\u05F4a-zA-Z0-9_]+$/.test(battalionNumber)) {
+      setError('שם הגדוד יכול להכיל אותיות עבריות/אנגליות, ספרות וקו תחתון בלבד');
       return;
     }
     setShowConfirm(true);
@@ -52,18 +60,17 @@ export const BattalionCreatePage: React.FC = () => {
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">מספר הגדוד</label>
+            <label className="block text-sm font-medium text-gray-300 mb-1">שם הגדוד</label>
             <input
               type="text"
-              inputMode="numeric"
               value={battalionNumber}
               onChange={handleInputChange}
-              placeholder="לדוגמה: 101"
+              placeholder="לדוגמה: 101 או מפקדה_גדוד"
               className="w-full px-4 py-2 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-right bg-gray-700 text-white placeholder-gray-400 text-lg"
               disabled={loading}
               autoFocus
             />
-            <p className="text-xs text-gray-500 mt-1">ספרות בלבד</p>
+            <p className="text-xs text-gray-500 mt-1">אותיות עבריות/אנגליות, ספרות וקו תחתון (ללא רווחים)</p>
           </div>
 
           {error && (
