@@ -170,6 +170,12 @@ export async function importSoldiers(
 
     const allColumns = [...FIXED_COLUMNS, ...extraColumns];
 
+    // For a new-battalion import, clear all existing rows first so stale
+    // records (e.g. from a previous import with missing personal_number) don't linger
+    if (isNewBattalion) {
+      await conn.execute(`DELETE FROM soldiers`);
+    }
+
     const PROTECTED_FIELDS = new Set([
       'contact_by', 'contact_date', 'contact_with',
       'request_status', 'notes', 'other_assistance', 'applications_needed',

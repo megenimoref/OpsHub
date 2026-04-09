@@ -77,11 +77,31 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Start server
 const PORT = process.env.PORT || 3000;
 
+// Remove duplicate UNIQUE indexes on users.email accumulated by repeated alter:true syncs
+async function cleanupDuplicateEmailIndexes(): Promise<void> {
+  try {
+    const [results]: any = await sequelize.query(`
+      SELECT GROUP_CONCAT(DISTINCT CONCAT('DROP INDEX \`', INDEX_NAME, '\`') SEPARATOR ', ') AS drops
+      FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+        AND INDEX_NAME != 'PRIMARY' AND COLUMN_NAME = 'email'
+      HAVING drops IS NOT NULL
+    `);
+    if (results[0]?.drops) {
+      await sequelize.query(`ALTER TABLE users ${results[0].drops}`);
+      console.log('✓ Cleaned up duplicate email indexes on users table');
+    }
+  } catch {
+    // Table may not exist yet on first run — safe to ignore
+  }
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
     console.log('✓ Database connected');
 
+    await cleanupDuplicateEmailIndexes();
     await sequelize.sync({ alter: true });
     console.log('✓ Models synced');
 

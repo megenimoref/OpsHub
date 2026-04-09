@@ -93,9 +93,14 @@ function normalizeImportedValue(field: keyof SoldierRow, raw: string): string {
 // Hebrew column headers mapped to DB field names
 const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'מספר אישי': 'personal_number',
+  "מס' אישי": 'personal_number',
+  'מס אישי': 'personal_number',
+  'מספר.אישי': 'personal_number',
   'שם משפחה': 'last_name',
   'שם פרטי': 'first_name',
   'טלפון נייד': 'mobile_phone',
+  'טלפון': 'mobile_phone',
+  'נייד': 'mobile_phone',
   'סטטוס פנייה': 'request_status',
   'מצב משפחתי': 'marital_status',
   'מספר ילדים': 'children_count',
