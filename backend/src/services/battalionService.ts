@@ -163,61 +163,76 @@ export async function importSoldiers(
 
   let insertedCount = 0;
   try {
-    // Add any new columns to the table dynamically
+    // Add any new columns to the table dynamically (outside transaction — DDL causes implicit commit)
     for (const col of extraColumns) {
       await conn.execute(`ALTER TABLE soldiers ADD COLUMN IF NOT EXISTS \`${col}\` TEXT`);
     }
 
     const allColumns = [...FIXED_COLUMNS, ...extraColumns];
 
-    // For a new-battalion import, clear all existing rows first so stale
-    // records (e.g. from a previous import with missing personal_number) don't linger
     if (isNewBattalion) {
-      await conn.execute(`DELETE FROM soldiers`);
-    }
+      // Wrap DELETE + all INSERTs in a transaction so that if any INSERT fails,
+      // we ROLLBACK and the DB is restored to its previous state instead of being left empty.
+      await conn.beginTransaction();
+      try {
+        await conn.execute(`DELETE FROM soldiers`);
 
-    const PROTECTED_FIELDS = new Set([
-      'contact_by', 'contact_date', 'contact_with',
-      'request_status', 'notes', 'other_assistance', 'applications_needed',
-    ]);
-    const extraSet = new Set(extraColumns);
+        for (const soldier of soldiers) {
+          const colList = allColumns.map((c) => `\`${c}\``).join(', ');
+          const placeholders = allColumns.map(() => '?').join(', ');
+          // New import: overwrite every field exactly as it appears in the Excel (1:1)
+          const updates = allColumns
+            .filter((c) => c !== 'personal_number')
+            .map((c) => `\`${c}\` = VALUES(\`${c}\`)`)
+            .join(',\n');
+          const values = allColumns.map((c) => soldier[c] ?? null);
+          await conn.execute(
+            `INSERT INTO soldiers (${colList}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updates}`,
+            values
+          );
+          insertedCount++;
+        }
 
-    for (const soldier of soldiers) {
-      const colList = allColumns.map((c) => `\`${c}\``).join(', ');
-      const placeholders = allColumns.map(() => '?').join(', ');
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      }
+    } else {
+      const PROTECTED_FIELDS = new Set([
+        'contact_by', 'contact_date', 'contact_with',
+        'request_status', 'notes', 'other_assistance', 'applications_needed',
+      ]);
+      const extraSet = new Set(extraColumns);
 
-      // If Excel has an actionable status (anything other than "לא נוצר קשר" or empty),
-      // overwrite all fields from Excel. Otherwise, keep existing CRM values protected.
-      const excelStatus = (soldier.request_status || '').trim();
-      const hasActionableStatus = excelStatus !== '' && excelStatus !== 'לא נוצר קשר';
+      for (const soldier of soldiers) {
+        const colList = allColumns.map((c) => `\`${c}\``).join(', ');
+        const placeholders = allColumns.map(() => '?').join(', ');
 
-      const updates = allColumns
-        .filter((c) => c !== 'personal_number')
-        .map((c) => {
-          if (isNewBattalion) {
-            // New battalion: no existing CRM data to protect, overwrite everything
-            return `\`${c}\` = VALUES(\`${c}\`)`;
-          }
-          if (hasActionableStatus) {
-            // Excel has actual status → overwrite all fields (but don't clear with empty Excel values)
+        const excelStatus = (soldier.request_status || '').trim();
+        const hasActionableStatus = excelStatus !== '' && excelStatus !== 'לא נוצר קשר';
+
+        const updates = allColumns
+          .filter((c) => c !== 'personal_number')
+          .map((c) => {
+            if (hasActionableStatus) {
+              return `\`${c}\` = COALESCE(NULLIF(VALUES(\`${c}\`), ''), \`${c}\`)`;
+            }
+            if (PROTECTED_FIELDS.has(c) || extraSet.has(c)) {
+              return `\`${c}\` = COALESCE(NULLIF(\`${c}\`, ''), VALUES(\`${c}\`))`;
+            }
             return `\`${c}\` = COALESCE(NULLIF(VALUES(\`${c}\`), ''), \`${c}\`)`;
-          }
-          if (PROTECTED_FIELDS.has(c) || extraSet.has(c)) {
-            // No actionable status → keep existing DB CRM values, fill only if DB is empty
-            return `\`${c}\` = COALESCE(NULLIF(\`${c}\`, ''), VALUES(\`${c}\`))`;
-          }
-          // Basic info: Excel overwrites DB — but only if Excel has an actual value
-          return `\`${c}\` = COALESCE(NULLIF(VALUES(\`${c}\`), ''), \`${c}\`)`;
-        })
-        .join(',\n');
+          })
+          .join(',\n');
 
-      const values = allColumns.map((c) => soldier[c] || null);
+        const values = allColumns.map((c) => soldier[c] || null);
 
-      await conn.execute(
-        `INSERT INTO soldiers (${colList}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updates}`,
-        values
-      );
-      insertedCount++;
+        await conn.execute(
+          `INSERT INTO soldiers (${colList}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updates}`,
+          values
+        );
+        insertedCount++;
+      }
     }
   } finally {
     await conn.end();

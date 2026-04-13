@@ -89,7 +89,13 @@
       "Bash(~/.nvm/versions/node/*/bin/pm2)",
       "Bash(list)",
       "Bash(/opt/homebrew/bin/pm2 list:*)",
-      "Bash(npx pm2:*)"
+      "Bash(npx pm2:*)",
+      "Read(//Users/sh.azulay/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/827063e0-9ef6-46a9-acc1-c2bd131f6aad/66706f7a-21c6-4cd6-90db-2e2bd4bfca03/skills/xlsx/**)",
+      "Bash(pip3 install:*)",
+      "Bash(node -e \":*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }

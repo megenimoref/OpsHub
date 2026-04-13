@@ -345,9 +345,11 @@ export const deallocateSoldiers = async (req: Request, res: Response): Promise<v
       await conn.end();
     }
 
-    // Step 4: Remove only soldiers whose status is NOT 'טופלה'/'טופל' AND contact_by does NOT match this user
+    // Step 4: Decide which soldiers to remove
+    const forceAll = req.body.forceAll === true || req.body.forceAll === 'true';
     const HANDLED = ['טופלה', 'טופל'];
     let toRemove = personalNumbers.filter((pn) => {
+      if (forceAll) return true; // force-remove everyone regardless of status
       if (HANDLED.includes(statusMap[pn])) return false;
       if (userFullName && contactByMap[pn].trim() === userFullName) return false;
       return true;
@@ -378,6 +380,72 @@ export const deallocateSoldiers = async (req: Request, res: Response): Promise<v
   } catch (error: any) {
     logger.error('Deallocate soldiers failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בהסרת חיילים' });
+  }
+};
+
+// Assign a specific list of soldiers (by personal number) to a user
+export const assignSoldiers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { battalionName, userId, personalNumbers } = req.body;
+
+    if (!battalionName || !userId || !Array.isArray(personalNumbers) || personalNumbers.length === 0) {
+      res.status(400).json({ error: 'נדרשים battalionName, userId ורשימת מספרים אישיים' });
+      return;
+    }
+
+    const cleaned: string[] = personalNumbers
+      .map((p: any) => String(p).trim())
+      .filter(Boolean);
+
+    if (cleaned.length === 0) {
+      res.status(400).json({ error: 'לא נמצאו מספרים אישיים תקינים' });
+      return;
+    }
+
+    // Verify soldiers exist in the battalion DB
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    let foundNumbers: string[] = [];
+    try {
+      const placeholders = cleaned.map(() => '?').join(',');
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT personal_number FROM soldiers WHERE personal_number IN (${placeholders})`,
+        cleaned
+      );
+      foundNumbers = rows.map((r) => r.personal_number);
+    } finally {
+      await conn.end();
+    }
+
+    const notFound = cleaned.filter((pn) => !foundNumbers.includes(pn));
+
+    if (foundNumbers.length === 0) {
+      res.status(400).json({ error: 'לא נמצא אף חייל מהרשימה בגדוד זה' });
+      return;
+    }
+
+    const allocationsToInsert = foundNumbers.map((pn) => ({
+      user_id: Number(userId),
+      battalion_name: battalionName,
+      soldier_personal_number: pn,
+    }));
+
+    // Upsert — if already allocated to someone else, reassign to new user
+    await SoldierAllocation.bulkCreate(allocationsToInsert, {
+      updateOnDuplicate: ['user_id', 'updatedAt'],
+    });
+
+    logger.info('Assign soldiers completed', { battalionName, userId, assigned: foundNumbers.length, notFound });
+
+    res.json({
+      success: true,
+      assigned: foundNumbers.length,
+      notFound,
+      message: `${foundNumbers.length} חיילים הוצבו למשתמש`,
+    });
+  } catch (error: any) {
+    logger.error('Assign soldiers failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בהצבת חיילים' });
   }
 };
 

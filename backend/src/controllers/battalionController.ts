@@ -361,10 +361,16 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           }
         }
 
+        if (isNewImport) {
+          // New import: wipe all existing allocations for this battalion so the
+          // result matches the Excel exactly, then re-insert from scratch.
+          await SoldierAllocation.destroy({ where: { battalion_name: battalionName } });
+        }
+
         if (allocationsToInsert.length > 0) {
           if (isNewImport) {
-            // New import: skip soldiers that are already allocated
-            await SoldierAllocation.bulkCreate(allocationsToInsert, { ignoreDuplicates: true });
+            // All old allocations were just deleted — plain insert, no conflicts possible
+            await SoldierAllocation.bulkCreate(allocationsToInsert);
           } else {
             // Existing import: overwrite allocation based on contact_by (one user per soldier)
             await SoldierAllocation.bulkCreate(allocationsToInsert, {
@@ -372,7 +378,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
             });
           }
           allocatedCount = allocationsToInsert.length;
-          // Create notifications for each allocated soldier
+          // Create notifications for each newly allocated soldier
           const notificationsToInsert = allocationsToInsert.map((a) => ({
             user_id: a.user_id,
             message: `יובא לטיפולך חייל ${a.soldier_personal_number} מגדוד ${battalionName}`,
