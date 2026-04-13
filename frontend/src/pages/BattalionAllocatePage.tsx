@@ -158,6 +158,9 @@ export const BattalionAllocatePage: React.FC = () => {
   const [deallocating, setDeallocating] = useState(false);
   const [deallocMessage, setDeallocMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [deallocCount, setDeallocCount] = useState<string>('');
+  const [assignInput, setAssignInput] = useState<string>('');
+  const [assigning, setAssigning] = useState(false);
+  const [assignMessage, setAssignMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -281,7 +284,7 @@ export const BattalionAllocatePage: React.FC = () => {
     }
   };
 
-  const handleDeallocate = async () => {
+  const handleDeallocate = async (forceAll = false) => {
     if (!selectedBattalion || !selectedUser) return;
     const count = deallocCount ? parseInt(deallocCount, 10) : undefined;
     if (deallocCount && (isNaN(count!) || count! <= 0)) {
@@ -295,14 +298,50 @@ export const BattalionAllocatePage: React.FC = () => {
         battalionName: selectedBattalion,
         userId: selectedUser,
         ...(count !== undefined && { count }),
+        ...(forceAll && { forceAll: true }),
       });
-      setDeallocMessage({ type: 'success', text: `${data.removed} חיילים הוסרו, ${data.kept} נשארו (טופלה/טופל)` });
+      if (forceAll) {
+        setDeallocMessage({ type: 'success', text: `${data.removed} חיילים הוסרו (כולל טופל/טופלה)` });
+      } else {
+        setDeallocMessage({ type: 'success', text: `${data.removed} חיילים הוסרו, ${data.kept} נשארו (טופלה/טופל)` });
+      }
       setDeallocCount('');
       await Promise.all([refreshStats(), fetchUserAllocStats()]);
     } catch (err: any) {
       setDeallocMessage({ type: 'error', text: err.response?.data?.error || 'שגיאה בהסרת חיילים' });
     } finally {
       setDeallocating(false);
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedBattalion || !selectedUser || !assignInput.trim()) return;
+    const personalNumbers = assignInput
+      .split(/[\n,،]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (personalNumbers.length === 0) {
+      setAssignMessage({ type: 'error', text: 'הכנס לפחות מספר אישי אחד' });
+      return;
+    }
+    setAssigning(true);
+    setAssignMessage(null);
+    try {
+      const { data } = await api.post<{ assigned: number; notFound: string[]; message: string }>('/battalion/assign', {
+        battalionName: selectedBattalion,
+        userId: selectedUser,
+        personalNumbers,
+      });
+      const notFoundNote = data.notFound?.length > 0
+        ? ` (לא נמצאו: ${data.notFound.join(', ')})`
+        : '';
+      setAssignMessage({ type: 'success', text: `${data.assigned} חיילים הוצבו בהצלחה${notFoundNote}` });
+      setAssignInput('');
+      await Promise.all([refreshStats(), fetchUserAllocStats()]);
+    } catch (err: any) {
+      setAssignMessage({ type: 'error', text: err.response?.data?.error || 'שגיאה בהצבת חיילים' });
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -433,6 +472,35 @@ export const BattalionAllocatePage: React.FC = () => {
           </div>
         )}
 
+        {/* Assign specific soldiers section */}
+        {selectedBattalion && selectedUser && canAllocate && (
+          <div className="bg-gray-800 rounded-lg p-4 space-y-3 border border-indigo-800/50">
+            <div>
+              <p className="text-indigo-300 text-xs font-semibold mb-1">הצב חיילים למשתמש</p>
+              <p className="text-gray-400 text-xs">הכנס מספרים אישיים (שורה אחת לכל חייל, או מופרדים בפסיק) — החיילים יוצבו למשתמש הנבחר.</p>
+            </div>
+            <textarea
+              rows={4}
+              value={assignInput}
+              onChange={(e) => { setAssignInput(e.target.value); setAssignMessage(null); }}
+              placeholder={'1234567\n2345678\n3456789'}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-indigo-500 text-sm resize-none font-mono"
+            />
+            <button
+              onClick={handleAssign}
+              disabled={assigning || !assignInput.trim()}
+              className="w-full px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+            >
+              {assigning ? 'מצב...' : 'הצב חיילים'}
+            </button>
+            {assignMessage && (
+              <div className={`p-3 rounded-lg text-xs ${assignMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
+                {assignMessage.text}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Deallocate section */}
         {selectedBattalion && selectedUser && (
           canAllocate ? (
@@ -452,13 +520,23 @@ export const BattalionAllocatePage: React.FC = () => {
                   className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 text-sm"
                 />
               </div>
-              <button
-                onClick={handleDeallocate}
-                disabled={deallocating}
-                className="w-full px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
-              >
-                {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'הורד את כולם'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDeallocate(false)}
+                  disabled={deallocating}
+                  className="flex-1 px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+                >
+                  {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'הורד (ללא טופל/טופלה)'}
+                </button>
+                <button
+                  onClick={() => handleDeallocate(true)}
+                  disabled={deallocating}
+                  title="מוריד את כל החיילים כולל אלו עם סטטוס טופל/טופלה"
+                  className="flex-1 px-3 py-2 bg-red-900 hover:bg-red-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm border border-red-600"
+                >
+                  {deallocating ? 'מסיר...' : 'הורד הכל (כולל טופל/טופלה)'}
+                </button>
+              </div>
               {deallocMessage && (
                 <div className={`p-3 rounded-lg text-xs ${deallocMessage.type === 'success' ? 'bg-green-900/40 border border-green-700 text-green-300' : 'bg-red-900/40 border border-red-700 text-red-300'}`}>
                   {deallocMessage.text}
