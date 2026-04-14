@@ -329,7 +329,7 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
               d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
         </div>
-        <span className="text-sm font-semibold" style={{ color: '#EDEDEF' }}>מיצוי זכויות</span>
+        <span className="text-base font-bold" style={{ color: '#EDEDEF' }}>מיצוי זכויות</span>
       </div>
 
       {/* Overall progress */}
@@ -338,8 +338,8 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
         style={{ background: 'rgba(94,106,210,0.08)', border: '1px solid rgba(94,106,210,0.2)' }}
       >
         <div className="flex justify-between items-center">
-          <span className="text-xs" style={{ color: '#8A8F98' }}>זכאות כוללת</span>
-          <span className="text-xs font-bold" style={{ color: '#818cf8' }}>{eligibleCount}/{benefits.length}</span>
+          <span className="text-sm" style={{ color: '#8A8F98' }}>זכאות כוללת</span>
+          <span className="text-sm font-bold" style={{ color: '#818cf8' }}>{eligibleCount}/{benefits.length}</span>
         </div>
         <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
           <div
@@ -363,19 +363,19 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
           >
             {fmt(totalAmount)} ₪
           </span>
-          <span className="text-[10px]" style={{ color: '#8A8F98' }}>סה"כ משוער</span>
+          <span className="text-xs" style={{ color: '#8A8F98' }}>סה"כ משוער</span>
         </div>
       </div>
 
       {/* Activity level selector */}
       <div className="space-y-1">
-        <label className="text-[10px] font-medium" style={{ color: '#8A8F98' }}>מדרג פעילות</label>
+        <label className="text-xs font-semibold" style={{ color: '#8A8F98' }}>מדרג פעילות</label>
         <div className="flex gap-1">
           {LEVELS.map((l) => (
             <button
               key={l}
               onClick={() => setLevel(l)}
-              className="flex-1 py-1 rounded text-[11px] font-semibold transition-all"
+              className="flex-1 py-1.5 rounded text-sm font-bold transition-all"
               style={
                 level === l
                   ? { background: '#5E6AD2', color: '#fff', boxShadow: '0 2px 8px rgba(94,106,210,0.4)' }
@@ -389,26 +389,26 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
       </div>
 
       {/* Days summary */}
-      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-        <div className="rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
+      <div className="grid grid-cols-2 gap-1.5 text-xs">
+        <div className="rounded px-2 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
           <span style={{ color: '#8A8F98' }}>2025: </span>
-          <span className="font-semibold" style={{ color: '#EDEDEF' }}>{days2025 || '—'} ימים</span>
+          <span className="font-bold" style={{ color: '#EDEDEF' }}>{days2025 || '—'} ימים</span>
         </div>
-        <div className="rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
+        <div className="rounded px-2 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
           <span style={{ color: '#8A8F98' }}>2026: </span>
-          <span className="font-semibold" style={{ color: '#EDEDEF' }}>{days2026 || '—'} ימים</span>
+          <span className="font-bold" style={{ color: '#EDEDEF' }}>{days2026 || '—'} ימים</span>
         </div>
       </div>
 
       {/* Soldier info summary */}
-      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-        <div className="rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
+      <div className="grid grid-cols-2 gap-1.5 text-xs">
+        <div className="rounded px-2 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
           <span style={{ color: '#8A8F98' }}>ילדים: </span>
-          <span className="font-semibold" style={{ color: '#EDEDEF' }}>{hasChildren ? childrenNum : 'ללא'}</span>
+          <span className="font-bold" style={{ color: '#EDEDEF' }}>{hasChildren ? childrenNum : 'ללא'}</span>
         </div>
-        <div className="rounded px-2 py-1.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
+        <div className="rounded px-2 py-2" style={{ background: 'rgba(255,255,255,0.04)' }}>
           <span style={{ color: '#8A8F98' }}>תפקיד: </span>
-          <span className="font-semibold" style={{ color: '#EDEDEF' }}>{isCommander ? commandRole : 'ללא'}</span>
+          <span className="font-bold" style={{ color: '#EDEDEF' }}>{isCommander ? commandRole : 'ללא'}</span>
         </div>
       </div>
 
@@ -426,33 +426,33 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 {b.eligible ? (
-                  <span className="text-green-400 text-[10px]">&#x2713;</span>
+                  <span className="text-green-400 text-sm">&#x2713;</span>
                 ) : (
-                  <span className="text-[10px]" style={{ color: '#8A8F98' }}>&#x2717;</span>
+                  <span className="text-sm" style={{ color: '#8A8F98' }}>&#x2717;</span>
                 )}
-                <span className="text-[11px] font-medium" style={{ color: b.eligible ? '#EDEDEF' : '#8A8F98' }}>
+                <span className="text-sm font-semibold" style={{ color: b.eligible ? '#EDEDEF' : '#8A8F98' }}>
                   {b.name}
                 </span>
               </div>
               {b.amount > 0 && (
-                <span className="text-[11px] font-bold tabular-nums" style={{ color: '#818cf8' }}>
+                <span className="text-base font-bold tabular-nums" style={{ color: '#818cf8' }}>
                   {fmt(b.amount)} ₪
                 </span>
               )}
               {b.isNonMonetary && b.eligible && b.amount === 0 && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>
+                <span className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80' }}>
                   זכאי
                 </span>
               )}
             </div>
             {b.amount > 0 && <Bar pct={(b.amount / maxBenefit) * 100} />}
-            <p className="text-[9px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{b.detail}</p>
+            <p className="text-xs font-medium" style={{ color: '#a78bfa' }}>{b.detail}</p>
           </div>
         ))}
       </div>
 
       {/* Disclaimer */}
-      <p className="text-[9px] text-center leading-tight" style={{ color: 'rgba(255,255,255,0.2)' }}>
+      <p className="text-xs text-center leading-tight" style={{ color: 'rgba(255,255,255,0.3)' }}>
         * אומדן בלבד — יש לבדוק מול הגורמים המוסמכים
       </p>
     </div>
