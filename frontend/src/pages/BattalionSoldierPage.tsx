@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../hooks/useAuth';
+import RightsCalculatorPanel from '../components/RightsCalculatorPanel';
 
 interface SoldierChange {
   id: number;
@@ -38,6 +39,10 @@ interface Soldier {
   other_assistance: string;
   applications_needed: string;
   notes: string;
+  reserve_days_2025: string;
+  reserve_days_2026: string;
+  command_role: string;
+  children_ages: string;
 }
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -88,6 +93,10 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
   { key: 'applications_needed', label: 'בקשות להגשה', multiline: true },
   { key: 'notes', label: 'פירוט/הערות', multiline: true },
+  { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
+  { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
+  { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
+  { key: 'children_ages', label: 'גילאי ילדים' },
 ];
 
 function parseSelectWithDetail(value: string, options: string[]): { selected: string; detail: string } {
@@ -443,9 +452,11 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
         )}
       </div>}
 
-      {/* Soldier form */}
+      {/* Soldier form + rights panel */}
       {soldier && (
-        <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+        <div className="flex gap-4">
+        {/* Main card — right side */}
+        <div className="flex-1 bg-gray-900 rounded-xl border border-gray-700 p-5 min-w-0">
           <div className="flex justify-between items-center mb-5">
             <h2 className="text-lg font-semibold text-white">
               {soldier.first_name} {soldier.last_name}
@@ -655,6 +666,20 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
               </button>
             </div>
           )}
+        </div>
+
+        {/* Rights calculator — left sidebar */}
+        <div className="w-72 flex-shrink-0">
+          <div
+            className="sticky top-4 rounded-xl p-4"
+            style={{
+              background: '#0a0a0c',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 2px 20px rgba(0,0,0,0.4)',
+            }}
+          >
+            <RightsCalculatorPanel soldier={formData as any} />
+          </div>
+        </div>
         </div>
       )}
     </div>

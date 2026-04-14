@@ -118,6 +118,16 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'אילו בקשות צריך להגיש': 'applications_needed',
   'פירוט/ הערות': 'notes',
   'פירוט/הערות': 'notes',
+  'ימי מילואים 2025': 'reserve_days_2025',
+  'ימי מילואים שנת 2025': 'reserve_days_2025',
+  'מילואים 2025': 'reserve_days_2025',
+  'ימי מילואים 2026': 'reserve_days_2026',
+  'ימי מילואים שנת 2026': 'reserve_days_2026',
+  'מילואים 2026': 'reserve_days_2026',
+  'תפקיד פיקודי': 'command_role',
+  'תפקיד': 'command_role',
+  'גילאי ילדים': 'children_ages',
+  'גילאי הילדים': 'children_ages',
 };
 
 export const createBattalion = async (req: Request, res: Response): Promise<void> => {
@@ -870,6 +880,8 @@ export const downloadTemplate = async (_req: Request, res: Response): Promise<vo
     'אינדיקציות שעלו מהנתונים', 'מי יצרה קשר', 'תאריך', 'מול מי נוצר הקשר',
     'סטטוס תעסוקתי', 'מיצוי זכויות קרן סיוע פרוט', 'ביטוח לאומי',
     'סיוע אחר', 'אילו בקשות צריך להגיש', 'פירוט/ הערות',
+    'ימי מילואים 2025', 'ימי מילואים 2026',
+    'תפקיד פיקודי', 'גילאי ילדים',
   ];
 
   const workbook = new ExcelJS.Workbook();
@@ -894,6 +906,8 @@ export const downloadTemplate = async (_req: Request, res: Response): Promise<vo
     '', '', '', 'החייל',
     'שכיר', '', 'לא נדרש',
     '', '', '',
+    '120', '100',
+    'מ"פ', '5,8,12',
   ]);
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
