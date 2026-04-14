@@ -83,6 +83,10 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'student_indicator', label: 'אינדיקציית סטודנט', options: ['כן', 'לא'] },
   { key: 'spouse', label: 'בן/בת זוג' },
   { key: 'spouse_phone', label: 'טלפון בן/בת זוג' },
+  { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
+  { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
+  { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
+  { key: 'children_ages', label: 'גילאי ילדים' },
   { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
   { key: 'contact_by', label: 'מי יצרה קשר', userSelect: true },
   { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
@@ -93,10 +97,6 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
   { key: 'applications_needed', label: 'בקשות להגשה', multiline: true },
   { key: 'notes', label: 'פירוט/הערות', multiline: true },
-  { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
-  { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
-  { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-  { key: 'children_ages', label: 'גילאי ילדים' },
 ];
 
 function parseSelectWithDetail(value: string, options: string[]): { selected: string; detail: string } {
