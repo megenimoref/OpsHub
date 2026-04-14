@@ -69,6 +69,10 @@ CREATE TABLE IF NOT EXISTS soldiers (
   other_assistance TEXT,
   applications_needed TEXT,
   notes TEXT,
+  reserve_days_2025 TEXT,
+  reserve_days_2026 TEXT,
+  command_role TEXT,
+  children_ages TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -101,6 +105,14 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
     for (const col of OLD_COLUMNS) {
       if (existingCols.has(col)) {
         await dbConn.query(`ALTER TABLE soldiers DROP COLUMN \`${col}\``);
+      }
+    }
+
+    // Add new columns to existing tables if missing
+    const NEW_COLUMNS = ['reserve_days_2025', 'reserve_days_2026', 'command_role', 'children_ages'];
+    for (const col of NEW_COLUMNS) {
+      if (!existingCols.has(col)) {
+        await dbConn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
       }
     }
 
@@ -137,6 +149,10 @@ export interface SoldierRow {
   other_assistance?: string;
   applications_needed?: string;
   notes?: string;
+  reserve_days_2025?: string;
+  reserve_days_2026?: string;
+  command_role?: string;
+  children_ages?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -147,7 +163,8 @@ const FIXED_COLUMNS = [
   'student_indicator', 'spouse', 'spouse_phone', 'data_indicators',
   'contact_by', 'contact_date', 'contact_with', 'employment_status',
   'welfare_fund', 'national_insurance', 'other_assistance',
-  'applications_needed', 'notes',
+  'applications_needed', 'notes', 'reserve_days_2025', 'reserve_days_2026',
+  'command_role', 'children_ages',
 ];
 
 // Import always overwrites all fields from Excel — Excel is the single source of truth
@@ -645,6 +662,10 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   other_assistance: 'סיוע אחר',
   applications_needed: 'בקשות להגשה',
   notes: 'פירוט/הערות',
+  reserve_days_2025: 'ימי מילואים 2025',
+  reserve_days_2026: 'ימי מילואים 2026',
+  command_role: 'תפקיד פיקודי',
+  children_ages: 'גילאי ילדים',
 };
 
 async function ensureChangesTable(conn: mysql.Connection): Promise<void> {
