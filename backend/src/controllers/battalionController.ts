@@ -636,6 +636,8 @@ export const updateSoldierHandler = async (req: Request, res: Response): Promise
       return;
     }
     const battalionName = decodeURIComponent(name);
+    // Ensure all columns exist (runs migration if new columns were added after DB was created)
+    await ensureBattalionDatabase(battalionName);
     const changedBy = req.userFirstName && req.userLastName
       ? `${req.userFirstName} ${req.userLastName}`
       : req.userEmail;
