@@ -26,6 +26,15 @@ export const authService = {
     await api.post('/auth/reset-password', { token, password });
   },
 
+  refreshToken: async (): Promise<void> => {
+    try {
+      const { data } = await api.post('/auth/refresh');
+      localStorage.setItem('token', data.token);
+    } catch {
+      // If refresh fails, do nothing — let existing token expire naturally
+    }
+  },
+
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');

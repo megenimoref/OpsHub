@@ -1,7 +1,23 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { authService } from '../services/authService';
 
 const TIMEOUT_MS = 2 * 60 * 60 * 1000;        // 2 hours → logout
 const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000; // 5 minutes before logout → show warning
+
+// Refresh the JWT when it has less than this many ms remaining
+const REFRESH_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes before expiry
+
+function getTokenExpiryMs(): number | null {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (!payload.exp) return null;
+    return payload.exp * 1000 - Date.now();
+  } catch {
+    return null;
+  }
+}
 
 interface Options {
   onWarning: () => void;   // called when warning should appear
@@ -14,15 +30,28 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
   const warningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isWarningShown = useRef(false);
+  const lastRefresh = useRef<number>(0);
 
   const clearTimers = useCallback(() => {
     if (warningTimer.current) clearTimeout(warningTimer.current);
     if (logoutTimer.current) clearTimeout(logoutTimer.current);
   }, []);
 
+  const maybeRefreshToken = useCallback(() => {
+    const now = Date.now();
+    // Throttle: don't refresh more than once per minute
+    if (now - lastRefresh.current < 60_000) return;
+    const expiryMs = getTokenExpiryMs();
+    if (expiryMs !== null && expiryMs < REFRESH_THRESHOLD_MS) {
+      lastRefresh.current = now;
+      authService.refreshToken();
+    }
+  }, []);
+
   const resetTimers = useCallback(() => {
     if (!enabled) return;
     clearTimers();
+    maybeRefreshToken();
 
     if (isWarningShown.current) {
       isWarningShown.current = false;
@@ -37,7 +66,7 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
     logoutTimer.current = setTimeout(() => {
       onLogout();
     }, TIMEOUT_MS);
-  }, [enabled, clearTimers, onWarning, onLogout, onReset]);
+  }, [enabled, clearTimers, maybeRefreshToken, onWarning, onLogout, onReset]);
 
   useEffect(() => {
     if (!enabled) return;

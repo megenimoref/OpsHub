@@ -2,6 +2,17 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 
+interface InFileDuplicate {
+  personalNumber: string;
+  name: string;
+  rowCount: number;
+}
+
+interface CrossBattalionDuplicate {
+  personalNumber: string;
+  foundInBattalion: string;
+}
+
 interface ImportResult {
   success: boolean;
   battalionName: string;
@@ -12,6 +23,9 @@ interface ImportResult {
   unmatchedContactNames: string[];
   message: string;
   unknownHeaders?: string[];
+  skippedColumns?: string[];
+  inFileDuplicates?: InFileDuplicate[];
+  crossBattalionDuplicates?: CrossBattalionDuplicate[];
 }
 
 export const BattalionImportPage: React.FC = () => {
@@ -211,6 +225,36 @@ export const BattalionImportPage: React.FC = () => {
                   )}
                   {result.unmatchedContactNames?.length > 0 && (
                     <p className="text-yellow-300">⚠️ שמות שלא נמצאו במערכת: <span className="font-semibold">{result.unmatchedContactNames.join(', ')}</span></p>
+                  )}
+                  {result.skippedColumns?.length > 0 && (
+                    <p className="text-yellow-300">🔒 עמודות שדולגו מטעמי אבטחת מידע: <span className="font-semibold">{result.skippedColumns.join(', ')}</span></p>
+                  )}
+                  {result.inFileDuplicates && result.inFileDuplicates.length > 0 && (
+                    <div className="mt-2 border border-orange-600/40 rounded-lg p-2 bg-orange-900/20">
+                      <p className="text-orange-300 font-semibold mb-1">⚠️ חיילים שהופיעו יותר מפעם אחת בקובץ ({result.inFileDuplicates.length}):</p>
+                      <ul className="text-orange-200 text-xs space-y-0.5">
+                        {result.inFileDuplicates.map((d) => (
+                          <li key={d.personalNumber}>
+                            מ.א. <span className="font-semibold">{d.personalNumber}</span>
+                            {d.name && <span> — {d.name}</span>}
+                            <span className="text-orange-400"> ({d.rowCount} שורות, נשמרה האחרונה)</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {result.crossBattalionDuplicates && result.crossBattalionDuplicates.length > 0 && (
+                    <div className="mt-2 border border-red-600/40 rounded-lg p-2 bg-red-900/20">
+                      <p className="text-red-300 font-semibold mb-1">🔴 חיילים הקיימים גם בגדוד אחר ({result.crossBattalionDuplicates.length}):</p>
+                      <ul className="text-red-200 text-xs space-y-0.5">
+                        {result.crossBattalionDuplicates.map((d) => (
+                          <li key={d.personalNumber + d.foundInBattalion}>
+                            מ.א. <span className="font-semibold">{d.personalNumber}</span>
+                            <span className="text-red-400"> — נמצא גם בגדוד "{d.foundInBattalion}"</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               </div>
