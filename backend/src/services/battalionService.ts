@@ -578,6 +578,61 @@ export async function getSoldiersByAssistanceType(
   }
 }
 
+/**
+ * For each personal_number in the given list, find if it already exists in any
+ * battalion database OTHER than currentBattalionName.
+ * Returns only the conflicts found.
+ */
+export async function findCrossBattalionDuplicates(
+  currentBattalionName: string,
+  personalNumbers: string[]
+): Promise<{ personalNumber: string; foundInBattalion: string }[]> {
+  if (personalNumbers.length === 0) return [];
+
+  const currentDbName = getBattalionDbName(currentBattalionName);
+  const conn = await mysql.createConnection(dbConfig);
+  let allDbNames: string[] = [];
+  try {
+    const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+    );
+    allDbNames = rows
+      .map((r) => r.SCHEMA_NAME as string)
+      .filter((name) => name !== currentDbName);
+  } finally {
+    await conn.end();
+  }
+
+  if (allDbNames.length === 0) return [];
+
+  const placeholders = personalNumbers.map(() => '?').join(', ');
+  const conflicts: { personalNumber: string; foundInBattalion: string }[] = [];
+
+  await Promise.all(
+    allDbNames.map(async (dbName) => {
+      const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+      try {
+        const [rows] = await c.execute<mysql.RowDataPacket[]>(
+          `SELECT personal_number FROM soldiers WHERE personal_number IN (${placeholders})`,
+          personalNumbers
+        );
+        for (const row of rows) {
+          conflicts.push({
+            personalNumber: row.personal_number as string,
+            foundInBattalion: dbName.replace(/^battalion_/, ''),
+          });
+        }
+      } catch {
+        // DB might not have the soldiers table yet — skip silently
+      } finally {
+        await c.end();
+      }
+    })
+  );
+
+  return conflicts;
+}
+
 export async function getSoldiersFromBattalion(battalionName: string): Promise<SoldierRow[]> {
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });

@@ -22,6 +22,7 @@ import {
   getBattalionStatusBreakdown,
   getSoldiersByAssistanceType,
   getBattalionDbName,
+  findCrossBattalionDuplicates,
   SoldierRow,
   SoldierRowWithExtras,
 } from '../services/battalionService';
@@ -44,6 +45,11 @@ function normalizeImportedValue(field: keyof SoldierRow, raw: string): string {
     if (/^רווק/.test(v)) return 'רווק';     // רווק, רווק/ה, רווקה
     if (/^גרוש/.test(v)) return 'גרוש';    // גרוש, גרוש/ה, גרושה
     if (/^אלמ/.test(v)) return 'אלמן';      // אלמן, אלמנה
+    if (v === 'נ') return 'נשוי';           // single-letter codes from מצב אישי ר\נ\ג\א\פ column
+    if (v === 'ר') return 'רווק';
+    if (v === 'ג') return 'גרוש';
+    if (v === 'א') return 'אלמן';
+    if (v === 'פ') return 'פרוד';
     return v;
   }
 
@@ -101,23 +107,35 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'טלפון נייד': 'mobile_phone',
   'טלפון': 'mobile_phone',
   'נייד': 'mobile_phone',
+  'טלפון עיקרי': 'mobile_phone',
   'סטטוס פנייה': 'request_status',
+  'סטטוס': 'request_status',
   'מצב משפחתי': 'marital_status',
+  'מצב אישי ר\\נ\\ג\\א\\פ': 'marital_status',
+  'מצב אישי': 'marital_status',
   'מספר ילדים': 'children_count',
   'אינדיקציית סטודנט': 'student_indicator',
+  'סטודנט (מלגה\\לא)': 'student_indicator',
+  'סטודנט': 'student_indicator',
   'בן/בת זוג': 'spouse',
+  'בת זוג/אמא': 'spouse',
   'מספר טלפון בן/בת זוג': 'spouse_phone',
+  'טלפון בת זוג/אמא': 'spouse_phone',
   'אינדיקציות שעלו מהנתונים': 'data_indicators',
   'מי יצרה קשר': 'contact_by',
   'תאריך': 'contact_date',
   'מול מי נוצר הקשר': 'contact_with',
   'סטטוס תעסוקתי': 'employment_status',
   'מיצוי זכויות קרן סיוע פרוט': 'welfare_fund',
+  'קרן סיוע הגשות': 'welfare_fund',
   'ביטוח לאומי': 'national_insurance',
+  'ביטוח לאומי בעיות': 'national_insurance',
   'סיוע אחר': 'other_assistance',
+  'סיוע כללי': 'other_assistance',
   'אילו בקשות צריך להגיש': 'applications_needed',
   'פירוט/ הערות': 'notes',
   'פירוט/הערות': 'notes',
+  'הודעות': 'notes',
   'ימי מילואים 2025': 'reserve_days_2025',
   'ימי מילואים שנת 2025': 'reserve_days_2025',
   'מילואים 2025': 'reserve_days_2025',
@@ -129,6 +147,10 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'גילאי ילדים': 'children_ages',
   'גילאי הילדים': 'children_ages',
 };
+
+// Columns that are silently skipped during import for security/privacy reasons.
+// "תעודת זהות" must not be stored alongside personal_number (CBS privacy rules).
+const SKIP_COLUMNS = new Set(['תעודת זהות']);
 
 export const createBattalion = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -201,10 +223,34 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     const unknownHeaders: string[] = [];
     const allRawHeaders: string[] = [];
 
+    const skippedColumns: string[] = [];
+    // Columns that represent split employment booleans → merged into employment_status
+    const EMPLOYMENT_SPLIT: Record<string, string> = {
+      'שכיר': 'שכיר',
+      'עצמאי': 'עצמאי',
+      'לא עובד': 'לא עובד',
+    };
+    const employmentColumnMap: Record<number, string> = {}; // colNumber → label
+
     headerRow.eachCell((cell, colNumber) => {
       const header = cell.text?.trim();
       if (!header) return;
       allRawHeaders.push(header);
+
+      // Skip privacy-sensitive columns silently
+      if (SKIP_COLUMNS.has(header)) {
+        skippedColumns.push(header);
+        return;
+      }
+
+      // Split employment columns → will be merged into employment_status per row
+      if (EMPLOYMENT_SPLIT[header] && !seenFields.has('employment_status')) {
+        employmentColumnMap[colNumber] = EMPLOYMENT_SPLIT[header];
+        // Mark employment_status as "seen" so a direct employment_status column still wins if present
+        seenFields.add('employment_status');
+        return;
+      }
+
       if (COLUMN_MAP[header]) {
         const field = COLUMN_MAP[header];
         if (!seenFields.has(field)) {
@@ -222,10 +268,10 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       }
     });
 
-    // Security check: cannot have both personal_number and ID number (ת.ז) in the same file
-    // Match only exact column names like "ת.ז", "ת.ז.", "תז", "תעודת זהות", "מספר ת.ז"
-    const tzPattern = /^(ת\.?ז\.?|תעודת\s*זהות|מספר\s*ת\.?ז\.?)$/i;
-    const hasTz = allRawHeaders.some((h) => tzPattern.test(h.trim()));
+    // Security check: cannot have both personal_number and a ת.ז column that wasn't skipped
+    // "תעודת זהות" is handled by SKIP_COLUMNS above; block only if an un-skipped ת.ז variant appears
+    const tzPattern = /^(ת\.?ז\.?|מספר\s*ת\.?ז\.?)$/i;
+    const hasTz = allRawHeaders.some((h) => tzPattern.test(h.trim()) && !SKIP_COLUMNS.has(h.trim()));
     const hasPersonalNumber = seenFields.has('personal_number');
     if (hasPersonalNumber && hasTz) {
       logger.info('Battalion import blocked - security violation: personal_number + tz', { battalionName, fileName: req.file.originalname });
@@ -261,6 +307,8 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       const soldier: SoldierRowWithExtras = {};
       let hasData = false;
 
+      const employmentParts: string[] = [];
+
       row.eachCell((cell, colNumber) => {
         // Handle Date objects (ExcelJS returns Date for date cells; cell.text is empty for them)
         let value: string;
@@ -272,6 +320,14 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           value = cell.text?.trim() || '';
         }
         if (!value) return;
+
+        // Split employment columns: collect non-empty ones and merge later
+        if (employmentColumnMap[colNumber]) {
+          employmentParts.push(employmentColumnMap[colNumber]);
+          hasData = true;
+          return;
+        }
+
         const field = columnIndexMap[colNumber];
         if (field) {
           (soldier as any)[field] = normalizeImportedValue(field, value);
@@ -284,6 +340,11 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
           }
         }
       });
+
+      // Merge split employment columns into employment_status (only if not already set by a direct column)
+      if (employmentParts.length > 0 && !(soldier as any).employment_status) {
+        (soldier as any).employment_status = employmentParts.join(' + ');
+      }
 
       // Default: if national_insurance not set (empty in Excel) → 'לא נדרש'
       if (hasData && seenFields.has('national_insurance') && !(soldier as any).national_insurance) {
@@ -300,6 +361,41 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       res.status(400).json({ error: 'לא נמצאו שורות נתונים בקובץ' });
       return;
     }
+
+    // ── Duplicate detection ──────────────────────────────────────────────────
+
+    // 1. Within-file duplicates: same personal_number appearing more than once
+    const personalNumbersSeen = new Map<string, number>(); // pn → first row index
+    const inFileDuplicates: { personalNumber: string; name: string; rowCount: number }[] = [];
+    const pnRowCount = new Map<string, number>();
+    for (const s of soldiers) {
+      const pn = (s.personal_number as string | undefined)?.trim();
+      if (!pn) continue;
+      pnRowCount.set(pn, (pnRowCount.get(pn) || 0) + 1);
+    }
+    for (const [pn, count] of pnRowCount) {
+      if (count > 1) {
+        const first = soldiers.find((s) => (s.personal_number as string)?.trim() === pn);
+        const name = first ? `${first.first_name || ''} ${first.last_name || ''}`.trim() : '';
+        inFileDuplicates.push({ personalNumber: pn, name, rowCount: count });
+      }
+    }
+
+    // 2. Cross-battalion duplicates: personal_number already in a different battalion DB
+    const allPersonalNumbers = soldiers
+      .map((s) => (s.personal_number as string | undefined)?.trim())
+      .filter((pn): pn is string => !!pn);
+    const crossBattalionDuplicates = await findCrossBattalionDuplicates(battalionName, allPersonalNumbers);
+
+    if (inFileDuplicates.length > 0 || crossBattalionDuplicates.length > 0) {
+      logger.info('Duplicate soldiers detected during import', {
+        battalionName,
+        inFileDuplicates: inFileDuplicates.length,
+        crossBattalionDuplicates: crossBattalionDuplicates.length,
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
 
     // importMode: 'new' = overwrite all fields + skip existing allocations
     //             'existing' = only update non-empty fields + upsert allocations by contact_by
@@ -422,6 +518,9 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       withoutContactBy,
       unmatchedContactNames,
       unknownHeaders,
+      skippedColumns,
+      inFileDuplicates,
+      crossBattalionDuplicates,
       message: `יובאו ${insertedCount} חיילים לגדוד "${battalionName}"`,
     });
   } catch (error: any) {

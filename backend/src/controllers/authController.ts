@@ -12,6 +12,23 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 export const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
 export const PASSWORD_ERROR = 'הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה אחת, ספרה אחת וסימן מיוחד אחד';
 
+export const refreshToken = (req: Request, res: Response) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const newToken = jwt.sign(
+      { userId: decoded.userId, role: decoded.role, email: decoded.email, firstName: decoded.firstName, lastName: decoded.lastName },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+    return res.json({ token: newToken });
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;

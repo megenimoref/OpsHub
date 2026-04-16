@@ -11,6 +11,8 @@ interface SoldierInput {
   marital_status: string;
   student_indicator: string;
   command_role: string;
+  employment_status?: string;
+  spouse?: string;
 }
 
 interface Props {
@@ -54,6 +56,10 @@ const BABYSITTER_GRANT = 1500;
 
 // תוספת שאגת הארי — combat bonus, levels א+ to ב only
 const SHAAGAT_DAILY = 25;
+
+// מענק חד"פ לבן/בת זוג עצמאי — for self-employed soldiers with spouse, based on days through 2025
+const SPOUSE_SELF_EMPLOYED_GRANT_120 = 4800;
+const SPOUSE_SELF_EMPLOYED_GRANT_240 = 6500;
 
 // מענק מפקדים — by command role, 45+ days
 const COMMANDER_GRANT: Record<string, number> = {
@@ -121,6 +127,8 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
   const isStudent = soldier.student_indicator === 'כן';
   const commandRole = (soldier.command_role || '').trim();
   const isCommander = commandRole && commandRole !== 'ללא' && commandRole in COMMANDER_GRANT;
+  const isSelfEmployed = /עצמאי/.test(soldier.employment_status || '');
+  const hasSpouse = !!(soldier.spouse || '').trim();
 
   // Parse children ages to count kids under 14 (for camp grant)
   const childrenUnder14 = useMemo(() => {
@@ -306,8 +314,33 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
       isNonMonetary: true,
     });
 
+    // 16. מענק חד"פ לבן/בת זוג עצמאי — self-employed soldier with spouse, 120+ days through 2025
+    {
+      const spouseGrantEligible = isSelfEmployed && hasSpouse && days2025 >= 120;
+      const spouseGrantAmount = days2025 >= 240
+        ? SPOUSE_SELF_EMPLOYED_GRANT_240
+        : days2025 >= 120
+          ? SPOUSE_SELF_EMPLOYED_GRANT_120
+          : 0;
+      const detail = !isSelfEmployed
+        ? 'לעצמאים בלבד'
+        : !hasSpouse
+          ? 'לא הוזן בן/בת זוג'
+          : days2025 >= 240
+            ? `240+ ימים עד 31/12/2025 — ${fmt(SPOUSE_SELF_EMPLOYED_GRANT_240)}₪`
+            : days2025 >= 120
+              ? `120+ ימים עד 31/12/2025 — ${fmt(SPOUSE_SELF_EMPLOYED_GRANT_120)}₪`
+              : `${days2025}/120 ימים (עד 31/12/2025)`;
+      r.push({
+        name: 'מענק חד"פ לבן/בת זוג עצמאי',
+        amount: spouseGrantAmount,
+        detail,
+        eligible: spouseGrantEligible,
+      });
+    }
+
     return r;
-  }, [level, days2025, days2026, totalDays, hasChildren, childrenNum, childrenUnder14, isStudent, commandRole, isCommander]);
+  }, [level, days2025, days2026, totalDays, hasChildren, childrenNum, childrenUnder14, isStudent, commandRole, isCommander, isSelfEmployed, hasSpouse]);
 
   const totalAmount = benefits.reduce((s, b) => s + b.amount, 0);
   const eligibleCount = benefits.filter((b) => b.eligible).length;

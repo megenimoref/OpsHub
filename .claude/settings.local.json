@@ -95,7 +95,19 @@
       "Bash(node -e \":*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "WebFetch(domain:miluim-helper.com)",
+      "Bash(python3 -c ':*)",
+      "Bash(python3)",
+      "Bash(python3 scripts/recalc.py '/Users/sh.azulay/Downloads/240 גדוד - עם שעה.xlsx' 60)",
+      "Bash(git checkout:*)",
+      "WebSearch",
+      "WebFetch(domain:tochnitamit.mod.gov.il)",
+      "WebFetch(domain:api.miluim.idf.il)",
+      "Bash(brew install:*)",
+      "Bash(pdftoppm -v)",
+      "Bash(git cherry-pick:*)",
+      "Read(//Users/sh.azulay/Downloads/**)"
     ]
   }
 }

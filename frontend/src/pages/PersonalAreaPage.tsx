@@ -56,6 +56,10 @@ export const PersonalAreaPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [recentPersonalNumbers, setRecentPersonalNumbers] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('recent_personal_numbers') || '[]'); } catch { return []; }
+  });
+  const [showRecent, setShowRecent] = useState(false);
 
   const fetchSoldiers = useCallback(async (isRefresh = false) => {
     try {
@@ -89,16 +93,26 @@ export const PersonalAreaPage: React.FC = () => {
     return () => window.removeEventListener('storage', handleStorageUpdate);
   }, []);
 
+  const saveRecentPersonalNumber = (pn: string) => {
+    setRecentPersonalNumbers((prev) => {
+      const updated = [pn, ...prev.filter((n) => n !== pn)].slice(0, 5);
+      localStorage.setItem('recent_personal_numbers', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const openSearch = (key: string) => {
     setSearchingKey(key);
     setSearchInput('');
     setSearchError('');
+    setShowRecent(false);
   };
 
   const closeSearch = () => {
     setSearchingKey(null);
     setSearchInput('');
     setSearchError('');
+    setShowRecent(false);
   };
 
   const handleGlobalSearch = async (e: React.FormEvent) => {
@@ -107,11 +121,13 @@ export const PersonalAreaPage: React.FC = () => {
     if (!pn) return;
     setSearchLoading(true);
     setSearchError('');
+    setShowRecent(false);
     try {
       const res = await api.get(`/battalion/search-global?personal_number=${encodeURIComponent(pn)}`);
       const { battalionName, soldier } = res.data;
       const params = new URLSearchParams({ battalion: battalionName, personal_number: soldier.personal_number });
       window.open(`/battalion/soldier?${params.toString()}`, '_blank');
+      saveRecentPersonalNumber(pn);
       closeSearch();
     } catch (err: any) {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');
@@ -442,17 +458,39 @@ export const PersonalAreaPage: React.FC = () => {
                       {isSearching && (
                         <tr className="border-b border-blue-800 bg-blue-950/40">
                           <td colSpan={7} className="px-4 py-3">
-                            <form onSubmit={handleGlobalSearch} className="flex items-center gap-2">
+                            <form onSubmit={handleGlobalSearch} className="flex items-center gap-2 flex-wrap">
                               <span className="text-blue-300 text-xs font-medium whitespace-nowrap">חיפוש חייל לפי מספר אישי:</span>
-                              <input
-                                autoFocus
-                                type="text"
-                                value={searchInput}
-                                onChange={(e) => { setSearchInput(e.target.value); setSearchError(''); }}
-                                onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
-                                placeholder="הכנס מספר אישי..."
-                                className="flex-1 max-w-xs px-3 py-1.5 text-sm bg-gray-800 border border-blue-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              />
+                              <div className="relative flex-1 max-w-xs">
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={searchInput}
+                                  onChange={(e) => { setSearchInput(e.target.value); setSearchError(''); }}
+                                  onFocus={() => setShowRecent(recentPersonalNumbers.length > 0)}
+                                  onBlur={() => setTimeout(() => setShowRecent(false), 150)}
+                                  onKeyDown={(e) => e.key === 'Escape' && closeSearch()}
+                                  placeholder="הכנס מספר אישי..."
+                                  className="w-full px-3 py-1.5 text-sm bg-gray-800 border border-blue-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                {showRecent && recentPersonalNumbers.length > 0 && (
+                                  <ul className="absolute top-full mt-1 w-full bg-gray-800 border border-blue-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                                    {recentPersonalNumbers.map((pn) => (
+                                      <li key={pn}>
+                                        <button
+                                          type="button"
+                                          onMouseDown={() => { setSearchInput(pn); setShowRecent(false); }}
+                                          className="w-full text-right px-3 py-1.5 text-sm text-blue-200 hover:bg-blue-900/50 flex items-center gap-2"
+                                        >
+                                          <svg className="w-3 h-3 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                          </svg>
+                                          {pn}
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
                               <button
                                 type="submit"
                                 disabled={searchLoading || !searchInput.trim()}
