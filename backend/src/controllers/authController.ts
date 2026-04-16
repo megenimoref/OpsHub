@@ -18,6 +18,7 @@ export const refreshToken = (req: Request, res: Response) => {
     if (!token) return res.status(401).json({ error: 'No token provided' });
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
+    // @ts-ignore
     const newToken = jwt.sign(
       { userId: decoded.userId, role: decoded.role, email: decoded.email, firstName: decoded.firstName, lastName: decoded.lastName },
       JWT_SECRET,
