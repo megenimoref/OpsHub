@@ -239,6 +239,79 @@ export const DashboardPage: React.FC = () => {
   const COVERAGE_COLORS = { 'נענו': '#10b981', 'לא נענו': '#4b5563' };
   const ASSISTANCE_COLORS = { 'ביטוח לאומי': '#3b82f6', 'קרן סיוע': '#f59e0b', 'סיוע אחר': '#a855f7' };
 
+  // Treatment progress: categorise every battalion's status counts into 3 buckets
+  const HANDLED_STATUS = 'טופלה';
+  const NO_CONTACT_STATUSES = new Set(['לא נוצרה פניה', 'לא מוגדר']);
+  const PROGRESS_COLORS = { 'טופלה': '#10b981', 'בטיפול': '#f59e0b', 'לא נוצרה פניה': '#4b5563' };
+
+  const treatmentProgressData = battalionStatusBreakdown.map((bat) => {
+    let handled = 0, inProgress = 0, noContact = 0;
+    bat.byStatus.forEach(({ status, count }) => {
+      if (status === HANDLED_STATUS) handled += count;
+      else if (NO_CONTACT_STATUSES.has(status)) noContact += count;
+      else inProgress += count;
+    });
+    const total = handled + inProgress + noContact;
+    return {
+      name: bat.battalion,
+      'טופלה': handled,
+      'בטיפול': inProgress,
+      'לא נוצרה פניה': noContact,
+      pct: total > 0 ? Math.round((handled / total) * 100) : 0,
+      total,
+    };
+  });
+
+  // --- Global summary donuts ---
+  const globalProgressTotals = treatmentProgressData.reduce(
+    (acc, d) => ({
+      'טופלה': acc['טופלה'] + d['טופלה'],
+      'בטיפול': acc['בטיפול'] + d['בטיפול'],
+      'לא נוצרה פניה': acc['לא נוצרה פניה'] + d['לא נוצרה פניה'],
+    }),
+    { 'טופלה': 0, 'בטיפול': 0, 'לא נוצרה פניה': 0 }
+  );
+  const globalProgressPie = (Object.entries(globalProgressTotals) as [string, number][])
+    .filter(([, v]) => v > 0)
+    .map(([name, value]) => ({ name, value }));
+
+  const globalAssistanceTotals = assistanceStats.reduce(
+    (acc, s) => ({
+      'ביטוח לאומי': acc['ביטוח לאומי'] + s.nationalInsurance,
+      'קרן סיוע': acc['קרן סיוע'] + s.welfareFund,
+      'סיוע אחר': acc['סיוע אחר'] + s.otherAssistance,
+    }),
+    { 'ביטוח לאומי': 0, 'קרן סיוע': 0, 'סיוע אחר': 0 }
+  );
+  const globalAssistancePie = (Object.entries(globalAssistanceTotals) as [string, number][])
+    .filter(([, v]) => v > 0)
+    .map(([name, value]) => ({ name, value }));
+
+  // --- Users tab derived data ---
+  const workloadPieData = usersAllocation
+    .filter((u) => u.allocated > 0)
+    .map((u) => ({ name: `${u.firstName} ${u.lastName}`, value: u.allocated }));
+
+  const userProgressData = usersAllocation
+    .filter((u) => u.allocated > 0)
+    .map((u) => {
+      let handled = 0, inProgress = 0, noContact = 0;
+      u.byStatus.forEach(({ status, count }) => {
+        if (status === HANDLED_STATUS) handled += count;
+        else if (NO_CONTACT_STATUSES.has(status)) noContact += count;
+        else inProgress += count;
+      });
+      return {
+        name: `${u.firstName} ${u.lastName}`,
+        'טופלה': handled,
+        'בטיפול': inProgress,
+        'לא נוצרה פניה': noContact,
+        total: u.allocated,
+      };
+    });
+
+  const WORKLOAD_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6', '#ef4444', '#ec4899'];
+
   return (
     <div className="p-4 md:p-6" dir="rtl">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -322,6 +395,62 @@ export const DashboardPage: React.FC = () => {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Global overview donuts */}
+          {(globalProgressPie.length > 0 || globalAssistancePie.length > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6">
+              {globalProgressPie.length > 0 && (
+                <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 flex flex-col items-center">
+                  <h2 className="text-sm font-semibold text-white mb-1 self-start">סטטוס טיפול כולל</h2>
+                  <p className="text-xs text-gray-400 mb-3 self-start">כל הגדודים — טופלה / בטיפול / לא נוצרה פניה</p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={globalProgressPie} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" strokeWidth={0}>
+                        {globalProgressPie.map((entry) => (
+                          <Cell key={entry.name} fill={PROGRESS_COLORS[entry.name as keyof typeof PROGRESS_COLORS] ?? '#6b7280'} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#d1d5db' }} />
+                      <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex gap-4 mt-2">
+                    {globalProgressPie.map((e) => (
+                      <div key={e.name} className="text-center">
+                        <p className="text-lg font-bold text-white">{e.value}</p>
+                        <p className="text-xs text-gray-400">{e.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {globalAssistancePie.length > 0 && (
+                <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 flex flex-col items-center">
+                  <h2 className="text-sm font-semibold text-white mb-1 self-start">פילוח סיוע כולל</h2>
+                  <p className="text-xs text-gray-400 mb-3 self-start">כל הגדודים — סוגי סיוע מבוקש</p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={globalAssistancePie} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" strokeWidth={0}>
+                        {globalAssistancePie.map((entry) => (
+                          <Cell key={entry.name} fill={ASSISTANCE_COLORS[entry.name as keyof typeof ASSISTANCE_COLORS] ?? '#6b7280'} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#d1d5db' }} />
+                      <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex gap-4 mt-2">
+                    {globalAssistancePie.map((e) => (
+                      <div key={e.name} className="text-center">
+                        <p className="text-lg font-bold text-white">{e.value}</p>
+                        <p className="text-xs text-gray-400">{e.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -503,7 +632,54 @@ export const DashboardPage: React.FC = () => {
             )}
           </div>
 
-          {/* Section 4: Summary table */}
+          {/* Section 4: Treatment progress — טופלה / בטיפול / לא נוצרה פניה */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">התקדמות טיפול לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">פילוח מצב הטיפול: טופלה / בטיפול / לא נוצרה פניה</p>
+            {treatmentProgressData.length > 0 ? (
+              <>
+                {/* % handled summary cards */}
+                <div className="flex flex-wrap gap-3 mb-5">
+                  {treatmentProgressData.map((d) => (
+                    <div key={d.name} className="flex-1 min-w-[120px] bg-gray-800 rounded-lg p-3 border border-gray-700 text-center">
+                      <p className="text-xs text-gray-400 mb-1">גדוד {d.name}</p>
+                      <p className="text-2xl font-bold" style={{ color: d.pct >= 60 ? '#10b981' : d.pct >= 30 ? '#f59e0b' : '#ef4444' }}>
+                        {d.pct}%
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">טופלו מתוך {d.total}</p>
+                    </div>
+                  ))}
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={treatmentProgressData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                    <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                      itemStyle={{ color: '#d1d5db' }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
+                    <Bar dataKey="טופלה" stackId="p" fill={PROGRESS_COLORS['טופלה']} />
+                    <Bar dataKey="בטיפול" stackId="p" fill={PROGRESS_COLORS['בטיפול']} />
+                    <Bar dataKey="לא נוצרה פניה" stackId="p" fill={PROGRESS_COLORS['לא נוצרה פניה']} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap gap-3 mt-3 justify-center">
+                  {Object.entries(PROGRESS_COLORS).map(([label, color]) => (
+                    <span key={label} className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 5: Summary table */}
           {battalionPieStats.length > 0 && (
             <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
               <h2 className="text-base font-semibold text-white mb-4">טבלת סיכום השוואתית</h2>
@@ -549,11 +725,51 @@ export const DashboardPage: React.FC = () => {
 
       {/* Tab: Users Allocation */}
       {activeTab === 'users' && (
-        <div>
+        <div className="space-y-8">
           <h2 className="text-base font-semibold text-white mb-4">משתמשים וחיילים מוקצים</h2>
           {usersAllocation.filter((u) => u.allocated > 0).length === 0 ? (
             <p className="text-gray-500 text-sm text-center py-6">אין חיילים מוקצים</p>
           ) : (
+            <>
+              {/* Workload distribution + handler treatment performance */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {workloadPieData.length > 0 && (
+                  <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 flex flex-col items-center">
+                    <h3 className="text-sm font-semibold text-white mb-1 self-start">חלוקת עומס מטפלים</h3>
+                    <p className="text-xs text-gray-400 mb-3 self-start">כמה חיילים מוקצים לכל מטפל</p>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie data={workloadPieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" strokeWidth={0}>
+                          {workloadPieData.map((_, idx) => (
+                            <Cell key={idx} fill={WORKLOAD_COLORS[idx % WORKLOAD_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#d1d5db' }} />
+                        <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {userProgressData.length > 0 && (
+                  <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+                    <h3 className="text-sm font-semibold text-white mb-1">ביצועי טיפול לפי מטפל</h3>
+                    <p className="text-xs text-gray-400 mb-4">השוואת מצב הטיפול בחיילים</p>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={userProgressData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                        <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }} itemStyle={{ color: '#d1d5db' }} />
+                        <Legend wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
+                        <Bar dataKey="טופלה" stackId="u" fill={PROGRESS_COLORS['טופלה']} />
+                        <Bar dataKey="בטיפול" stackId="u" fill={PROGRESS_COLORS['בטיפול']} />
+                        <Bar dataKey="לא נוצרה פניה" stackId="u" fill={PROGRESS_COLORS['לא נוצרה פניה']} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {usersAllocation.filter((u) => u.allocated > 0).map((u) => {
                 const color = USER_ROLE_COLORS[u.role] || 'cyan';
@@ -605,6 +821,7 @@ export const DashboardPage: React.FC = () => {
                 );
               })}
             </div>
+            </>
           )}
         </div>
       )}
@@ -658,6 +875,53 @@ export const DashboardPage: React.FC = () => {
             </div>
           ) : (
             <p className="text-gray-500 text-sm text-center py-8">אין נתונים להצגה</p>
+          )}
+
+          {/* Treatment progress pie charts per battalion */}
+          {treatmentProgressData.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg font-semibold text-white mb-4">התקדמות טיפול לפי גדוד</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {treatmentProgressData.map((d) => {
+                  const pieData = [
+                    { name: 'טופלה', value: d['טופלה'] },
+                    { name: 'בטיפול', value: d['בטיפול'] },
+                    { name: 'לא נוצרה פניה', value: d['לא נוצרה פניה'] },
+                  ].filter((e) => e.value > 0);
+                  const PROG_PIE_COLORS = [PROGRESS_COLORS['טופלה'], PROGRESS_COLORS['בטיפול'], PROGRESS_COLORS['לא נוצרה פניה']];
+                  const pctColor = d.pct >= 60 ? '#10b981' : d.pct >= 30 ? '#f59e0b' : '#ef4444';
+                  return (
+                    <div key={d.name} className="bg-gray-900 rounded-xl border border-gray-700 p-5 flex flex-col items-center">
+                      <h3 className="text-sm font-semibold text-white mb-0.5">גדוד {d.name}</h3>
+                      <p className="text-xs mb-1" style={{ color: pctColor }}>{d.pct}% טופלו</p>
+                      <p className="text-xs text-gray-400 mb-3">סה"כ {d.total} חיילים</p>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={75}
+                            dataKey="value"
+                            strokeWidth={0}
+                          >
+                            {pieData.map((entry, idx) => (
+                              <Cell key={idx} fill={PROG_PIE_COLORS[['טופלה', 'בטיפול', 'לא נוצרה פניה'].indexOf(entry.name)]} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                            itemStyle={{ color: '#d1d5db' }}
+                          />
+                          <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {/* Assistance Bars */}
