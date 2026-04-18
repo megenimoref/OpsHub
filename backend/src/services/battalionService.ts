@@ -73,6 +73,22 @@ CREATE TABLE IF NOT EXISTS soldiers (
   reserve_days_2026 TEXT,
   command_role TEXT,
   children_ages TEXT,
+  age TEXT,
+  platoon TEXT,
+  current_rotation TEXT,
+  special_family_status TEXT,
+  spouse_call_doc TEXT,
+  whatsapp_battalion TEXT,
+  whatsapp_family TEXT,
+  divorced_assistance TEXT,
+  birth_assistance TEXT,
+  moving_assistance TEXT,
+  household_assistance TEXT,
+  complex_problems TEXT,
+  resilience_treatment TEXT,
+  followup_1 TEXT,
+  followup_2 TEXT,
+  personal_equipment TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -109,7 +125,15 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
     }
 
     // Add new columns to existing tables if missing
-    const NEW_COLUMNS = ['reserve_days_2025', 'reserve_days_2026', 'command_role', 'children_ages'];
+    const NEW_COLUMNS = [
+      'reserve_days_2025', 'reserve_days_2026', 'command_role', 'children_ages',
+      // Extended fields from גדוד 240 and similar Excel layouts
+      'age', 'platoon', 'current_rotation', 'special_family_status',
+      'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
+      'divorced_assistance', 'birth_assistance', 'moving_assistance',
+      'household_assistance', 'complex_problems', 'resilience_treatment',
+      'followup_1', 'followup_2', 'personal_equipment',
+    ];
     for (const col of NEW_COLUMNS) {
       if (!existingCols.has(col)) {
         await dbConn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
