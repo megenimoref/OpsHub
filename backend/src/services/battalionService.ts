@@ -153,6 +153,23 @@ export interface SoldierRow {
   reserve_days_2026?: string;
   command_role?: string;
   children_ages?: string;
+  // Extended fields from גדוד 240 and similar Excel layouts
+  age?: string;
+  platoon?: string;
+  current_rotation?: string;
+  special_family_status?: string;
+  spouse_call_doc?: string;
+  whatsapp_battalion?: string;
+  whatsapp_family?: string;
+  divorced_assistance?: string;
+  birth_assistance?: string;
+  moving_assistance?: string;
+  household_assistance?: string;
+  complex_problems?: string;
+  resilience_treatment?: string;
+  followup_1?: string;
+  followup_2?: string;
+  personal_equipment?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -165,6 +182,11 @@ const FIXED_COLUMNS = [
   'welfare_fund', 'national_insurance', 'other_assistance',
   'applications_needed', 'notes', 'reserve_days_2025', 'reserve_days_2026',
   'command_role', 'children_ages',
+  'age', 'platoon', 'current_rotation', 'special_family_status',
+  'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
+  'divorced_assistance', 'birth_assistance', 'moving_assistance',
+  'household_assistance', 'complex_problems', 'resilience_treatment',
+  'followup_1', 'followup_2', 'personal_equipment',
 ];
 
 // Import always overwrites all fields from Excel — Excel is the single source of truth

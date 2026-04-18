@@ -107,7 +107,9 @@
       "Bash(brew install:*)",
       "Bash(pdftoppm -v)",
       "Bash(git cherry-pick:*)",
-      "Read(//Users/sh.azulay/Downloads/**)"
+      "Read(//Users/sh.azulay/Downloads/**)",
+      "WebFetch(domain:apidoc.inforu.co.il)",
+      "Bash(echo \"exit:$?\")"
     ]
   }
 }

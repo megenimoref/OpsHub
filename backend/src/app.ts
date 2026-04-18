@@ -14,10 +14,12 @@ import logsRoutes from './routes/logs';
 import chatRoutes from './routes/chat';
 import openaiRoutes from './routes/openai';
 import whatsappRoutes from './routes/whatsapp';
+import smsRoutes from './routes/sms';
 import serviceCallsRoutes from './routes/serviceCalls';
 import backupRoutes from './routes/backup';
 import notificationsRoutes from './routes/notifications';
 import './models/notification'; // ensure model is synced
+import './models/messageCampaign'; // ensure model is synced
 import { startScheduler } from './services/backupService';
 import { logger } from './services/logger';
 
@@ -54,6 +56,7 @@ app.use('/logs', logsRoutes);
 app.use('/chat', chatRoutes);
 app.use('/openai', openaiRoutes);
 app.use('/whatsapp', whatsappRoutes);
+app.use('/sms', smsRoutes);
 app.use('/service-calls', serviceCallsRoutes);
 app.use('/backup', backupRoutes);
 app.use('/notifications', notificationsRoutes);

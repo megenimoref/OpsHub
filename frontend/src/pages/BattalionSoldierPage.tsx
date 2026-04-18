@@ -43,6 +43,22 @@ interface Soldier {
   reserve_days_2026: string;
   command_role: string;
   children_ages: string;
+  age: string;
+  platoon: string;
+  current_rotation: string;
+  special_family_status: string;
+  spouse_call_doc: string;
+  whatsapp_battalion: string;
+  whatsapp_family: string;
+  divorced_assistance: string;
+  birth_assistance: string;
+  moving_assistance: string;
+  household_assistance: string;
+  complex_problems: string;
+  resilience_treatment: string;
+  followup_1: string;
+  followup_2: string;
+  personal_equipment: string;
 }
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -55,6 +71,10 @@ const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'נדרש סיוע של ביטוח לאומי', label: 'נדרש סיוע של ביטוח לאומי', color: '#f97316' },
   { value: 'נדרש סיוע של עורך דין', label: 'נדרש סיוע של עורך דין', color: '#f472b6' },
   { value: 'אין מספר טלפון', label: 'אין מספר טלפון', color: '#6366f1' },
+  { value: 'נדרש סיוע חוסן', label: 'אין מספר טלפון', color: '#83579a' },
+  
+  
+
 ];
 
 const getStatusColor = (status: string): string => {
@@ -97,6 +117,22 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
   { key: 'applications_needed', label: 'בקשות להגשה', multiline: true },
   { key: 'notes', label: 'פירוט/הערות', multiline: true },
+  { key: 'age', label: 'גיל' },
+  { key: 'platoon', label: 'מחלקה' },
+  { key: 'current_rotation', label: 'סבב נוכחי' },
+  { key: 'special_family_status', label: 'סטטוס מיוחד משפחתי' },
+  { key: 'spouse_call_doc', label: 'תיעוד שיחה בת זוג/אמא', multiline: true },
+  { key: 'whatsapp_battalion', label: 'WhatsApp גדודי ופלוגתי' },
+  { key: 'whatsapp_family', label: 'WhatsApp משפחה גדודי' },
+  { key: 'divorced_assistance', label: 'גרוש/פרוד — עזרה', multiline: true },
+  { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', multiline: true },
+  { key: 'moving_assistance', label: 'מעבר דירה במהלך לפ', multiline: true },
+  { key: 'household_assistance', label: 'כלכלת בית (בייביסיטר)', multiline: true },
+  { key: 'complex_problems', label: 'בעיות מורכבות', multiline: true },
+  { key: 'resilience_treatment', label: 'חוסן — טיפולים רגשיים', multiline: true },
+  { key: 'followup_1', label: 'מעקב 1', multiline: true },
+  { key: 'followup_2', label: 'מעקב 2', multiline: true },
+  { key: 'personal_equipment', label: 'ציוד אישי', multiline: true },
 ];
 
 function parseSelectWithDetail(value: string, options: string[]): { selected: string; detail: string } {
