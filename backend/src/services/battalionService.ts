@@ -595,6 +595,66 @@ export async function getBattalionStatusBreakdown(battalionFilter?: string): Pro
   return results;
 }
 
+export interface BattalionDemographics {
+  battalion: string;
+  married: number;
+  single: number;
+  divorced: number;
+  selfEmployed: number;
+  employed: number;
+  resilience: number;
+}
+
+export async function getBattalionDemographics(battalionFilter?: string): Promise<BattalionDemographics[]> {
+  let dbNames: string[] = [];
+
+  if (battalionFilter) {
+    dbNames = [getBattalionDbName(battalionFilter)];
+  } else {
+    const conn = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn.end();
+    }
+  }
+
+  const results: BattalionDemographics[] = [];
+
+  for (const dbName of dbNames) {
+    const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const [rows] = await c.execute<mysql.RowDataPacket[]>(
+        `SELECT
+          SUM(CASE WHEN marital_status LIKE '%נשוי%' OR marital_status LIKE '%נשואה%' THEN 1 ELSE 0 END) AS married,
+          SUM(CASE WHEN marital_status LIKE '%רווק%' OR marital_status LIKE '%רווקה%' THEN 1 ELSE 0 END) AS single_count,
+          SUM(CASE WHEN marital_status LIKE '%גרוש%' OR marital_status LIKE '%פרוד%' THEN 1 ELSE 0 END) AS divorced,
+          SUM(CASE WHEN employment_status LIKE '%עצמאי%' THEN 1 ELSE 0 END) AS self_employed,
+          SUM(CASE WHEN employment_status LIKE '%שכיר%' THEN 1 ELSE 0 END) AS employed,
+          SUM(CASE WHEN data_indicators LIKE '%חוסן%' OR request_status LIKE '%חוסן%' THEN 1 ELSE 0 END) AS resilience
+        FROM soldiers`
+      );
+      const row = rows[0];
+      results.push({
+        battalion: dbName.replace(/^battalion_/, ''),
+        married: Number(row.married) || 0,
+        single: Number(row.single_count) || 0,
+        divorced: Number(row.divorced) || 0,
+        selfEmployed: Number(row.self_employed) || 0,
+        employed: Number(row.employed) || 0,
+        resilience: Number(row.resilience) || 0,
+      });
+    } finally {
+      await c.end();
+    }
+  }
+
+  return results;
+}
+
 export interface AssistanceSoldier {
   firstName: string;
   lastName: string;
