@@ -20,6 +20,7 @@ import {
   getBattalionPieStats,
   getAssistanceStats,
   getBattalionStatusBreakdown,
+  getBattalionDemographics,
   getSoldiersByAssistanceType,
   getBattalionDbName,
   findCrossBattalionDuplicates,
@@ -893,7 +894,7 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
       (allUsersRaw as any[]).map((u: any) => u.firstName).filter(Boolean)
     )];
 
-    const [people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation] = await Promise.all([
+    const [people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation, battalionDemographics] = await Promise.all([
       getDashboardData(peopleNames, battalionFilter),
       getGlobalStats(battalionFilter),
       listBattalions(),
@@ -901,8 +902,9 @@ export const getDashboard = async (req: Request, res: Response): Promise<void> =
       getAssistanceStats(battalionFilter),
       getBattalionStatusBreakdown(battalionFilter),
       getUsersAllocation(battalionFilter),
+      getBattalionDemographics(battalionFilter),
     ]);
-    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation });
+    res.json({ people, globalStats, battalions, battalionPieStats, assistanceStats, battalionStatusBreakdown, usersAllocation, battalionDemographics });
   } catch (error: any) {
     logger.error('Dashboard error', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בטעינת דשבורד' });

@@ -54,6 +54,16 @@ interface UserAllocation {
   byStatus: { status: string; count: number }[];
 }
 
+interface BattalionDemographics {
+  battalion: string;
+  married: number;
+  single: number;
+  divorced: number;
+  selfEmployed: number;
+  employed: number;
+  resilience: number;
+}
+
 interface DashboardResponse {
   people: PersonDashboard[];
   globalStats: GlobalStats;
@@ -62,6 +72,7 @@ interface DashboardResponse {
   assistanceStats: AssistanceStat[];
   battalionStatusBreakdown: BattalionStatusBreakdown[];
   usersAllocation: UserAllocation[];
+  battalionDemographics: BattalionDemographics[];
 }
 
 const PERSON_COLORS: Record<string, string> = {
@@ -115,6 +126,7 @@ export const DashboardPage: React.FC = () => {
   const [assistanceStats, setAssistanceStats] = useState<AssistanceStat[]>([]);
   const [battalionStatusBreakdown, setBattalionStatusBreakdown] = useState<BattalionStatusBreakdown[]>([]);
   const [usersAllocation, setUsersAllocation] = useState<UserAllocation[]>([]);
+  const [battalionDemographics, setBattalionDemographics] = useState<BattalionDemographics[]>([]);
   const [expandedBar, setExpandedBar] = useState<{ battalion: string; type: string } | null>(null);
   const [expandedSoldiers, setExpandedSoldiers] = useState<AssistanceSoldier[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
@@ -145,6 +157,9 @@ export const DashboardPage: React.FC = () => {
         }
         if (res.data.usersAllocation) {
           setUsersAllocation(res.data.usersAllocation);
+        }
+        if (res.data.battalionDemographics) {
+          setBattalionDemographics(res.data.battalionDemographics);
         }
       })
       .catch(() => setError('שגיאה בטעינת הדשבורד'))
@@ -261,6 +276,29 @@ export const DashboardPage: React.FC = () => {
       total,
     };
   });
+
+  // --- Demographics charts (marital / employment / resilience per battalion) ---
+  const maritalChartData = battalionDemographics.map((d) => ({
+    name: d.battalion,
+    'נשואים': d.married,
+    'רווקים': d.single,
+    'גרושים/פרודים': d.divorced,
+  }));
+
+  const employmentChartData = battalionDemographics.map((d) => ({
+    name: d.battalion,
+    'עצמאי': d.selfEmployed,
+    'שכיר': d.employed,
+  }));
+
+  const resilienceChartData = battalionDemographics.map((d) => ({
+    name: d.battalion,
+    'חוסן רגשי': d.resilience,
+  }));
+
+  const MARITAL_COLORS = { 'נשואים': '#10b981', 'רווקים': '#3b82f6', 'גרושים/פרודים': '#f59e0b' };
+  const EMPLOYMENT_COLORS = { 'עצמאי': '#8b5cf6', 'שכיר': '#06b6d4' };
+  const RESILIENCE_COLOR = '#ec4899';
 
   // --- Global summary donuts ---
   const globalProgressTotals = treatmentProgressData.reduce(
@@ -674,6 +712,78 @@ export const DashboardPage: React.FC = () => {
                   ))}
                 </div>
               </>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 4b: Marital status comparison */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">מצב משפחתי לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">התפלגות נשואים / רווקים / גרושים</p>
+            {maritalChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={maritalChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                    itemStyle={{ color: '#d1d5db' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                  <Bar dataKey="נשואים" fill={MARITAL_COLORS['נשואים']} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="רווקים" fill={MARITAL_COLORS['רווקים']} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="גרושים/פרודים" fill={MARITAL_COLORS['גרושים/פרודים']} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 4c: Employment status comparison */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">סטטוס תעסוקתי לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">התפלגות עצמאי / שכיר</p>
+            {employmentChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={employmentChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                    itemStyle={{ color: '#d1d5db' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                  <Bar dataKey="עצמאי" fill={EMPLOYMENT_COLORS['עצמאי']} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="שכיר" fill={EMPLOYMENT_COLORS['שכיר']} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
+            )}
+          </div>
+
+          {/* Section 4d: Resilience (חוסן רגשי) comparison */}
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-white mb-1">חוסן רגשי לפי גדוד</h2>
+            <p className="text-xs text-gray-400 mb-4">מספר חיילים הזקוקים לסיוע חוסן רגשי (לפי אינדיקציות ו/או סטטוס)</p>
+            {resilienceChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={resilienceChartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 12 }} />
+                  <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff' }}
+                    itemStyle={{ color: '#d1d5db' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                  <Bar dataKey="חוסן רגשי" fill={RESILIENCE_COLOR} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
               <p className="text-gray-500 text-sm text-center py-6">אין נתונים</p>
             )}
