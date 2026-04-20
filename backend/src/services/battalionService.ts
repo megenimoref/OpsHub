@@ -94,6 +94,15 @@ CREATE TABLE IF NOT EXISTS soldiers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `;
 
+const NEW_SOLDIER_COLUMNS = [
+  'reserve_days_2025', 'reserve_days_2026', 'command_role', 'children_ages',
+  'age', 'platoon', 'current_rotation', 'special_family_status',
+  'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
+  'divorced_assistance', 'birth_assistance', 'moving_assistance',
+  'household_assistance', 'complex_problems', 'resilience_treatment',
+  'followup_1', 'followup_2', 'personal_equipment',
+];
+
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
   const dbName = getBattalionDbName(battalionName);
 
@@ -125,16 +134,7 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
     }
 
     // Add new columns to existing tables if missing
-    const NEW_COLUMNS = [
-      'reserve_days_2025', 'reserve_days_2026', 'command_role', 'children_ages',
-      // Extended fields from גדוד 240 and similar Excel layouts
-      'age', 'platoon', 'current_rotation', 'special_family_status',
-      'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
-      'divorced_assistance', 'birth_assistance', 'moving_assistance',
-      'household_assistance', 'complex_problems', 'resilience_treatment',
-      'followup_1', 'followup_2', 'personal_equipment',
-    ];
-    for (const col of NEW_COLUMNS) {
+    for (const col of NEW_SOLDIER_COLUMNS) {
       if (!existingCols.has(col)) {
         await dbConn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
       }
@@ -829,6 +829,19 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   children_ages: 'גילאי ילדים',
 };
 
+async function ensureSoldiersColumns(conn: mysql.Connection, dbName: string): Promise<void> {
+  const [cols] = await conn.execute<mysql.RowDataPacket[]>(
+    `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+    [dbName]
+  );
+  const existingCols = new Set(cols.map((c) => c.COLUMN_NAME as string));
+  for (const col of NEW_SOLDIER_COLUMNS) {
+    if (!existingCols.has(col)) {
+      await conn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
+    }
+  }
+}
+
 async function ensureChangesTable(conn: mysql.Connection): Promise<void> {
   await conn.query(SOLDIER_CHANGES_TABLE_DDL);
   // Migrate: add changed_by column if missing
@@ -848,6 +861,7 @@ export async function updateSoldier(
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
+    await ensureSoldiersColumns(conn, dbName);
     await ensureChangesTable(conn);
     // Fetch current soldier data to detect changes
     const [currentRows] = await conn.execute<mysql.RowDataPacket[]>(
