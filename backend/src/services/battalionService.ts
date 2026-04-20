@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS soldiers (
   followup_1 TEXT,
   followup_2 TEXT,
   personal_equipment TEXT,
+  mobilization_dates TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -101,7 +102,7 @@ const NEW_SOLDIER_COLUMNS = [
   'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
   'divorced_assistance', 'birth_assistance', 'moving_assistance',
   'household_assistance', 'complex_problems', 'resilience_treatment',
-  'followup_1', 'followup_2', 'personal_equipment', 'aid_fund_submission',
+  'followup_1', 'followup_2', 'personal_equipment', 'aid_fund_submission', 'mobilization_dates',
 ];
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
@@ -196,6 +197,7 @@ export interface SoldierRow {
   followup_1?: string;
   followup_2?: string;
   personal_equipment?: string;
+  mobilization_dates?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -212,7 +214,7 @@ const FIXED_COLUMNS = [
   'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
   'divorced_assistance', 'birth_assistance', 'moving_assistance',
   'household_assistance', 'complex_problems', 'resilience_treatment',
-  'followup_1', 'followup_2', 'personal_equipment',
+  'followup_1', 'followup_2', 'personal_equipment', 'mobilization_dates',
 ];
 
 // Import always overwrites all fields from Excel — Excel is the single source of truth
@@ -822,6 +824,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   employment_status: 'סטטוס תעסוקתי',
   welfare_fund: 'קרן סיוע',
   aid_fund_submission: 'מה החייל הגיש לקרן הסיוע',
+  mobilization_dates: 'תאריכי גיוס/סבבים',
   national_insurance: 'ביטוח לאומי',
   other_assistance: 'סיוע אחר',
   applications_needed: 'בקשות להגשה',
