@@ -129,6 +129,8 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'סטטוס תעסוקתי': 'employment_status',
   'מיצוי זכויות קרן סיוע פרוט': 'welfare_fund',
   'קרן סיוע הגשות': 'welfare_fund',
+  'מה החייל הגיש לקרן הסיוע': 'aid_fund_submission',
+  'הגשות לקרן הסיוע': 'aid_fund_submission',
   'ביטוח לאומי': 'national_insurance',
   'ביטוח לאומי בעיות': 'national_insurance',
   'סיוע אחר': 'other_assistance',
@@ -174,6 +176,9 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'מעקב 2': 'followup_2',
   'מעקב2': 'followup_2',
   'ציוד אישי': 'personal_equipment',
+  'תאריכי גיוס/סבבים': 'mobilization_dates',
+  'תאריכי גיוס': 'mobilization_dates',
+  'סבבים': 'mobilization_dates',
 };
 
 // Columns that are silently skipped during import for security/privacy reasons.

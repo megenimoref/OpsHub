@@ -35,6 +35,7 @@ interface Soldier {
   contact_with: string;
   employment_status: string;
   welfare_fund: string;
+  aid_fund_submission: string;
   national_insurance: string;
   other_assistance: string;
   applications_needed: string;
@@ -59,6 +60,7 @@ interface Soldier {
   followup_1: string;
   followup_2: string;
   personal_equipment: string;
+  mobilization_dates: string;
 }
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -113,6 +115,7 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'contact_with', label: 'מול מי נוצר קשר', selectWithDetail: { options: ['החייל', 'קרוב'], detailOn: ['קרוב'] } },
   { key: 'employment_status', label: 'סטטוס תעסוקתי', selectWithDetail: { options: ['עצמאי', 'שכיר', 'מובטל', 'אחר'], detailOn: ['אחר'] } },
   { key: 'welfare_fund', label: 'קרן סיוע', multiline: true },
+  { key: 'aid_fund_submission', label: 'מה החייל הגיש לקרן הסיוע', multiline: true },
   { key: 'national_insurance', label: 'ביטוח לאומי', selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
   { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
   { key: 'applications_needed', label: 'בקשות להגשה', multiline: true },
@@ -133,6 +136,7 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'followup_1', label: 'מעקב 1', multiline: true },
   { key: 'followup_2', label: 'מעקב 2', multiline: true },
   { key: 'personal_equipment', label: 'ציוד אישי', multiline: true },
+  { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
 ];
 
 function parseSelectWithDetail(value: string, options: string[]): { selected: string; detail: string } {

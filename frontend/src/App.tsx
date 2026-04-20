@@ -19,6 +19,7 @@ import { PersonalAreaPage } from './pages/PersonalAreaPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BackupPage } from './pages/BackupPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import { NotificationBell } from './components/NotificationBell';
@@ -260,6 +261,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </svg>
               גיבוי DB
             </NavLink>
+
+            <NavLink to="/community" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              קהילה נשות המילואים
+            </NavLink>
           </>
         )}
       </nav>
@@ -455,6 +464,7 @@ function App() {
             }
           />
           <Route path="/backup" element={<ProtectedRoute><BackupPage /></ProtectedRoute>} />
+          <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         </Routes>
       </Layout>
