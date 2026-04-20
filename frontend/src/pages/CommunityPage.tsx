@@ -39,7 +39,7 @@ export const CommunityPage: React.FC = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get('/battalion/list').then((r) => setBattalions(r.data)).catch(() => {});
+    api.get('/battalion/list').then((r) => setBattalions(r.data.battalions ?? r.data)).catch(() => {});
     api.get('/community/users').then((r) => setUsers(r.data)).catch(() => {});
   }, []);
 
