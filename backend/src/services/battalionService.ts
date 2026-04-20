@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS soldiers (
   contact_with TEXT,
   employment_status TEXT,
   welfare_fund TEXT,
+  aid_fund_submission TEXT,
   national_insurance TEXT,
   other_assistance TEXT,
   applications_needed TEXT,
@@ -100,7 +101,7 @@ const NEW_SOLDIER_COLUMNS = [
   'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
   'divorced_assistance', 'birth_assistance', 'moving_assistance',
   'household_assistance', 'complex_problems', 'resilience_treatment',
-  'followup_1', 'followup_2', 'personal_equipment',
+  'followup_1', 'followup_2', 'personal_equipment', 'aid_fund_submission',
 ];
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
@@ -169,6 +170,7 @@ export interface SoldierRow {
   contact_with?: string;
   employment_status?: string;
   welfare_fund?: string;
+  aid_fund_submission?: string;
   national_insurance?: string;
   other_assistance?: string;
   applications_needed?: string;
@@ -203,7 +205,7 @@ const FIXED_COLUMNS = [
   'request_status', 'marital_status', 'children_count',
   'student_indicator', 'spouse', 'spouse_phone', 'data_indicators',
   'contact_by', 'contact_date', 'contact_with', 'employment_status',
-  'welfare_fund', 'national_insurance', 'other_assistance',
+  'welfare_fund', 'aid_fund_submission', 'national_insurance', 'other_assistance',
   'applications_needed', 'notes', 'reserve_days_2025', 'reserve_days_2026',
   'command_role', 'children_ages',
   'age', 'platoon', 'current_rotation', 'special_family_status',
@@ -819,6 +821,7 @@ const FIELD_LABEL_MAP: Record<string, string> = {
   contact_with: 'מול מי נוצר קשר',
   employment_status: 'סטטוס תעסוקתי',
   welfare_fund: 'קרן סיוע',
+  aid_fund_submission: 'מה החייל הגיש לקרן הסיוע',
   national_insurance: 'ביטוח לאומי',
   other_assistance: 'סיוע אחר',
   applications_needed: 'בקשות להגשה',
