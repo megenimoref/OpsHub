@@ -67,6 +67,7 @@ export const MailingListPage: React.FC = () => {
   const [channel, setChannel] = useState<Channel>('whatsapp');
   const [loadingBattalions, setLoadingBattalions] = useState(true);
   const [loadingSoldiers, setLoadingSoldiers] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [sending, setSending] = useState(false);
   const [whatsappResults, setWhatsappResults] = useState<WhatsAppBulkResponse | null>(null);
   const [smsResults, setSmsResults] = useState<SmsBulkResponse | null>(null);
@@ -85,19 +86,31 @@ export const MailingListPage: React.FC = () => {
 
   useEffect(() => {
     api.get<{ battalions: string[] }>('/battalion/list')
-      .then((r) => setBattalions(r.data.battalions))
-      .catch(() => setBattalions([]))
+      .then((r) => setBattalions(r.data.battalions || []))
+      .catch((err) => {
+        setBattalions([]);
+        setLoadError(err?.response?.data?.error || 'שגיאה בטעינת רשימת הגדודים');
+      })
       .finally(() => setLoadingBattalions(false));
     fetchStats();
   }, [fetchStats]);
 
   useEffect(() => {
     if (source !== 'battalion') return;
+    setLoadError('');
     if (!selectedBattalion) { setSoldiers([]); setSelectedIds(new Set()); return; }
     setLoadingSoldiers(true);
     api.get<{ soldiers: Soldier[] }>(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`)
-      .then((r) => { setSoldiers(r.data.soldiers); setSelectedIds(new Set(r.data.soldiers.map((_, i) => i))); })
-      .catch(() => setSoldiers([]))
+      .then((r) => {
+        const list = r.data.soldiers || [];
+        setSoldiers(list);
+        setSelectedIds(new Set(list.map((_, i) => i)));
+      })
+      .catch((err) => {
+        setSoldiers([]);
+        setSelectedIds(new Set());
+        setLoadError(err?.response?.data?.error || 'שגיאה בטעינת חיילי הגדוד');
+      })
       .finally(() => setLoadingSoldiers(false));
   }, [selectedBattalion, source]);
 
@@ -215,6 +228,12 @@ export const MailingListPage: React.FC = () => {
 
           {source === 'battalion' && loadingSoldiers && <p className="text-sm text-gray-400">טוען חיילים...</p>}
           {source === 'team' && loadingTeam && <p className="text-sm text-gray-400">טוען חברי צוות...</p>}
+          {loadError && (
+            <div className="p-3 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300 mb-2">{loadError}</div>
+          )}
+          {source === 'battalion' && !loadingSoldiers && !loadError && selectedBattalion && soldiers.length === 0 && (
+            <p className="text-sm text-gray-500">אין חיילים בגדוד זה</p>
+          )}
 
           {items.length > 0 && (
             <>
