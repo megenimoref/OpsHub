@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
+import { authService } from '../services/authService';
 
 interface SoldierBasic {
   personal_number: string;
@@ -244,10 +245,16 @@ export const PersonalAreaPage: React.FC = () => {
               {refreshing ? 'מרענן...' : 'רענן'}
             </button>
             <a
-              href="https://time-table.duckdns.org/"
+              href={(() => {
+                const u = authService.getStoredUser();
+                const email = u?.email || '';
+                return email
+                  ? `https://time-table.duckdns.org/?email=${encodeURIComponent(email)}`
+                  : 'https://time-table.duckdns.org/';
+              })()}
               target="_blank"
               rel="noopener noreferrer"
-              title="פתח את Time Table בטאב חדש"
+              title="פתח את Time Table עם המשתמש שלך"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg border border-indigo-500 transition-colors"
             >
               <svg
