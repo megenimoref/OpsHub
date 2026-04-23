@@ -11,14 +11,26 @@ export interface SmsSendResult {
   statusDescription: string;
 }
 
+// Normalize Israeli phone: strip non-digits, convert 0XXXXXXXXX → 972XXXXXXXXX
+function normalizePhone(raw: string): string {
+  const digits = (raw || '').replace(/\D/g, '');
+  if (digits.startsWith('972')) return digits;
+  if (digits.startsWith('0')) return '972' + digits.slice(1);
+  return digits;
+}
+
 export async function sendBulkSms(phones: string[], message: string): Promise<SmsSendResult> {
+  // Inforu v2 expects PhoneNumber as a comma-separated STRING, not an array.
+  const normalized = phones.map(normalizePhone).filter((p) => p.length >= 10);
+  const phoneCsv = normalized.join(',');
+
   const response = await axios.post(
     INFORU_SMS_URL,
     {
       Data: {
         Message: message,
         Recipients: {
-          PhoneNumber: phones,
+          PhoneNumber: phoneCsv,
         },
         Settings: {
           Sender: INFORU_SENDER,
