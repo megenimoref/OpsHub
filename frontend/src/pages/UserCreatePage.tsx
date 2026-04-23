@@ -67,6 +67,38 @@ export const UserCreatePage: React.FC = () => {
   const [resetMessages, setResetMessages] = useState<{ [key: number]: { text: string; isError: boolean } }>({});
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
+  const ROLE_LABELS: Record<UserRecord['role'], string> = {
+    admin: 'אדמין',
+    staff: 'עובד/ת',
+    super: 'סופר',
+    manager: 'מנהל/ת',
+  };
+
+  const exportUsersToExcel = () => {
+    if (users.length === 0) return;
+    const headers = ['מזהה', 'שם פרטי', 'שם משפחה', 'דוא"ל', 'תפקיד'];
+    const escape = (v: string | number | undefined) => {
+      const s = String(v ?? '');
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = users.map((u) =>
+      [u.id, u.firstName || '', u.lastName || '', u.email, ROLE_LABELS[u.role] || u.role]
+        .map(escape)
+        .join(',')
+    );
+    const csv = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const ts = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `users-${ts}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDeleteUser = async (userId: number, userName: string) => {
     if (!window.confirm(`האם למחוק את המשתמש ${userName}?`)) return;
     setDeletingId(userId);
@@ -283,7 +315,25 @@ export const UserCreatePage: React.FC = () => {
 
       {/* Users list with Reset 2FA */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">ניהול משתמשים קיימים</h2>
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <h2 className="text-lg font-semibold text-white">ניהול משתמשים קיימים</h2>
+          <button
+            type="button"
+            onClick={exportUsersToExcel}
+            disabled={users.length === 0}
+            title="ייצא את רשימת המשתמשים לקובץ CSV הנפתח ב-Excel"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs rounded-lg border border-emerald-500 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-3.5 h-3.5"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            ייצוא לאקסל
+          </button>
+        </div>
         {resetMsg && (
           <div className="mb-3 p-3 bg-blue-900/40 border border-blue-700 text-blue-300 rounded-md text-sm">
             {resetMsg}
