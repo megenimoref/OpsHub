@@ -24,12 +24,13 @@ export async function sendBulkSms(phones: string[], message: string): Promise<Sm
   const normalized = phones.map(normalizePhone).filter((p) => p.length >= 10);
   const phoneCsv = normalized.join(',');
 
+  // Inforu v2 documented shape: Recipients is an ARRAY of {PhoneNumber} objects.
+  // The "Recipients.PhoneNumber as CSV string" shape we tried first was silently
+  // accepted with 0 recipients (Inforu returns StatusId -6 / "No recipients").
   const payload = {
     Data: {
       Message: message,
-      Recipients: {
-        PhoneNumber: phoneCsv,
-      },
+      Recipients: normalized.map((p) => ({ PhoneNumber: p })),
       Settings: {
         Sender: INFORU_SENDER,
       },
