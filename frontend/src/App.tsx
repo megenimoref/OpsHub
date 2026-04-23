@@ -8,6 +8,7 @@ import { UserCreatePage } from './pages/UserCreatePage';
 import { BattalionImportPage } from './pages/BattalionImportPage';
 import { BattalionCreatePage } from './pages/BattalionCreatePage';
 import { BattalionAllocatePage } from './pages/BattalionAllocatePage';
+import { UserSoldiersPage } from './pages/UserSoldiersPage';
 import { BattalionSoldierPage } from './pages/BattalionSoldierPage';
 import { MailingListPage } from './pages/MailingListPage';
 import { LogsPage } from './pages/LogsPage';
@@ -396,6 +397,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <BattalionAllocatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/battalion/user-soldiers"
+            element={
+              <ProtectedRoute>
+                <UserSoldiersPage />
               </ProtectedRoute>
             }
           />
