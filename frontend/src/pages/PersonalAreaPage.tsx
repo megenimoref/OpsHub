@@ -244,7 +244,7 @@ export const PersonalAreaPage: React.FC = () => {
               {refreshing ? 'מרענן...' : 'רענן'}
             </button>
             <a
-              href="http://108.178.131.24:5222"
+              href="https://time-table.duckdns.org/"
               target="_blank"
               rel="noopener noreferrer"
               title="פתח את Time Table בטאב חדש"
