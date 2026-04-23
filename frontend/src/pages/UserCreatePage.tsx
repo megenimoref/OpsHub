@@ -8,6 +8,7 @@ interface UserRecord {
   email: string;
   firstName?: string;
   lastName?: string;
+  mobilePhone?: string | null;
   role: 'admin' | 'staff' | 'super' | 'manager';
 }
 
@@ -17,6 +18,7 @@ export const UserCreatePage: React.FC = () => {
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [mobilePhone, setMobilePhone] = useState('');
   const [role, setRole] = useState<'staff' | 'admin' | 'super' | 'manager'>('staff');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,12 +51,13 @@ export const UserCreatePage: React.FC = () => {
     setSuccess('');
     setLoading(true);
     try {
-      await api.post('/users', { email, password, role, firstName, lastName });
+      await api.post('/users', { email, password, role, firstName, lastName, mobilePhone: mobilePhone.trim() || undefined });
       setSuccess(`המשתמש ${firstName} ${lastName} (${email}) נוצר בהצלחה`);
       setFirstName('');
       setLastName('');
       setEmail('');
       setPassword('');
+      setMobilePhone('');
       setRole('staff');
       fetchUsers();
     } catch (err: any) {
@@ -76,13 +79,13 @@ export const UserCreatePage: React.FC = () => {
 
   const exportUsersToExcel = () => {
     if (users.length === 0) return;
-    const headers = ['מזהה', 'שם פרטי', 'שם משפחה', 'דוא"ל', 'תפקיד'];
-    const escape = (v: string | number | undefined) => {
+    const headers = ['מזהה', 'שם פרטי', 'שם משפחה', 'דוא"ל', 'טלפון נייד', 'תפקיד'];
+    const escape = (v: string | number | undefined | null) => {
       const s = String(v ?? '');
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const rows = users.map((u) =>
-      [u.id, u.firstName || '', u.lastName || '', u.email, ROLE_LABELS[u.role] || u.role]
+      [u.id, u.firstName || '', u.lastName || '', u.email, u.mobilePhone || '', ROLE_LABELS[u.role] || u.role]
         .map(escape)
         .join(',')
     );
@@ -160,6 +163,7 @@ export const UserCreatePage: React.FC = () => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        mobilePhone: user.mobilePhone || '',
       },
     });
     setResetMsg('');
@@ -198,7 +202,8 @@ export const UserCreatePage: React.FC = () => {
         data.firstName,
         data.lastName,
         data.role,
-        data.email
+        data.email,
+        data.mobilePhone ?? null
       );
       setResetMsg(`${userName} עודכן בהצלחה`);
       setEditData({});
@@ -263,6 +268,19 @@ export const UserCreatePage: React.FC = () => {
               required
               className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
               placeholder="user@example.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              טלפון נייד <span className="text-gray-500 text-xs">(לשליחת SMS)</span>
+            </label>
+            <input
+              type="tel"
+              value={mobilePhone}
+              onChange={(e) => setMobilePhone(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
+              placeholder="05X-XXXXXXX"
+              dir="ltr"
             />
           </div>
           <div>
@@ -377,6 +395,17 @@ export const UserCreatePage: React.FC = () => {
                       />
                     </div>
                     <div>
+                      <label className="block text-xs text-gray-400 mb-1">טלפון נייד</label>
+                      <input
+                        type="tel"
+                        value={editData[u.id]?.mobilePhone || ''}
+                        onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], mobilePhone: e.target.value } })}
+                        placeholder="05X-XXXXXXX"
+                        dir="ltr"
+                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-xs text-gray-400 mb-1">תפקיד</label>
                       <select
                         value={editData[u.id]?.role || 'staff'}
@@ -410,6 +439,9 @@ export const UserCreatePage: React.FC = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-white text-sm font-medium">{u.firstName} {u.lastName}</span>
                         <span className="text-xs text-gray-400">({u.email})</span>
+                        {u.mobilePhone && (
+                          <span className="text-xs text-gray-400 font-mono" dir="ltr">{u.mobilePhone}</span>
+                        )}
                         {/* Inline role-change select */}
                         <div className="relative">
                           <select

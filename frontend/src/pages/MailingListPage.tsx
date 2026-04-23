@@ -11,6 +11,17 @@ interface Soldier {
   mobile_phone?: string;
 }
 
+interface TeamMember {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  mobilePhone?: string | null;
+  role: string;
+}
+
+type RecipientSource = 'battalion' | 'team';
+
 interface WhatsAppResult { phone: string; success: boolean; error?: string; }
 interface WhatsAppBulkResponse { succeeded: number; failed: number; results: WhatsAppResult[]; }
 interface SmsBulkResponse { succeeded: number; failed: number; total: number; statusDescription: string; }
@@ -45,9 +56,12 @@ function fmtDate(iso: string) {
 }
 
 export const MailingListPage: React.FC = () => {
+  const [source, setSource] = useState<RecipientSource>('battalion');
   const [battalions, setBattalions] = useState<string[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState('');
   const [soldiers, setSoldiers] = useState<Soldier[]>([]);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [message, setMessage] = useState('');
   const [channel, setChannel] = useState<Channel>('whatsapp');
@@ -78,33 +92,56 @@ export const MailingListPage: React.FC = () => {
   }, [fetchStats]);
 
   useEffect(() => {
+    if (source !== 'battalion') return;
     if (!selectedBattalion) { setSoldiers([]); setSelectedIds(new Set()); return; }
     setLoadingSoldiers(true);
     api.get<{ soldiers: Soldier[] }>(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`)
       .then((r) => { setSoldiers(r.data.soldiers); setSelectedIds(new Set(r.data.soldiers.map((_, i) => i))); })
       .catch(() => setSoldiers([]))
       .finally(() => setLoadingSoldiers(false));
-  }, [selectedBattalion]);
+  }, [selectedBattalion, source]);
 
-  const toggleAll = () => setSelectedIds(selectedIds.size === soldiers.length ? new Set() : new Set(soldiers.map((_, i) => i)));
+  useEffect(() => {
+    if (source !== 'team') return;
+    setLoadingTeam(true);
+    api.get<TeamMember[]>('/users')
+      .then((r) => {
+        setTeam(r.data);
+        // Pre-select all team members that have phone numbers
+        setSelectedIds(new Set(r.data.map((_, i) => i).filter((i) => !!r.data[i].mobilePhone)));
+      })
+      .catch(() => setTeam([]))
+      .finally(() => setLoadingTeam(false));
+  }, [source]);
+
+  // Pick active recipient list based on source
+  const items: { name: string; phone: string | null | undefined }[] =
+    source === 'battalion'
+      ? soldiers.map((s) => ({ name: `${s.first_name || ''} ${s.last_name || ''}`.trim(), phone: s.mobile_phone }))
+      : team.map((t) => ({ name: `${t.firstName || ''} ${t.lastName || ''}`.trim() || t.email, phone: t.mobilePhone }));
+
+  const toggleAll = () => setSelectedIds(selectedIds.size === items.length ? new Set() : new Set(items.map((_, i) => i)));
   const toggleOne = (i: number) => { const n = new Set(selectedIds); n.has(i) ? n.delete(i) : n.add(i); setSelectedIds(n); };
 
-  const selectedSoldiers = soldiers.filter((_, i) => selectedIds.has(i) && !!soldiers[i].mobile_phone);
-  const noPhone = soldiers.filter((_, i) => selectedIds.has(i) && !soldiers[i].mobile_phone);
+  const selectedRecipients = items.filter((_, i) => selectedIds.has(i) && !!items[i].phone);
+  const noPhone = items.filter((_, i) => selectedIds.has(i) && !items[i].phone);
+  // Back-compat alias for the send-button label
+  const selectedSoldiers = selectedRecipients;
   const overLimit = channel === 'sms' && message.length > MAX_SMS_CHARS;
   const clearResults = () => { setWhatsappResults(null); setSmsResults(null); setSendError(''); };
 
   const handleSend = async () => {
-    if (!message.trim() || selectedSoldiers.length === 0 || overLimit) return;
+    if (!message.trim() || selectedRecipients.length === 0 || overLimit) return;
     setSending(true);
     clearResults();
-    const phones = selectedSoldiers.map((s) => s.mobile_phone!);
+    const phones = selectedRecipients.map((r) => r.phone!);
+    const battalionTag = source === 'battalion' ? (selectedBattalion || undefined) : 'team';
     try {
       if (channel === 'whatsapp') {
-        const { data } = await api.post<WhatsAppBulkResponse>('/whatsapp/send-bulk', { phones, message: message.trim(), battalion: selectedBattalion || undefined });
+        const { data } = await api.post<WhatsAppBulkResponse>('/whatsapp/send-bulk', { phones, message: message.trim(), battalion: battalionTag });
         setWhatsappResults(data);
       } else {
-        const { data } = await api.post<SmsBulkResponse>('/sms/send-bulk', { phones, message: message.trim(), battalion: selectedBattalion || undefined });
+        const { data } = await api.post<SmsBulkResponse>('/sms/send-bulk', { phones, message: message.trim(), battalion: battalionTag });
         setSmsResults(data);
       }
       fetchStats();
@@ -132,40 +169,69 @@ export const MailingListPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Recipients */}
         <div className="bg-gray-900 rounded-xl border border-gray-700 p-5">
-          <h2 className="font-semibold text-gray-300 mb-4">בחר נמענים</h2>
-          <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-1">גדוד</label>
-            {loadingBattalions ? (
-              <p className="text-sm text-gray-400">טוען גדודים...</p>
-            ) : (
-              <select
-                value={selectedBattalion}
-                onChange={(e) => setSelectedBattalion(e.target.value)}
-                className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white"
+          <h2 className="font-semibold text-gray-300 mb-3">בחר נמענים</h2>
+
+          {/* Source toggle: Battalion / Team */}
+          <div className="flex gap-2 mb-4">
+            {(['battalion', 'team'] as RecipientSource[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => { setSource(s); setSelectedIds(new Set()); clearResults(); }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  source === s
+                    ? 'bg-indigo-700 border-indigo-500 text-white'
+                    : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                }`}
               >
-                <option value="">-- בחר גדוד --</option>
-                {battalions.map((b) => <option key={b} value={b}>{b.replace(/_/g, ' ')}</option>)}
-              </select>
-            )}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {s === 'battalion' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/>
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                  )}
+                </svg>
+                {s === 'battalion' ? 'גדוד' : 'חברי צוות'}
+              </button>
+            ))}
           </div>
 
-          {loadingSoldiers && <p className="text-sm text-gray-400">טוען חיילים...</p>}
-          {soldiers.length > 0 && (
+          {source === 'battalion' && (
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1">גדוד</label>
+              {loadingBattalions ? (
+                <p className="text-sm text-gray-400">טוען גדודים...</p>
+              ) : (
+                <select
+                  value={selectedBattalion}
+                  onChange={(e) => setSelectedBattalion(e.target.value)}
+                  className="w-full border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white"
+                >
+                  <option value="">-- בחר גדוד --</option>
+                  {battalions.map((b) => <option key={b} value={b}>{b.replace(/_/g, ' ')}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+
+          {source === 'battalion' && loadingSoldiers && <p className="text-sm text-gray-400">טוען חיילים...</p>}
+          {source === 'team' && loadingTeam && <p className="text-sm text-gray-400">טוען חברי צוות...</p>}
+
+          {items.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500">{selectedIds.size} נבחרו מתוך {soldiers.length}</span>
+                <span className="text-xs text-gray-500">{selectedIds.size} נבחרו מתוך {items.length}</span>
                 <button onClick={toggleAll} className="text-xs text-blue-400 hover:underline">
-                  {selectedIds.size === soldiers.length ? 'בטל הכל' : 'בחר הכל'}
+                  {selectedIds.size === items.length ? 'בטל הכל' : 'בחר הכל'}
                 </button>
               </div>
               <div className="max-h-64 overflow-y-auto border border-gray-700 rounded-lg divide-y divide-gray-700">
-                {soldiers.map((soldier, i) => (
+                {items.map((item, i) => (
                   <label key={i} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-800 cursor-pointer">
                     <input type="checkbox" checked={selectedIds.has(i)} onChange={() => toggleOne(i)} className="accent-blue-600" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{soldier.first_name} {soldier.last_name}</p>
-                      {soldier.mobile_phone
-                        ? <p className="text-xs text-gray-500">{soldier.mobile_phone}</p>
+                      <p className="text-sm font-medium text-white truncate">{item.name || '—'}</p>
+                      {item.phone
+                        ? <p className="text-xs text-gray-500 font-mono" dir="ltr">{item.phone}</p>
                         : <p className="text-xs text-red-400">אין מספר טלפון</p>}
                     </div>
                   </label>
@@ -175,6 +241,10 @@ export const MailingListPage: React.FC = () => {
                 <p className="text-xs text-orange-500 mt-2">{noPhone.length} נמענים ללא מספר טלפון יוחרגו</p>
               )}
             </>
+          )}
+
+          {source === 'team' && !loadingTeam && team.length === 0 && (
+            <p className="text-sm text-gray-500 mt-2">אין חברי צוות להצגה</p>
           )}
         </div>
 

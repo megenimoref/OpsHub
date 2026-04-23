@@ -9,6 +9,7 @@ class User extends Model {
   public lastName!: string;
   public password!: string;
   public role!: 'admin' | 'staff' | 'super' | 'manager';
+  public mobilePhone!: string | null;
   public totpSecret!: string | null;
   public totpEnabled!: boolean;
   public passwordResetToken!: string | null;
@@ -57,6 +58,11 @@ User.init(
       type: DataTypes.ENUM('admin', 'staff', 'super', 'manager'),
       defaultValue: 'staff',
       allowNull: false,
+    },
+    mobilePhone: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+      defaultValue: null,
     },
     totpSecret: {
       type: DataTypes.STRING(255),
