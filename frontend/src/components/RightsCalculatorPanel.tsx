@@ -61,6 +61,49 @@ const SHAAGAT_DAILY = 25;
 const SPOUSE_SELF_EMPLOYED_GRANT_120 = 4800;
 const SPOUSE_SELF_EMPLOYED_GRANT_240 = 6500;
 
+// ========== קרן הסיוע — Aid Fund ==========
+
+// בעלי מקצוע — 10+ days, annual cap 8,000
+const PROFESSIONALS_GRANT: Record<ActivityLevel, number> = {
+  'א+': 2000, 'א': 2000, 'ב': 1500, 'ג': 1000, 'ד': 1000, 'ה': 1000,
+};
+const PROFESSIONALS_ANNUAL_CAP = 8000;
+
+// אובדן הכנסה — 10+ days/month, non-monetary percentage
+const INCOME_LOSS_PCT: Record<ActivityLevel, number> = {
+  'א+': 100, 'א': 100, 'ב': 75, 'ג': 50, 'ד': 50, 'ה': 50,
+};
+
+// מרכז חיובים - ביטול חופשה — up to 50,000₪ + טל"א offset, א+/א only, 10+ days
+const VACATION_CANCEL_CEILING: Record<ActivityLevel, number> = {
+  'א+': 50000, 'א': 50000, 'ב': 0, 'ג': 0, 'ד': 0, 'ה': 0,
+};
+
+// פיצוי — 5,000 flat, 10+ days
+const COMPENSATION_GRANT = 5000;
+
+// נזק ציוד — 10+ days, level-dependent
+const EQUIPMENT_DAMAGE: Record<ActivityLevel, number> = {
+  'א+': 3000, 'א': 3000, 'ב': 2000, 'ג': 2000, 'ד': 2000, 'ה': 2000,
+};
+
+// פנסיון כלבים — 1,000 flat, 10+ days
+const DOG_BOARDING_GRANT = 1000;
+
+// רכב — 2,000 (annual cap 6,000), א+/א only, 10+ days
+const VEHICLE_GRANT: Record<ActivityLevel, number> = {
+  'א+': 2000, 'א': 2000, 'ב': 0, 'ג': 0, 'ד': 0, 'ה': 0,
+};
+const VEHICLE_ANNUAL_CAP = 6000;
+
+// מעבר דירה — 2,500, א+/א/ב only, 60+ days
+const MOVING_GRANT: Record<ActivityLevel, number> = {
+  'א+': 2500, 'א': 2500, 'ב': 2500, 'ג': 0, 'ד': 0, 'ה': 0,
+};
+
+// הארכת חל"ד — 10,700 flat, 45+ days
+const MATERNITY_EXT_GRANT = 10700;
+
 // מענק מפקדים — by command role, 45+ days
 const COMMANDER_GRANT: Record<string, number> = {
   'מג"ד': 20000,
@@ -338,6 +381,121 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
         eligible: spouseGrantEligible,
       });
     }
+
+    // ========== קרן הסיוע (Aid Fund) ==========
+
+    // 17. בעלי מקצוע — 10+ days (2026), annual cap 8,000
+    {
+      const amount = days2026 >= 10 ? Math.min(PROFESSIONALS_GRANT[level], PROFESSIONALS_ANNUAL_CAP) : 0;
+      r.push({
+        name: 'בעלי מקצוע (קרן הסיוע)',
+        amount,
+        detail: days2026 >= 10
+          ? `${fmt(PROFESSIONALS_GRANT[level])}₪ (תקרה שנתית ${fmt(PROFESSIONALS_ANNUAL_CAP)}₪)`
+          : `${days2026}/10 ימים`,
+        eligible: days2026 >= 10,
+      });
+    }
+
+    // 18. אובדן הכנסה — 10+ days/month, non-monetary percentage
+    {
+      const pct = INCOME_LOSS_PCT[level];
+      r.push({
+        name: 'אובדן הכנסה',
+        amount: 0,
+        detail: days2026 >= 10
+          ? `${pct}% מהכנסה אבודה (מדרג ${level}, כל 10 ימים בחודש)`
+          : `${days2026}/10 ימים`,
+        eligible: days2026 >= 10,
+        isNonMonetary: true,
+      });
+    }
+
+    // 19. מרכז חיובים - ביטול חופשה — א+/א, 10+ days, up to 50,000₪
+    {
+      const ceiling = VACATION_CANCEL_CEILING[level];
+      const eligible = ceiling > 0 && days2026 >= 10;
+      r.push({
+        name: 'ביטול חופשה',
+        amount: 0,
+        detail: ceiling === 0
+          ? `מדרג ${level} — לא זכאי (א+/א בלבד)`
+          : days2026 >= 10
+            ? `עד ${fmt(ceiling)}₪ + קיזוז בטל"א`
+            : `${days2026}/10 ימים`,
+        eligible,
+        isNonMonetary: true,
+      });
+    }
+
+    // 20. פיצוי — 10+ days, flat 5,000₪
+    r.push({
+      name: 'פיצוי (קרן הסיוע)',
+      amount: days2026 >= 10 ? COMPENSATION_GRANT : 0,
+      detail: days2026 >= 10 ? `סף 10 ימים — ${fmt(COMPENSATION_GRANT)}₪` : `${days2026}/10 ימים`,
+      eligible: days2026 >= 10,
+    });
+
+    // 21. נזק ציוד — 10+ days, level-dependent
+    {
+      const amount = days2026 >= 10 ? EQUIPMENT_DAMAGE[level] : 0;
+      r.push({
+        name: 'נזק ציוד',
+        amount,
+        detail: days2026 >= 10
+          ? `${fmt(EQUIPMENT_DAMAGE[level])}₪ (מדרג ${level})`
+          : `${days2026}/10 ימים`,
+        eligible: days2026 >= 10,
+      });
+    }
+
+    // 22. פנסיון כלבים — 10+ days, flat 1,000₪
+    r.push({
+      name: 'פנסיון כלבים',
+      amount: days2026 >= 10 ? DOG_BOARDING_GRANT : 0,
+      detail: days2026 >= 10 ? `סף 10 ימים — ${fmt(DOG_BOARDING_GRANT)}₪` : `${days2026}/10 ימים`,
+      eligible: days2026 >= 10,
+    });
+
+    // 23. רכב — 10+ days, א+/א only, 2,000₪ (annual cap 6,000)
+    {
+      const amount = days2026 >= 10 ? Math.min(VEHICLE_GRANT[level], VEHICLE_ANNUAL_CAP) : 0;
+      const eligible = VEHICLE_GRANT[level] > 0 && days2026 >= 10;
+      r.push({
+        name: 'רכב',
+        amount,
+        detail: VEHICLE_GRANT[level] === 0
+          ? `מדרג ${level} — לא זכאי (א+/א בלבד)`
+          : days2026 >= 10
+            ? `${fmt(VEHICLE_GRANT[level])}₪ (תקרה שנתית ${fmt(VEHICLE_ANNUAL_CAP)}₪)`
+            : `${days2026}/10 ימים`,
+        eligible,
+      });
+    }
+
+    // 24. מעבר דירה — 60+ days, א+/א/ב only, 2,500₪
+    {
+      const amount = days2026 >= 60 ? MOVING_GRANT[level] : 0;
+      const eligible = MOVING_GRANT[level] > 0 && days2026 >= 60;
+      r.push({
+        name: 'מעבר דירה',
+        amount,
+        detail: MOVING_GRANT[level] === 0
+          ? `מדרג ${level} — לא זכאי (א+/א/ב בלבד)`
+          : days2026 >= 60
+            ? `סף 60 ימים — ${fmt(MOVING_GRANT[level])}₪`
+            : `${days2026}/60 ימים`,
+        eligible,
+      });
+    }
+
+    // 25. הארכת חל"ד — 45+ days, flat 10,700₪
+    r.push({
+      name: 'הארכת חל"ד',
+      amount: days2026 >= 45 ? MATERNITY_EXT_GRANT : 0,
+      detail: days2026 >= 45 ? `סף 45 ימים — ${fmt(MATERNITY_EXT_GRANT)}₪` : `${days2026}/45 ימים`,
+      eligible: days2026 >= 45,
+    });
 
     return r;
   }, [level, days2025, days2026, totalDays, hasChildren, childrenNum, childrenUnder14, isStudent, commandRole, isCommander, isSelfEmployed, hasSpouse]);
