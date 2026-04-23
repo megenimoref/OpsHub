@@ -24,35 +24,65 @@ export async function sendBulkSms(phones: string[], message: string): Promise<Sm
   const normalized = phones.map(normalizePhone).filter((p) => p.length >= 10);
   const phoneCsv = normalized.join(',');
 
-  const response = await axios.post(
-    INFORU_SMS_URL,
-    {
-      Data: {
-        Message: message,
-        Recipients: {
-          PhoneNumber: phoneCsv,
-        },
-        Settings: {
-          Sender: INFORU_SENDER,
-        },
+  // Inforu v2 documented shape: Recipients is an ARRAY of {PhoneNumber} objects.
+  // The "Recipients.PhoneNumber as CSV string" shape we tried first was silently
+  // accepted with 0 recipients (Inforu returns StatusId -6 / "No recipients").
+  const payload = {
+    Data: {
+      Message: message,
+      Recipients: normalized.map((p) => ({ PhoneNumber: p })),
+      Settings: {
+        Sender: INFORU_SENDER,
       },
     },
-    {
+  };
+
+  // eslint-disable-next-line no-console
+  console.log('[smsService] → Inforu request:', JSON.stringify({
+    url: INFORU_SMS_URL,
+    sender: INFORU_SENDER,
+    phoneCount: normalized.length,
+    phoneCsv: phoneCsv.slice(0, 120),
+    messageLength: message.length,
+    messagePreview: message.slice(0, 80),
+  }));
+
+  try {
+    const response = await axios.post(INFORU_SMS_URL, payload, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         Authorization: INFORU_BASE_CREDENTIALS,
       },
+      // Accept any status so we can read Inforu's error body instead of throwing
+      validateStatus: () => true,
+    });
+
+    // eslint-disable-next-line no-console
+    console.log('[smsService] ← Inforu response:', JSON.stringify({
+      httpStatus: response.status,
+      body: response.data,
+    }));
+
+    if (response.status >= 400) {
+      const msg = typeof response.data === 'string'
+        ? response.data
+        : JSON.stringify(response.data);
+      throw new Error(`Inforu HTTP ${response.status}: ${msg.slice(0, 500)}`);
     }
-  );
 
-  const body = response.data;
-  const succeeded: number = body?.Data?.SuccessCount ?? (body?.StatusId === 1 ? phones.length : 0);
-  const failed: number = body?.Data?.FailedCount ?? (body?.StatusId !== 1 ? phones.length : 0);
+    const body = response.data;
+    const succeeded: number = body?.Data?.SuccessCount ?? (body?.StatusId === 1 ? phones.length : 0);
+    const failed: number = body?.Data?.FailedCount ?? (body?.StatusId !== 1 ? phones.length : 0);
 
-  return {
-    succeeded,
-    failed,
-    total: phones.length,
-    statusDescription: body?.StatusDescription ?? '',
-  };
+    return {
+      succeeded,
+      failed,
+      total: phones.length,
+      statusDescription: body?.StatusDescription ?? '',
+    };
+  } catch (err: any) {
+    // eslint-disable-next-line no-console
+    console.error('[smsService] Inforu request failed:', err?.message || err);
+    throw err;
+  }
 }
