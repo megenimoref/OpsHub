@@ -747,8 +747,18 @@ export async function getSoldiersFromBattalion(battalionName: string): Promise<S
   const dbName = getBattalionDbName(battalionName);
   const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
   try {
+    // Some older battalion DBs may not have `platoon` / `request_status` columns —
+    // detect what's available and build the SELECT dynamically so we don't 500.
+    const [colRows] = await conn.execute<mysql.RowDataPacket[]>(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+      [dbName]
+    );
+    const existing = new Set(colRows.map((r) => String(r.COLUMN_NAME)));
+    const base = ['personal_number', 'first_name', 'last_name', 'mobile_phone'];
+    const optional = ['platoon', 'request_status'];
+    const cols = [...base, ...optional.filter((c) => existing.has(c))];
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-      `SELECT personal_number, first_name, last_name, mobile_phone, platoon, request_status FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`
+      `SELECT ${cols.join(', ')} FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`
     );
     return rows as SoldierRow[];
   } finally {
