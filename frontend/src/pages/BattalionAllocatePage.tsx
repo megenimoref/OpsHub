@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuthStore } from '../hooks/useAuth';
+
+interface SoldierRow {
+  id?: number;
+  personal_number: string;
+  first_name?: string;
+  last_name?: string;
+  mobile_phone?: string;
+  platoon?: string;
+  request_status?: string;
+}
+
+interface AllocationRow {
+  soldier_personal_number: string;
+  user_id: number;
+}
 
 interface UserItem {
   id: number;
@@ -43,9 +59,11 @@ interface PieChartProps {
   data: UserAllocStat[];
   users: UserItem[];
   label: string;
+  onUserClick?: (userId: number) => void;
+  selectedUserId?: number | null;
 }
 
-const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
+const PieChart: React.FC<PieChartProps> = ({ data, users, label, onUserClick, selectedUserId }) => {
   const filtered = data.filter((d) => d.count > 0);
   const total = filtered.reduce((s, d) => s + d.count, 0);
 
@@ -122,20 +140,31 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label }) => {
 
       {/* Legend */}
       <div className="mt-4 w-full space-y-2">
-        {slices.map(({ color, d, user }, i) => (
-          <div key={i} className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
-              <span className="text-base text-gray-200">
-                {user ? `${user.firstName} ${user.lastName}` : `משתמש ${d.userId}`}
-              </span>
+        {slices.map(({ color, d, user }, i) => {
+          const active = selectedUserId === d.userId;
+          const clickable = !!onUserClick;
+          return (
+            <div
+              key={i}
+              onClick={clickable ? () => onUserClick!(d.userId) : undefined}
+              className={`flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${
+                clickable ? 'cursor-pointer hover:bg-gray-800' : ''
+              } ${active ? 'bg-indigo-900/40 ring-1 ring-indigo-500' : ''}`}
+              title={clickable ? 'לחץ לראות את החיילים המוקצים' : undefined}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-4 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-base text-gray-200">
+                  {user ? `${user.firstName} ${user.lastName}` : `משתמש ${d.userId}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">{Math.round(d.count / total * 100)}%</span>
+                <span className="text-base font-bold text-white w-10 text-left">{d.count}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{Math.round(d.count / total * 100)}%</span>
-              <span className="text-base font-bold text-white w-10 text-left">{d.count}</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -163,6 +192,9 @@ export const BattalionAllocatePage: React.FC = () => {
   const [assignMessage, setAssignMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [battalionSoldiers, setBattalionSoldiers] = useState<SoldierRow[]>([]);
+  const [battalionAllocations, setBattalionAllocations] = useState<AllocationRow[]>([]);
+  const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
 
   const fetchUserAllocStats = async () => {
     try {
@@ -199,22 +231,29 @@ export const BattalionAllocatePage: React.FC = () => {
     if (!selectedBattalion) {
       setStats(null);
       setBattalionUserCounts([]);
+      setBattalionSoldiers([]);
+      setBattalionAllocations([]);
+      setExpandedUserId(null);
       return;
     }
     const fetchStats = async () => {
       try {
         setStatsLoading(true);
         const [soldiersRes, allocatedRes] = await Promise.all([
-          api.get<{ soldiers: any[] }>(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`),
-          api.get<{ user_id: number }[]>(`/battalion/allocations/${encodeURIComponent(selectedBattalion)}`),
+          api.get<{ soldiers: SoldierRow[] }>(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`),
+          api.get<AllocationRow[]>(`/battalion/allocations/${encodeURIComponent(selectedBattalion)}`),
         ]);
         const total = soldiersRes.data.soldiers?.length || 0;
         const allocated = allocatedRes.data?.length || 0;
         setStats({ total, unallocated: total - allocated });
+        setBattalionSoldiers(soldiersRes.data.soldiers || []);
+        setBattalionAllocations(allocatedRes.data || []);
         setBattalionUserCounts(computeUserCounts(allocatedRes.data || []));
       } catch {
         setStats(null);
         setBattalionUserCounts([]);
+        setBattalionSoldiers([]);
+        setBattalionAllocations([]);
       } finally {
         setStatsLoading(false);
       }
@@ -225,12 +264,14 @@ export const BattalionAllocatePage: React.FC = () => {
   const refreshStats = async () => {
     if (!selectedBattalion) return;
     const [soldiersRes, allocatedRes] = await Promise.all([
-      api.get<{ soldiers: any[] }>(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`),
-      api.get<{ user_id: number }[]>(`/battalion/allocations/${encodeURIComponent(selectedBattalion)}`),
+      api.get<{ soldiers: SoldierRow[] }>(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers`),
+      api.get<AllocationRow[]>(`/battalion/allocations/${encodeURIComponent(selectedBattalion)}`),
     ]);
     const total = soldiersRes.data.soldiers?.length || 0;
     const allocated = allocatedRes.data?.length || 0;
     setStats({ total, unallocated: total - allocated });
+    setBattalionSoldiers(soldiersRes.data.soldiers || []);
+    setBattalionAllocations(allocatedRes.data || []);
     setBattalionUserCounts(computeUserCounts(allocatedRes.data || []));
   };
 
@@ -554,9 +595,87 @@ export const BattalionAllocatePage: React.FC = () => {
             <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
-          <PieChart data={pieData} users={staffUsers} label={pieLabel} />
+          <PieChart
+            data={pieData}
+            users={staffUsers}
+            label={pieLabel}
+            onUserClick={selectedBattalion ? (uid) => setExpandedUserId((prev) => (prev === uid ? null : uid)) : undefined}
+            selectedUserId={expandedUserId}
+          />
         )}
       </div>
+
+      {/* Assigned soldiers breakdown table */}
+      {selectedBattalion && expandedUserId !== null && (() => {
+        const user = staffUsers.find((u) => u.id === expandedUserId);
+        const assignedPNs = new Set(
+          battalionAllocations.filter((a) => a.user_id === expandedUserId).map((a) => a.soldier_personal_number)
+        );
+        const rows = battalionSoldiers.filter((s) => assignedPNs.has(s.personal_number));
+
+        return (
+          <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 mt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">
+                חיילים מוקצים ל{user ? `${user.firstName} ${user.lastName}` : `משתמש ${expandedUserId}`}
+                <span className="text-gray-400 text-sm font-normal mr-2">({rows.length})</span>
+              </h2>
+              <button
+                onClick={() => setExpandedUserId(null)}
+                className="text-gray-400 hover:text-white text-sm"
+                title="סגור"
+              >
+                ✕
+              </button>
+            </div>
+            {rows.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-6">אין חיילים מוקצים למשתמש זה בגדוד</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-right text-gray-400 text-xs border-b border-gray-700">
+                      <th className="py-2 px-2 font-medium">שם פרטי</th>
+                      <th className="py-2 px-2 font-medium">שם משפחה</th>
+                      <th className="py-2 px-2 font-medium">טלפון</th>
+                      <th className="py-2 px-2 font-medium">פלוגה</th>
+                      <th className="py-2 px-2 font-medium">גדוד</th>
+                      <th className="py-2 px-2 font-medium">סטטוס</th>
+                      <th className="py-2 px-2 font-medium text-center">פתיחה</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((s, i) => (
+                      <tr key={s.personal_number} className={`border-b border-gray-800 ${i % 2 === 0 ? 'bg-gray-900' : 'bg-gray-850'}`}>
+                        <td className="py-2 px-2 text-gray-200">{s.first_name || '—'}</td>
+                        <td className="py-2 px-2 text-gray-200">{s.last_name || '—'}</td>
+                        <td className="py-2 px-2 text-gray-300 font-mono">{s.mobile_phone || '—'}</td>
+                        <td className="py-2 px-2 text-gray-300">{s.platoon || '—'}</td>
+                        <td className="py-2 px-2 text-gray-300">{selectedBattalion}</td>
+                        <td className="py-2 px-2 text-gray-300">{s.request_status || '—'}</td>
+                        <td className="py-2 px-2 text-center">
+                          <Link
+                            to={`/battalion/soldier?battalion=${encodeURIComponent(selectedBattalion)}&personal_number=${encodeURIComponent(s.personal_number)}`}
+                            title="פתח כרטיס חייל"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-700 hover:bg-indigo-600 transition-colors"
+                          >
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
