@@ -101,8 +101,42 @@ const MOVING_GRANT: Record<ActivityLevel, number> = {
   'א+': 2500, 'א': 2500, 'ב': 2500, 'ג': 0, 'ד': 0, 'ה': 0,
 };
 
-// הארכת חל"ד — 10,700 flat, 45+ days
+// מענק חופשת לידה — 10,700 flat, 45+ days (לכל המדרגים)
 const MATERNITY_EXT_GRANT = 10700;
+
+// אובדן הכנסה בן/ת זוג — 10+ days/month, up to 10,000₪/month (informational)
+const SPOUSE_INCOME_LOSS_PCT: Record<ActivityLevel, number> = {
+  'א+': 100, 'א': 90, 'ב': 75, 'ג': 50, 'ד': 50, 'ה': 50,
+};
+const SPOUSE_INCOME_MONTHLY_CAP = 10000;
+
+// פיצוי לעצמאים — days of payment after שמ"פ end, by level (informational)
+const SELF_EMPLOYED_COMP_DAYS: Record<ActivityLevel, number> = {
+  'א+': 90, 'א': 70, 'ב': 50, 'ג': 30, 'ד': 30, 'ה': 30,
+};
+
+// סיוע רגשי זוגי 2540 — 60 days צו 8 + 30 days in 2025 (מערך הלוחם = א+/א)
+const COUPLES_2540_COMBAT = 2500;
+const COUPLES_2540_OTHER = 1000;
+
+// סיוע רגשי זוגי החלטת ממשלה 1126 — 30 cumulative days
+const COUPLES_1126_PERSONAL = 1500;
+const COUPLES_1126_COUPLE = 1500;
+
+// סיוע נפשי החלטת ממשלה 2540 — 120 days צו 8, מערך לוחם (א+/א) only
+const MENTAL_2540_WITH_CHILD = 5280;   // 22 sessions
+const MENTAL_2540_NO_CHILD = 3600;     // 15 sessions
+
+// סיוע רגשי החלטה 3812 — 50+ days from 1/1/2026, by level + child count
+// amounts = max ₪ ceiling (80% of cost up to 240₪/session)
+const MENTAL_3812: Record<ActivityLevel, { kids4: number; kids3: number; noKids: number }> = {
+  'א+': { kids4: 6000, kids3: 5280, noKids: 3600 },
+  'א':  { kids4: 4080, kids3: 3360, noKids: 2400 },
+  'ב':  { kids4: 5040, kids3: 4320, noKids: 3120 },
+  'ג':  { kids4: 0, kids3: 0, noKids: 0 },
+  'ד':  { kids4: 0, kids3: 0, noKids: 0 },
+  'ה':  { kids4: 0, kids3: 0, noKids: 0 },
+};
 
 // מענק מפקדים — by command role, 45+ days
 const COMMANDER_GRANT: Record<string, number> = {
@@ -121,11 +155,6 @@ const STUDENT_TUITION_PCT: Record<ActivityLevel, number> = {
 // שובר נופש — one-time at 45 days, amount by level
 const VACATION_VOUCHER: Record<ActivityLevel, number> = {
   'א+': 3000, 'א': 2500, 'ב': 2000, 'ג': 1500, 'ד': 1000, 'ה': 500,
-};
-
-// סיוע נפשי — 80% of therapy, up to 240₪/session, ceiling by level, 50+ days
-const MENTAL_HEALTH_CEILING: Record<ActivityLevel, number> = {
-  'א+': 7200, 'א': 6000, 'ב': 4800, 'ג': 0, 'ד': 0, 'ה': 0,
 };
 
 // ארנק דיגיטלי (פייטר) — tiered max by level
@@ -317,22 +346,7 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
       eligible: isCommander && days2026 >= 45,
     });
 
-    // 13. סיוע נפשי — levels א+/א/ב, 50+ days
-    const mentalEligible = ['א+', 'א', 'ב'].includes(level) && totalDays >= 50;
-    const mentalCeiling = MENTAL_HEALTH_CEILING[level];
-    r.push({
-      name: 'סיוע נפשי',
-      amount: 0,
-      detail: mentalEligible
-        ? `80% מעלות טיפול, עד 240₪/מפגש, תקרה ${fmt(mentalCeiling)}₪`
-        : totalDays < 50
-          ? `${totalDays}/50 ימים`
-          : `מדרג ${level} — לא זכאי (א+ עד ב)`,
-      eligible: mentalEligible,
-      isNonMonetary: true,
-    });
-
-    // 14. סיוע סטודנטים — 50+ days, students only
+    // 13. סיוע סטודנטים — 50+ days, students only
     if (isStudent) {
       const tuitionPct = STUDENT_TUITION_PCT[level];
       r.push({
@@ -489,13 +503,125 @@ const RightsCalculatorPanel: React.FC<Props> = ({ soldier }) => {
       });
     }
 
-    // 25. הארכת חל"ד — 45+ days, flat 10,700₪
+    // 25. מענק חופשת לידה (הארכת חל"ד) — 45+ days, flat 10,700₪
     r.push({
-      name: 'הארכת חל"ד',
+      name: 'מענק חופשת לידה',
       amount: days2026 >= 45 ? MATERNITY_EXT_GRANT : 0,
       detail: days2026 >= 45 ? `סף 45 ימים — ${fmt(MATERNITY_EXT_GRANT)}₪` : `${days2026}/45 ימים`,
       eligible: days2026 >= 45,
     });
+
+    // 26. אובדן הכנסה בן/ת זוג — informational, 10+ days/month
+    {
+      const pct = SPOUSE_INCOME_LOSS_PCT[level];
+      r.push({
+        name: 'אובדן הכנסה בן/ת זוג',
+        amount: 0,
+        detail: !hasSpouse
+          ? 'לא הוזן בן/בת זוג'
+          : days2026 >= 10
+            ? `${pct}% מהכנסה אבודה • תקרה ${fmt(SPOUSE_INCOME_MONTHLY_CAP)}₪/חודש`
+            : `${days2026}/10 ימים`,
+        eligible: hasSpouse && days2026 >= 10,
+        isNonMonetary: true,
+      });
+    }
+
+    // 27. פיצוי לעצמאים — informational, days after שמ"פ
+    {
+      const days = SELF_EMPLOYED_COMP_DAYS[level];
+      r.push({
+        name: 'פיצוי לעצמאים',
+        amount: 0,
+        detail: !isSelfEmployed
+          ? 'לעצמאים בלבד'
+          : `תשלום עד ${days} ימים מסיום שמ"פ (מדרג ${level})`,
+        eligible: isSelfEmployed,
+        isNonMonetary: true,
+      });
+    }
+
+    // 28. תשלום והחזרים למשרתים שמרכז חייהם בחו"ל — א+/א, 14+ days
+    {
+      const eligible = ['א+', 'א'].includes(level) && days2026 >= 14;
+      r.push({
+        name: 'מרכז חיים בחו"ל',
+        amount: 0,
+        detail: !['א+', 'א'].includes(level)
+          ? `מדרג ${level} — לא זכאי (א+/א, יחידות לוחם)`
+          : days2026 >= 14
+            ? 'תשלום והחזרים ליחידות לוחם'
+            : `${days2026}/14 ימים`,
+        eligible,
+        isNonMonetary: true,
+      });
+    }
+
+    // 29. סיוע רגשי זוגי 2540 — 60d צו 8 + 30d in 2025
+    {
+      const amount = (totalDays >= 60 && days2025 >= 30)
+        ? (['א+', 'א'].includes(level) ? COUPLES_2540_COMBAT : COUPLES_2540_OTHER)
+        : 0;
+      const eligible = totalDays >= 60 && days2025 >= 30;
+      r.push({
+        name: 'סיוע רגשי זוגי (2540)',
+        amount,
+        detail: eligible
+          ? `${['א+', 'א'].includes(level) ? 'מערך לוחם' : 'יתר המערכים'} — עד ${fmt(amount)}₪`
+          : totalDays < 60
+            ? `${totalDays}/60 ימים (צו 8)`
+            : `${days2025}/30 ימים ב-2025`,
+        eligible,
+      });
+    }
+
+    // 30. סיוע רגשי החלטה 3812 — 50+ days from 1/1/2026, by level + child count
+    {
+      const row = MENTAL_3812[level];
+      const ceiling = childrenNum >= 4 ? row.kids4 : childrenNum >= 3 ? row.kids3 : row.noKids;
+      const eligible = ceiling > 0 && days2026 >= 50;
+      const childLabel = childrenNum >= 4 ? '4+ ילדים' : childrenNum >= 3 ? '3 ילדים' : 'ללא/פחות מ-3 ילדים';
+      r.push({
+        name: 'סיוע רגשי (3812)',
+        amount: 0,
+        detail: ceiling === 0
+          ? `מדרג ${level} — לא זכאי (א+/א/ב בלבד)`
+          : days2026 >= 50
+            ? `80% עד 240₪/מפגש • תקרה ${fmt(ceiling)}₪ (${childLabel})`
+            : `${days2026}/50 ימים`,
+        eligible,
+        isNonMonetary: true,
+      });
+    }
+
+    // 31. סיוע רגשי זוגי 1126 — 30 cumulative days
+    r.push({
+      name: 'סיוע רגשי זוגי (1126)',
+      amount: 0,
+      detail: totalDays >= 30
+        ? `עד ${fmt(COUPLES_1126_PERSONAL)}₪ טיפול אישי + עד ${fmt(COUPLES_1126_COUPLE)}₪ זוגי`
+        : `${totalDays}/30 ימים מצטבר`,
+      eligible: totalDays >= 30,
+      isNonMonetary: true,
+    });
+
+    // 32. סיוע נפשי 2540 — 120d צו 8, מערך לוחם (א+/א) only
+    {
+      const isCombat = ['א+', 'א'].includes(level);
+      const ceiling = hasChildren ? MENTAL_2540_WITH_CHILD : MENTAL_2540_NO_CHILD;
+      const eligible = isCombat && totalDays >= 120;
+      r.push({
+        name: 'סיוע נפשי (2540)',
+        amount: 0,
+        detail: !isCombat
+          ? `מדרג ${level} — לא זכאי (מערך לוחם בלבד)`
+          : totalDays >= 120
+            ? `80% עד 240₪/מפגש • תקרה ${fmt(ceiling)}₪ (${hasChildren ? 'עם ילד' : 'ללא ילד'})`
+            : `${totalDays}/120 ימים (צו 8)`,
+        eligible,
+        isNonMonetary: true,
+      });
+    }
 
     return r;
   }, [level, days2025, days2026, totalDays, hasChildren, childrenNum, childrenUnder14, isStudent, commandRole, isCommander, isSelfEmployed, hasSpouse]);
