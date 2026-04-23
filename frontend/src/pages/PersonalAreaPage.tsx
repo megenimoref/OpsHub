@@ -248,9 +248,11 @@ export const PersonalAreaPage: React.FC = () => {
               href={(() => {
                 const u = authService.getStoredUser();
                 const email = u?.email || '';
-                return email
-                  ? `https://time-table.duckdns.org/?email=${encodeURIComponent(email)}`
-                  : 'https://time-table.duckdns.org/';
+                if (!email) return 'https://time-table.duckdns.org/';
+                const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim();
+                const qs = new URLSearchParams({ email });
+                if (name) qs.set('name', name);
+                return `https://time-table.duckdns.org/?${qs.toString()}`;
               })()}
               target="_blank"
               rel="noopener noreferrer"
