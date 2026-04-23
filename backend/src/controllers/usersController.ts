@@ -18,7 +18,7 @@ const dbConfig = {
 
 export const createUser = async (req: Request, res: Response) => {
   try {
-    const { email, password, role, firstName, lastName } = req.body;
+    const { email, password, role, firstName, lastName, mobilePhone } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -46,6 +46,7 @@ export const createUser = async (req: Request, res: Response) => {
       firstName: firstName || '',
       lastName: lastName || '',
       role: ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff',
+      mobilePhone: (mobilePhone && String(mobilePhone).trim()) || null,
     }, { hooks: false });
 
     // Send welcome email with password setup link
@@ -66,6 +67,7 @@ export const createUser = async (req: Request, res: Response) => {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      mobilePhone: user.mobilePhone,
     });
   } catch (error) {
     console.error('Create user error:', error);
@@ -76,7 +78,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'email', 'firstName', 'lastName', 'role', 'totpEnabled', 'createdAt'],
+      attributes: ['id', 'email', 'firstName', 'lastName', 'role', 'mobilePhone', 'totpEnabled', 'createdAt'],
       order: [['createdAt', 'DESC']],
     });
     res.json(users);
@@ -174,7 +176,7 @@ export const resetUserPassword = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const targetId = parseInt(req.params.id, 10);
-    const { firstName, lastName, role, email } = req.body;
+    const { firstName, lastName, role, email, mobilePhone } = req.body;
 
     if (isNaN(targetId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
@@ -200,6 +202,7 @@ export const updateUser = async (req: Request, res: Response) => {
     if (firstName !== undefined) user.firstName = firstName;
     if (lastName !== undefined) user.lastName = lastName;
     if (role !== undefined) user.role = ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff';
+    if (mobilePhone !== undefined) user.mobilePhone = mobilePhone ? String(mobilePhone).trim() : null;
 
     await user.save();
 
@@ -237,6 +240,7 @@ export const updateUser = async (req: Request, res: Response) => {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      mobilePhone: user.mobilePhone,
       success: true,
     });
   } catch (error) {
