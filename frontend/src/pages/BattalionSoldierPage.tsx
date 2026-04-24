@@ -494,7 +494,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
 
       {/* Soldier form + rights panel */}
       {soldier && (
-        <div className="flex gap-4">
+        <div className="flex flex-col lg:flex-row gap-4">
         {/* Main card — right side */}
         <div className="flex-1 bg-gray-900 rounded-xl border border-gray-700 p-5 min-w-0">
           <div className="flex justify-between items-center mb-5">
@@ -708,10 +708,10 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           )}
         </div>
 
-        {/* Rights calculator — left sidebar */}
-        <div className="w-72 flex-shrink-0">
+        {/* Rights calculator — left sidebar (stacks below on mobile) */}
+        <div className="w-full lg:w-72 lg:flex-shrink-0">
           <div
-            className="sticky top-4 rounded-xl p-4"
+            className="lg:sticky lg:top-4 rounded-xl p-4"
             style={{
               background: '#0a0a0c',
               boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 2px 20px rgba(0,0,0,0.4)',
