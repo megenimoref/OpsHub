@@ -8,7 +8,7 @@ import { sendPasswordResetEmail } from '../services/emailService';
 import { logger } from '../services/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 export const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
 export const PASSWORD_ERROR = 'הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה אחת, ספרה אחת וסימן מיוחד אחד';
 
