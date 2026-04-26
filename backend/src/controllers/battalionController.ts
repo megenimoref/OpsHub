@@ -179,6 +179,9 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   'תאריכי גיוס/סבבים': 'mobilization_dates',
   'תאריכי גיוס': 'mobilization_dates',
   'סבבים': 'mobilization_dates',
+  'כביש 6': 'route_6',
+  'כביש6': 'route_6',
+  'איש מקצוע': 'professional',
 };
 
 // Columns that are silently skipped during import for security/privacy reasons.

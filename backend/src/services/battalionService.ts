@@ -52,13 +52,13 @@ CREATE TABLE IF NOT EXISTS soldiers (
   personal_number VARCHAR(50) UNIQUE,
   last_name VARCHAR(100),
   first_name VARCHAR(100),
-  mobile_phone VARCHAR(30),
+  mobile_phone TEXT,
   request_status TEXT,
   marital_status TEXT,
   children_count TEXT,
   student_indicator TEXT,
   spouse TEXT,
-  spouse_phone VARCHAR(30),
+  spouse_phone TEXT,
   data_indicators TEXT,
   contact_by TEXT,
   contact_date TEXT,
@@ -91,6 +91,8 @@ CREATE TABLE IF NOT EXISTS soldiers (
   followup_2 TEXT,
   personal_equipment TEXT,
   mobilization_dates TEXT,
+  route_6 TEXT,
+  professional TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -103,6 +105,7 @@ const NEW_SOLDIER_COLUMNS = [
   'divorced_assistance', 'birth_assistance', 'moving_assistance',
   'household_assistance', 'complex_problems', 'resilience_treatment',
   'followup_1', 'followup_2', 'personal_equipment', 'aid_fund_submission', 'mobilization_dates',
+  'route_6', 'professional',
 ];
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
@@ -139,6 +142,21 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
     for (const col of NEW_SOLDIER_COLUMNS) {
       if (!existingCols.has(col)) {
         await dbConn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
+      }
+    }
+
+    // Widen narrow phone columns from VARCHAR(30) to TEXT — Excel imports may contain
+    // multiple numbers / formatting that exceed 30 chars (e.g. "Data too long for column 'spouse_phone'").
+    const PHONE_COLS_TO_WIDEN = ['mobile_phone', 'spouse_phone'];
+    if (PHONE_COLS_TO_WIDEN.some((c) => existingCols.has(c))) {
+      const [colInfo] = await dbConn.execute<mysql.RowDataPacket[]>(
+        `SELECT COLUMN_NAME, DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers' AND COLUMN_NAME IN (?, ?)`,
+        [dbName, ...PHONE_COLS_TO_WIDEN]
+      );
+      for (const row of colInfo) {
+        if (String(row.DATA_TYPE).toLowerCase() !== 'text') {
+          await dbConn.query(`ALTER TABLE soldiers MODIFY COLUMN \`${row.COLUMN_NAME}\` TEXT`);
+        }
       }
     }
 
@@ -198,6 +216,8 @@ export interface SoldierRow {
   followup_2?: string;
   personal_equipment?: string;
   mobilization_dates?: string;
+  route_6?: string;
+  professional?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -215,6 +235,7 @@ const FIXED_COLUMNS = [
   'divorced_assistance', 'birth_assistance', 'moving_assistance',
   'household_assistance', 'complex_problems', 'resilience_treatment',
   'followup_1', 'followup_2', 'personal_equipment', 'mobilization_dates',
+  'route_6', 'professional',
 ];
 
 // Import always overwrites all fields from Excel — Excel is the single source of truth
