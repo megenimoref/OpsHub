@@ -153,8 +153,10 @@ export const PersonalAreaPage: React.FC = () => {
   const filteredSoldiers = useMemo(() => {
     let list = soldiers;
     if (battalionFilter !== 'all') list = list.filter((s) => s.battalion_name === battalionFilter);
-    if (dateFrom) list = list.filter((s) => s.contact_date && s.contact_date >= dateFrom);
-    if (dateTo) list = list.filter((s) => s.contact_date && s.contact_date <= dateTo);
+    // contact_date may be stored with a time component (e.g. "2026-04-23T10:35:00"),
+    // so compare only the YYYY-MM-DD prefix against the date-input value.
+    if (dateFrom) list = list.filter((s) => s.contact_date && s.contact_date.slice(0, 10) >= dateFrom);
+    if (dateTo) list = list.filter((s) => s.contact_date && s.contact_date.slice(0, 10) <= dateTo);
     if (activeFilter === 'all') return list;
     if (activeFilter === 'not_done') return list.filter((s) => s.request_status !== 'טופלה');
     if (activeFilter === 'no_request') return list.filter((s) => !s.request_status?.trim());

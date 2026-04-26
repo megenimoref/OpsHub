@@ -19,7 +19,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // Role-based path restrictions
-  const staffAllowedPaths = ['/personal-area', '/battalion/soldier', '/benefits', '/mailing'];
+  const staffAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/view', '/benefits', '/mailing'];
   const superAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/allocate', '/battalion/user-soldiers', '/battalion/view', '/mailing'];
   const managerAllowedPaths = ['/dashboard', '/battalion/soldier', '/battalion/view', '/mailing'];
 

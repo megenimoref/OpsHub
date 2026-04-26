@@ -111,8 +111,9 @@ export const ViewBattalionPage: React.FC = () => {
       const q = pnSearch.trim();
       list = list.filter((s) => (s.personal_number || '').includes(q));
     }
-    if (dateFrom) list = list.filter((s) => s.contact_date && s.contact_date >= dateFrom);
-    if (dateTo) list = list.filter((s) => s.contact_date && s.contact_date <= dateTo);
+    // contact_date may include a time component — compare YYYY-MM-DD prefix only.
+    if (dateFrom) list = list.filter((s) => s.contact_date && s.contact_date.slice(0, 10) >= dateFrom);
+    if (dateTo) list = list.filter((s) => s.contact_date && s.contact_date.slice(0, 10) <= dateTo);
     if (activeFilter === 'all') return list;
     if (activeFilter === 'not_done') return list.filter((s) => s.request_status !== 'טופלה');
     if (activeFilter === 'no_request') return list.filter((s) => !s.request_status?.trim());
