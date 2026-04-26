@@ -755,7 +755,7 @@ export async function getSoldiersFromBattalion(battalionName: string): Promise<S
     );
     const existing = new Set(colRows.map((r) => String(r.COLUMN_NAME)));
     const base = ['personal_number', 'first_name', 'last_name', 'mobile_phone'];
-    const optional = ['platoon', 'request_status'];
+    const optional = ['platoon', 'request_status', 'contact_date', 'contact_by'];
     const cols = [...base, ...optional.filter((c) => existing.has(c))];
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
       `SELECT ${cols.join(', ')} FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`
