@@ -69,14 +69,12 @@ const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'טופלה', label: 'טופלה', color: '#22c55e' },
   { value: 'חייל לא זמין', label: 'חייל לא זמין', color: '#eab308' },
   { value: 'חייל ממתין לתשובה', label: 'חייל ממתין לתשובה', color: '#ef4444' },
+  { value: 'חייל ביקש שיחזרו אליו', label: 'חייל ביקש שיחזרו אליו', color: '#0ea5e9' },
   { value: 'ממתין לטיפול', label: 'ממתין לטיפול', color: '#67e8f9' },
   { value: 'נדרש סיוע של ביטוח לאומי', label: 'נדרש סיוע של ביטוח לאומי', color: '#f97316' },
   { value: 'נדרש סיוע של עורך דין', label: 'נדרש סיוע של עורך דין', color: '#f472b6' },
   { value: 'אין מספר טלפון', label: 'אין מספר טלפון', color: '#6366f1' },
-  { value: 'נדרש סיוע חוסן', label: 'אין מספר טלפון', color: '#83579a' },
-  
-  
-
+  { value: 'נדרש סיוע חוסן', label: 'נדרש סיוע חוסן', color: '#83579a' },
 ];
 
 const getStatusColor = (status: string): string => {
