@@ -267,7 +267,8 @@ export const UserCreatePage: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               required
               dir="ltr"
-              className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400 text-left"
+              style={{ direction: 'ltr', textAlign: 'left', unicodeBidi: 'plaintext' }}
+              className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
               placeholder="user@example.com"
             />
           </div>
@@ -393,7 +394,8 @@ export const UserCreatePage: React.FC = () => {
                         value={editData[u.id]?.email || ''}
                         onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], email: e.target.value } })}
                         dir="ltr"
-                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left"
+                        style={{ direction: 'ltr', textAlign: 'left', unicodeBidi: 'plaintext' }}
+                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div>
