@@ -61,6 +61,8 @@ interface Soldier {
   followup_2: string;
   personal_equipment: string;
   mobilization_dates: string;
+  route_6: string;
+  professional: string;
 }
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -135,6 +137,8 @@ const FIELD_LABELS: FieldDef[] = [
   { key: 'followup_2', label: 'מעקב 2', multiline: true },
   { key: 'personal_equipment', label: 'ציוד אישי', multiline: true },
   { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
+  { key: 'route_6', label: 'כביש 6' },
+  { key: 'professional', label: 'איש מקצוע' },
 ];
 
 function parseSelectWithDetail(value: string, options: string[]): { selected: string; detail: string } {
