@@ -51,6 +51,7 @@ export const ViewBattalionPage: React.FC = () => {
   const [soldiers, setSoldiers] = useState<SoldierRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,6 +98,26 @@ export const ViewBattalionPage: React.FC = () => {
     setPnSearch('');
     fetchSoldiers(selectedBattalion);
   }, [selectedBattalion, fetchSoldiers]);
+
+  const handleExport = async () => {
+    if (!selectedBattalion) return;
+    setExporting(true);
+    try {
+      const res = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/export`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${selectedBattalion}_export.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // silent fail
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleRowClick = (soldier: SoldierRow) => {
     if (!selectedBattalion || !soldier.personal_number) return;
@@ -179,6 +200,23 @@ export const ViewBattalionPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 {refreshing ? 'מרענן...' : 'רענן'}
+              </button>
+            )}
+            {selectedBattalion && (
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                title="הורד את כל החיילים של הגדוד לאקסל"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs rounded-lg border border-emerald-600 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-3.5 h-3.5"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                </svg>
+                {exporting ? 'מייצא...' : 'הוצא לאקסל'}
               </button>
             )}
           </div>
