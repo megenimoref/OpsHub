@@ -266,7 +266,8 @@ export const UserCreatePage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
+              dir="ltr"
+              className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400 text-left"
               placeholder="user@example.com"
             />
           </div>
@@ -391,7 +392,8 @@ export const UserCreatePage: React.FC = () => {
                         type="email"
                         value={editData[u.id]?.email || ''}
                         onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], email: e.target.value } })}
-                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        dir="ltr"
+                        className="w-full px-2 py-1 text-xs border border-gray-600 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-left"
                       />
                     </div>
                     <div>
@@ -438,7 +440,7 @@ export const UserCreatePage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-white text-sm font-medium">{u.firstName} {u.lastName}</span>
-                        <span className="text-xs text-gray-400">({u.email})</span>
+                        <span className="text-xs text-gray-400" dir="ltr">({u.email})</span>
                         {u.mobilePhone && (
                           <span className="text-xs text-gray-400 font-mono" dir="ltr">{u.mobilePhone}</span>
                         )}
