@@ -21,28 +21,59 @@ api.interceptors.request.use((config) => {
 // Handle response errors
 let _sessionExpiredHandled = false;
 
+// Decode the JWT payload locally so we can tell whether a 401 means the token
+// is actually expired or whether the server happened to return 401 for some
+// other reason (transient bug, route mis-config, race condition during a
+// silent refresh). Returns true ONLY if the token is missing or its `exp`
+// has passed — i.e. genuinely needs a re-login.
+function isTokenActuallyExpired(): boolean {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) return true;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (!payload?.exp) return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    // Malformed token → treat as expired so the user can recover.
+    return true;
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (window.location.pathname !== '/login' && !_sessionExpiredHandled) {
-        _sessionExpiredHandled = true;
-        // Show Hebrew toast before redirecting
-        const toast = document.createElement('div');
-        toast.textContent = 'פג תוקף הסשן — מנתב להתחברות...';
-        toast.style.cssText = [
-          'position:fixed', 'top:20px', 'right:20px', 'z-index:99999',
-          'background:#dc2626', 'color:#fff', 'padding:12px 20px',
-          'border-radius:8px', 'font-size:15px', 'font-family:sans-serif',
-          'direction:rtl', 'box-shadow:0 4px 12px rgba(0,0,0,0.4)',
-        ].join(';');
-        document.body.appendChild(toast);
-        setTimeout(() => {
-          _sessionExpiredHandled = false;
-          window.location.href = '/login';
-        }, 1500);
+    const status = error.response?.status;
+    const url: string = error.config?.url || '';
+
+    if (status === 401) {
+      // Never auto-logout on a failed silent refresh — authService.refreshToken
+      // has its own try/catch and intentionally swallows the failure so the
+      // existing token can keep working until it really expires.
+      const isRefreshCall = url.includes('/auth/refresh');
+
+      // Don't kick the user out on a transient 401 if their JWT is still
+      // valid locally. This is the cause of "search threw me out" reports —
+      // an unrelated 401 (refresh race, brief server issue) should not
+      // destroy an active session.
+      if (!isRefreshCall && isTokenActuallyExpired()) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        if (window.location.pathname !== '/login' && !_sessionExpiredHandled) {
+          _sessionExpiredHandled = true;
+          const toast = document.createElement('div');
+          toast.textContent = 'פג תוקף הסשן — מנתב להתחברות...';
+          toast.style.cssText = [
+            'position:fixed', 'top:20px', 'right:20px', 'z-index:99999',
+            'background:#dc2626', 'color:#fff', 'padding:12px 20px',
+            'border-radius:8px', 'font-size:15px', 'font-family:sans-serif',
+            'direction:rtl', 'box-shadow:0 4px 12px rgba(0,0,0,0.4)',
+          ].join(';');
+          document.body.appendChild(toast);
+          setTimeout(() => {
+            _sessionExpiredHandled = false;
+            window.location.href = '/login';
+          }, 1500);
+        }
       }
     }
     return Promise.reject(error);
