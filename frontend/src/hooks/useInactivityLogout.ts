@@ -1,12 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { authService } from '../services/authService';
 
-const TIMEOUT_MS = 12 * 60 * 60 * 1000;       // 12 hours of no activity → logout
+// Policy: as long as the user is active, the session NEVER closes.
+// If there is no activity for 1 hour → logout.
+const TIMEOUT_MS = 60 * 60 * 1000;             // 1 hour of inactivity → logout
 const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000; // 5 minutes before logout → show warning
 
-// Refresh the JWT when it has less than this many ms remaining.
-// JWT defaults to 7d on the backend; refreshing 1h before expiry means an active user
-// effectively never gets kicked out — the token rolls forward continuously.
+// Refresh the JWT eagerly on any activity if it has less than this many ms remaining.
+// JWT lives 7d on the backend; refreshing 1h before expiry means an active user's
+// token rolls forward continuously — they are never forced to re-login while working.
 const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;  // 1 hour before expiry
 
 function getTokenExpiryMs(): number | null {
