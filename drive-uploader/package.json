@@ -1,0 +1,23 @@
+{
+  "name": "crm-drive-uploader",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Periodically uploads CRM backup .sql files from /app/backups to a Google Drive folder.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "upload-once": "node dist/index.js --once"
+  },
+  "dependencies": {
+    "googleapis": "^144.0.0",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  }
+}

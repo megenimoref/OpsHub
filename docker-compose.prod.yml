@@ -40,6 +40,30 @@ services:
     depends_on: [db]
     restart: unless-stopped
     networks: [crm-net]
+    volumes:
+      # Persist backups on the host so they survive container rebuilds.
+      # Without this, every `docker compose up -d --build` wipes /app/backups.
+      - ./backups:/app/backups
+
+  drive-uploader:
+    build:
+      context: ./drive-uploader
+      dockerfile: Dockerfile
+    container_name: crm-drive-uploader
+    environment:
+      # cron expression in node-cron format (default: every Sunday at 03:00)
+      CRON_SCHEDULE: ${DRIVE_UPLOADER_CRON:-0 3 * * 0}
+      TZ: ${TZ:-Asia/Jerusalem}
+      BACKUP_DIR: /app/backups
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID}
+      GOOGLE_SERVICE_ACCOUNT_KEY: /run/secrets/gdrive-key.json
+      # Optional: if set, only files modified within the last N hours are uploaded
+      MAX_AGE_HOURS: ${DRIVE_UPLOADER_MAX_AGE_HOURS:-192}
+    volumes:
+      - ./backups:/app/backups:ro
+      - ./drive-uploader/secrets/gdrive-key.json:/run/secrets/gdrive-key.json:ro
+    restart: unless-stopped
+    networks: [crm-net]
 
   web:
     build:
