@@ -50,8 +50,8 @@ const tiles: MenuTile[] = [
   },
   {
     to: '/battalion/import',
-    label: 'יבוא גדוד',
-    description: 'יבוא נתוני גדוד מקובץ',
+    label: 'יבוא/מחק גדוד',
+    description: 'יבוא נתוני גדוד מקובץ או מחיקת גדוד קיים',
     color: 'violet',
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
