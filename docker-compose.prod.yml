@@ -37,6 +37,11 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       GMAIL_USER: ${GMAIL_USER}
       GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD}
+      # Green API (WhatsApp). GREEN_API_URL is optional — if blank the
+      # service auto-derives https://<idInstance>.api.green-api.com.
+      GREEN_API_ID_INSTANCE: ${GREEN_API_ID_INSTANCE:-}
+      GREEN_API_TOKEN_INSTANCE: ${GREEN_API_TOKEN_INSTANCE:-}
+      GREEN_API_URL: ${GREEN_API_URL:-}
     depends_on: [db]
     restart: unless-stopped
     networks: [crm-net]

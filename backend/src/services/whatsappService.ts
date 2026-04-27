@@ -1,6 +1,20 @@
 import axios from 'axios';
 
-const GREEN_API_URL = 'https://api.green-api.com';
+// Green API now provisions an instance-specific subdomain (e.g.
+// https://7103.api.greenapi.com) instead of the shared api.green-api.com
+// host. We resolve the base URL in this order:
+//   1. GREEN_API_URL env var (explicit override)
+//   2. https://<idInstance>.api.green-api.com (auto-derived from instance id)
+//   3. https://api.green-api.com (legacy fallback)
+function resolveApiBaseUrl(idInstance: string): string {
+  if (process.env.GREEN_API_URL) {
+    return process.env.GREEN_API_URL.replace(/\/+$/, '');
+  }
+  if (idInstance) {
+    return `https://${idInstance}.api.green-api.com`;
+  }
+  return 'https://api.green-api.com';
+}
 
 function toInternationalPhone(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -18,14 +32,19 @@ export interface SendResult {
 
 export async function sendWhatsAppMessage(phone: string, message: string): Promise<SendResult> {
   const idInstance = process.env.GREEN_API_ID_INSTANCE;
-  const apiToken = process.env.GREEN_API_TOKEN;
+  // Accept both names: GREEN_API_TOKEN (existing) and
+  // GREEN_API_TOKEN_INSTANCE (matches Green API's docs / control panel
+  // label "apiTokenInstance"), so admins copy-pasting from either source
+  // get a working config without surprises.
+  const apiToken = process.env.GREEN_API_TOKEN || process.env.GREEN_API_TOKEN_INSTANCE;
 
   if (!idInstance || !apiToken) {
     return { phone, success: false, error: 'Green API credentials not configured' };
   }
 
   const internationalPhone = toInternationalPhone(phone);
-  const url = `${GREEN_API_URL}/waInstance${idInstance}/sendMessage/${apiToken}`;
+  const baseUrl = resolveApiBaseUrl(idInstance);
+  const url = `${baseUrl}/waInstance${idInstance}/sendMessage/${apiToken}`;
 
   try {
     await axios.post(url, {
