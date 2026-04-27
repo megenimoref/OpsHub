@@ -2,7 +2,7 @@ import mysql from 'mysql2/promise';
 import fs from 'fs/promises';
 import path from 'path';
 import cron, { ScheduledTask } from 'node-cron';
-import { listBattalions, getBattalionDbName } from './battalionService';
+import { listBattalions, getBattalionDbName, ensureBattalionDatabase } from './battalionService';
 import { logger } from './logger';
 
 const dbConfig = {
@@ -195,12 +195,16 @@ export async function listBackupFiles(): Promise<BackupFileInfo[]> {
 
 export async function restoreFromFile(filename: string, battalionName: string): Promise<void> {
   const config = await getBackupConfig();
-  // Sanitize filename to prevent path traversal
-  const safeName = filename.replace(/[^a-zA-Z0-9._\-]/g, '');
+  // Sanitize filename to prevent path traversal — allow Hebrew letters too
+  // (battalion names like "גדוד_5722" must survive the sanitization).
+  const safeName = filename.replace(/[^a-zA-Z0-9._\-\u05D0-\u05EA\u05F0-\u05F4]/g, '');
   const filePath = path.join(config.backupPath, safeName);
 
   const sql = await fs.readFile(filePath, 'utf8');
   const dbName = getBattalionDbName(battalionName);
+  // Make sure the target DB exists. Without this, restoring a backup of a
+  // battalion that was previously deleted fails with "Unknown database ...".
+  await ensureBattalionDatabase(battalionName);
   await restoreDatabase(dbName, sql);
   logger.info('Restore completed', { filename: safeName, battalionName, dbName });
 }
