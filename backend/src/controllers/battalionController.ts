@@ -239,9 +239,45 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       fileSize: req.file.size,
     });
 
-    // Parse Excel from buffer
+    // Parse Excel from buffer.
+    // ExcelJS only supports .xlsx (zip+XML). .xls / .csv / corrupted files
+    // throw a cryptic JSZip error ("Can't find end of central directory") —
+    // intercept and replace with a Hebrew message the user can act on.
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(req.file.buffer as any);
+    try {
+      // .xlsx files are zip archives — first 2 bytes must be "PK" (0x50 0x4B).
+      const buf = req.file.buffer;
+      const looksLikeZip = buf && buf.length >= 2 && buf[0] === 0x50 && buf[1] === 0x4b;
+      if (!looksLikeZip) {
+        const ext = (req.file.originalname.split('.').pop() || '').toLowerCase();
+        const hint =
+          ext === 'xls'
+            ? ' (זוהה קובץ .xls ישן — יש לשמור אותו מחדש כ-Excel Workbook ‎.xlsx‎)'
+            : ext === 'csv'
+            ? ' (זוהה קובץ .csv — יש לפתוח ב-Excel ולשמור כ-‎.xlsx‎)'
+            : '';
+        logger.error('Battalion import failed - not an xlsx file', {
+          battalionName,
+          fileName: req.file.originalname,
+          ext,
+        });
+        res.status(400).json({
+          error: `הקובץ אינו בפורמט Excel תקין (.xlsx)${hint}.`,
+        });
+        return;
+      }
+      await workbook.xlsx.load(buf as any);
+    } catch (parseErr: any) {
+      logger.error('Battalion import failed - xlsx parse error', {
+        battalionName,
+        fileName: req.file.originalname,
+        errorMessage: parseErr?.message,
+      });
+      res.status(400).json({
+        error: 'לא ניתן לקרוא את הקובץ. ייתכן שהוא פגום, או נשמר בפורמט ישן (.xls). יש לשמור אותו מחדש כ-Excel Workbook (‎.xlsx‎).',
+      });
+      return;
+    }
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
