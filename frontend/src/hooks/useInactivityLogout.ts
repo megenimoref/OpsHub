@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { authService } from '../services/authService';
+import { logDisconnect } from '../services/disconnectLogger';
 
 // Policy: as long as the user is active, the session NEVER closes.
 // If there is no activity for 1 hour → logout.
@@ -35,6 +36,9 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
   const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isWarningShown = useRef(false);
   const lastRefresh = useRef<number>(0);
+  // Track when the user was last "active" (event arrived) so that when
+  // the inactivity timer fires we can report the actual idle duration.
+  const lastActivity = useRef<number>(Date.now());
 
   const clearTimers = useCallback(() => {
     if (warningTimer.current) clearTimeout(warningTimer.current);
@@ -48,6 +52,7 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
     const expiryMs = getTokenExpiryMs();
     if (expiryMs !== null && expiryMs < REFRESH_THRESHOLD_MS) {
       lastRefresh.current = now;
+      logDisconnect('refresh_attempt', { detail: `expiry in ${Math.round(expiryMs / 1000)}s` });
       authService.refreshToken();
     }
   }, []);
@@ -55,6 +60,7 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
   const resetTimers = useCallback(() => {
     if (!enabled) return;
     clearTimers();
+    lastActivity.current = Date.now();
     maybeRefreshToken();
 
     if (isWarningShown.current) {
@@ -64,10 +70,18 @@ export function useInactivityLogout({ onWarning, onLogout, onReset, enabled }: O
 
     warningTimer.current = setTimeout(() => {
       isWarningShown.current = true;
+      logDisconnect('inactivity_warning_shown', {
+        idleMs: Date.now() - lastActivity.current,
+        lastActivityAt: new Date(lastActivity.current).toISOString(),
+      });
       onWarning();
     }, WARNING_MS);
 
     logoutTimer.current = setTimeout(() => {
+      logDisconnect('inactivity_logout', {
+        idleMs: Date.now() - lastActivity.current,
+        lastActivityAt: new Date(lastActivity.current).toISOString(),
+      });
       onLogout();
     }, TIMEOUT_MS);
   }, [enabled, clearTimers, maybeRefreshToken, onWarning, onLogout, onReset]);

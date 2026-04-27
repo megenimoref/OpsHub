@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { logDisconnect } from './disconnectLogger';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -45,17 +46,33 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const url: string = error.config?.url || '';
 
+    if (status === 403) {
+      logDisconnect('response_403', { url, detail: error.response?.data?.error });
+    }
+
     if (status === 401) {
       // Never auto-logout on a failed silent refresh — authService.refreshToken
       // has its own try/catch and intentionally swallows the failure so the
       // existing token can keep working until it really expires.
       const isRefreshCall = url.includes('/auth/refresh');
+      const expired = isTokenActuallyExpired();
+
+      if (isRefreshCall) {
+        logDisconnect('response_401_on_refresh', { url });
+      } else if (!expired) {
+        // Important diagnostic: backend rejected the request but our local
+        // JWT is still valid. We do NOT log the user out here — but we
+        // want to know how often this happens because each one is a
+        // potential mid-typing disruption that we suppressed.
+        logDisconnect('response_401_token_still_valid', { url });
+      }
 
       // Don't kick the user out on a transient 401 if their JWT is still
       // valid locally. This is the cause of "search threw me out" reports —
       // an unrelated 401 (refresh race, brief server issue) should not
       // destroy an active session.
-      if (!isRefreshCall && isTokenActuallyExpired()) {
+      if (!isRefreshCall && expired) {
+        logDisconnect('response_401_token_expired', { url });
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (window.location.pathname !== '/login' && !_sessionExpiredHandled) {
