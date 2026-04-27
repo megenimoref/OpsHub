@@ -16,8 +16,17 @@ export const sendBulk = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (!process.env.GREEN_API_ID_INSTANCE || !process.env.GREEN_API_TOKEN) {
-      res.status(500).json({ error: 'WhatsApp API not configured. Set GREEN_API_ID_INSTANCE and GREEN_API_TOKEN in .env' });
+    // Accept either token env name. The service layer was updated to
+    // recognise GREEN_API_TOKEN_INSTANCE (the label Green API uses in
+    // its control panel) alongside the legacy GREEN_API_TOKEN — the
+    // preflight here had been left checking only the old name, which
+    // caused an immediate 500 (ms=2) for instances configured with
+    // the new name. Keep both in sync.
+    const hasToken = !!(process.env.GREEN_API_TOKEN || process.env.GREEN_API_TOKEN_INSTANCE);
+    if (!process.env.GREEN_API_ID_INSTANCE || !hasToken) {
+      res.status(500).json({
+        error: 'WhatsApp API not configured. Set GREEN_API_ID_INSTANCE and GREEN_API_TOKEN_INSTANCE in .env',
+      });
       return;
     }
 
