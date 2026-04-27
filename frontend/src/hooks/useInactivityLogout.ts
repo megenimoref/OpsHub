@@ -3,9 +3,16 @@ import { authService } from '../services/authService';
 import { logDisconnect } from '../services/disconnectLogger';
 
 // Policy: as long as the user is active, the session NEVER closes.
-// If there is no activity for 1 hour → logout.
-const TIMEOUT_MS = 60 * 60 * 1000;             // 1 hour of inactivity → logout
-const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000; // 5 minutes before logout → show warning
+// If there is no activity for 4 hours → logout.
+//
+// History: this used to be 1 hour. Real users (e.g. אורנה, userId 13)
+// were getting kicked out mid-task because reading a soldier's profile
+// or briefly switching to another tab/app quietly racked up 60+ idle
+// minutes — see error log entry on 2026-04-27 10:00:38 where idleMs
+// was 3,740,937 (~62 min) on /battalion/soldier. Bumping to 4h fits a
+// realistic work shift.
+const TIMEOUT_MS = 4 * 60 * 60 * 1000;          // 4 hours of inactivity → logout
+const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000;  // 5 minutes before logout → show warning
 
 // Refresh the JWT eagerly on any activity if it has less than this many ms remaining.
 // JWT lives 7d on the backend; refreshing 1h before expiry means an active user's
