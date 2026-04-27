@@ -45,6 +45,24 @@ export const LogsPage: React.FC = () => {
 
   const displayContent = filteredLines.join('\n');
 
+  // Download the currently displayed content (respects active filter) as a
+  // .log file. Uses a Blob so we don't need a separate backend endpoint —
+  // the file is already in memory from the existing /logs/:filename call.
+  const handleDownload = () => {
+    if (!selectedFile || !displayContent) return;
+    const suffix = filter === 'all' ? '' : `.${filter}-only`;
+    const downloadName = selectedFile.replace(/\.log$/, `${suffix}.log`);
+    const blob = new Blob([displayContent], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', downloadName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto" dir="rtl">
       <h1 className="text-2xl font-bold text-white mb-6">לוגי מערכת</h1>
@@ -93,6 +111,15 @@ export const LogsPage: React.FC = () => {
           className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-600 rounded-lg text-sm"
         >
           רענן
+        </button>
+
+        <button
+          onClick={handleDownload}
+          disabled={!selectedFile || !displayContent || loading}
+          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          title="הורד את התוכן המוצג (כולל הסינון הנוכחי)"
+        >
+          ⬇ יצוא לוג
         </button>
       </div>
 
