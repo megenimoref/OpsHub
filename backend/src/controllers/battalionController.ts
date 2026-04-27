@@ -998,13 +998,24 @@ export const exportBattalion = async (req: Request, res: Response): Promise<void
 
     logger.info('Battalion export completed', { battalionName, rows: rows.length });
 
+    // HTTP headers must be ASCII — Hebrew battalion names break Content-Disposition
+    // unless we use RFC 5987 (filename*) and provide an ASCII fallback for filename=.
+    const asciiFallback = `battalion_export.xlsx`;
+    const utf8Encoded = encodeURIComponent(`${battalionName}_export.xlsx`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${battalionName}_export.xlsx"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${asciiFallback}"; filename*=UTF-8''${utf8Encoded}`
+    );
     await workbook.xlsx.write(res);
     res.end();
   } catch (error: any) {
     logger.error('Battalion export failed', { battalionName: req.params?.name, errorMessage: error.message });
-    res.status(500).json({ error: error.message || 'שגיאה ביצוא הגדוד' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'שגיאה ביצוא הגדוד' });
+    } else {
+      res.end();
+    }
   }
 };
 
