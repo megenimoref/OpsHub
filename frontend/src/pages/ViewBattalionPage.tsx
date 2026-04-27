@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
+import { useAuthStore } from '../hooks/useAuth';
 
 interface SoldierRow {
   personal_number?: string;
@@ -45,6 +46,8 @@ const getStatusColor = (status: string): string => {
 const PAGE_SIZE = 20;
 
 export const ViewBattalionPage: React.FC = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const [battalions, setBattalions] = useState<string[]>([]);
   const [loadingBattalions, setLoadingBattalions] = useState(true);
   const [selectedBattalion, setSelectedBattalion] = useState<string>('');
@@ -52,6 +55,14 @@ export const ViewBattalionPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Hardcoded confirmation password for destructive battalion deletion.
+  // This is a UI-level guardrail on top of the backend admin auth.
+  const DELETE_PASSWORD = '2705azu';
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,6 +128,35 @@ export const ViewBattalionPage: React.FC = () => {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedBattalion) return;
+    if (deletePassword !== DELETE_PASSWORD) {
+      setDeleteError('סיסמה שגויה');
+      return;
+    }
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await api.delete(`/battalion/${encodeURIComponent(selectedBattalion)}`);
+      // Remove from list and clear selection
+      setBattalions((prev) => prev.filter((b) => b !== selectedBattalion));
+      setSelectedBattalion('');
+      setSoldiers([]);
+      setDeleteOpen(false);
+      setDeletePassword('');
+    } catch (err: any) {
+      setDeleteError(err?.response?.data?.error || 'שגיאה במחיקת הגדוד');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = () => {
+    setDeletePassword('');
+    setDeleteError('');
+    setDeleteOpen(true);
   };
 
   const handleRowClick = (soldier: SoldierRow) => {
@@ -217,6 +257,22 @@ export const ViewBattalionPage: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
                 </svg>
                 {exporting ? 'מייצא...' : 'הוצא לאקסל'}
+              </button>
+            )}
+            {selectedBattalion && isAdmin && (
+              <button
+                onClick={openDeleteDialog}
+                title="מחק את הגדוד וכל הנתונים שלו"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white text-xs rounded-lg border border-red-600 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-3.5 h-3.5"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+                </svg>
+                מחק גדוד
               </button>
             )}
           </div>
@@ -514,6 +570,74 @@ export const ViewBattalionPage: React.FC = () => {
       {selectedBattalion && !loading && soldiers.length === 0 && !error && (
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
           <p className="text-gray-400">אין חיילים בגדוד זה</p>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteOpen && selectedBattalion && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => !deleting && setDeleteOpen(false)}
+        >
+          <div
+            className="bg-gray-900 border border-red-700/60 rounded-xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+            dir="rtl"
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-900/40 border border-red-700 flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-1">מחיקת גדוד</h3>
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  פעולה זו תמחק לצמיתות את כל מסד הנתונים של הגדוד{' '}
+                  <span className="font-semibold text-red-300">{selectedBattalion.replace(/_/g, ' ')}</span>{' '}
+                  כולל כל החיילים, ההקצאות וההיסטוריה. <strong className="text-red-300">לא ניתן לשחזור.</strong>
+                </p>
+              </div>
+            </div>
+
+            <label className="block text-xs text-gray-400 mb-1">
+              להמשך, הזן סיסמת אישור
+            </label>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && deletePassword && !deleting) handleDelete();
+              }}
+              disabled={deleting}
+              placeholder="סיסמה"
+              dir="ltr"
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm text-left focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50"
+              autoFocus
+            />
+
+            {deleteError && (
+              <p className="mt-2 text-red-300 text-sm">{deleteError}</p>
+            )}
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleting}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-lg border border-gray-600 transition-colors disabled:opacity-50"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting || !deletePassword}
+                className="px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-900 disabled:text-red-300 disabled:cursor-not-allowed text-white text-sm rounded-lg border border-red-600 transition-colors"
+              >
+                {deleting ? 'מוחק...' : 'מחק לצמיתות'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
