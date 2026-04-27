@@ -13,10 +13,13 @@ export const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
 export const PASSWORD_ERROR = 'הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה אחת, ספרה אחת וסימן מיוחד אחד';
 
 export const refreshToken = (req: Request, res: Response) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    logger.error('auth: refresh failed - no token', { ip: req.ip, ua: req.headers['user-agent'] });
+    return res.status(401).json({ error: 'No token provided' });
+  }
 
+  try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     // @ts-ignore
     const newToken = jwt.sign(
@@ -24,10 +27,46 @@ export const refreshToken = (req: Request, res: Response) => {
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
+    logger.info('auth: refresh success', { userId: decoded.userId, email: decoded.email });
     return res.json({ token: newToken });
-  } catch {
+  } catch (error: any) {
+    const decoded = jwt.decode(token) as any;
+    logger.error('auth: refresh failed - jwt verify error', {
+      jwtErrorName: error?.name,
+      jwtErrorMessage: error?.message,
+      tokenUserId: decoded?.userId,
+      tokenEmail: decoded?.email,
+      ip: req.ip,
+    });
     return res.status(401).json({ error: 'Invalid token' });
   }
+};
+
+// Client-side disconnect reporting endpoint. Called by the frontend (via
+// navigator.sendBeacon) right before it forces a logout/redirect, so that
+// when users complain about being booted mid-typing we can correlate the
+// timing on the server side. NOT auth-protected on purpose — by the time
+// this fires, the token is usually already invalid/expired.
+export const logDisconnect = (req: Request, res: Response) => {
+  try {
+    const body = (req.body && typeof req.body === 'object') ? req.body : {};
+    logger.error('auth: client-reported disconnect', {
+      reason: body.reason || 'unspecified',
+      detail: body.detail,
+      url: body.url,
+      path: body.path,
+      tokenExpAt: body.tokenExpAt,
+      tokenUserId: body.userId,
+      tokenEmail: body.email,
+      idleMs: body.idleMs,
+      lastActivityAt: body.lastActivityAt,
+      ip: req.ip,
+      ua: req.headers['user-agent'],
+    });
+  } catch {
+    // never let this endpoint throw — it's diagnostic-only
+  }
+  res.status(204).end();
 };
 
 export const login = async (req: Request, res: Response) => {

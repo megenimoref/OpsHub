@@ -1,5 +1,6 @@
 import api from './api';
 import { AuthResponse, PeopleListResponse, Person } from '../types';
+import { logDisconnect } from './disconnectLogger';
 
 export const authService = {
   login: async (email: string, password: string): Promise<AuthResponse> => {
@@ -32,12 +33,17 @@ export const authService = {
     try {
       const { data } = await api.post('/auth/refresh');
       localStorage.setItem('token', data.token);
-    } catch {
+      logDisconnect('refresh_success');
+    } catch (err: any) {
+      logDisconnect('refresh_failed', {
+        detail: err?.response?.status ? `HTTP ${err.response.status}` : err?.message,
+      });
       // If refresh fails, do nothing — let existing token expire naturally
     }
   },
 
   logout: () => {
+    logDisconnect('manual_logout');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },

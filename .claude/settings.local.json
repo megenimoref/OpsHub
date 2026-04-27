@@ -109,7 +109,12 @@
       "Bash(git cherry-pick:*)",
       "Read(//Users/sh.azulay/Downloads/**)",
       "WebFetch(domain:apidoc.inforu.co.il)",
-      "Bash(echo \"exit:$?\")"
+      "Bash(echo \"exit:$?\")",
+      "Bash(git fetch *)",
+      "Bash(git stash *)",
+      "Bash(docker exec *)",
+      "Bash(gh auth *)",
+      "Bash(git pull *)"
     ]
   }
 }
