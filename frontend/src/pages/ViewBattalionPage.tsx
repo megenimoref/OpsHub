@@ -112,8 +112,9 @@ export const ViewBattalionPage: React.FC = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      // silent fail
+    } catch (err: any) {
+      console.error('Export failed', err);
+      alert('יצוא לאקסל נכשל: ' + (err?.response?.data?.error || err?.message || 'שגיאה לא ידועה'));
     } finally {
       setExporting(false);
     }
