@@ -45,8 +45,11 @@ export const BattalionImportPage: React.FC = () => {
   const [battalionsLoading, setBattalionsLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
 
-  // Delete state
+  // Delete state — two-step confirmation:
+  //   step 1 = warning + first "האם אתה בטוח?"
+  //   step 2 = password entry + final "מחק לצמיתות"
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -58,6 +61,7 @@ export const BattalionImportPage: React.FC = () => {
 
   const openDeleteDialog = () => {
     if (!battalionName) return;
+    setDeleteStep(1);
     setDeletePassword('');
     setDeleteError('');
     setDeleteOpen(true);
@@ -393,7 +397,7 @@ export const BattalionImportPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation modal — two-step */}
       {deleteOpen && battalionName && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -411,32 +415,47 @@ export const BattalionImportPage: React.FC = () => {
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">מחיקת גדוד</h3>
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  פעולה זו תמחק לצמיתות את כל מסד הנתונים של הגדוד{' '}
-                  <span className="font-semibold text-red-300">{battalionName.replace(/_/g, ' ')}</span>{' '}
-                  כולל כל החיילים, ההקצאות וההיסטוריה. <strong className="text-red-300">לא ניתן לשחזור.</strong>
-                </p>
+                <h3 className="text-lg font-bold text-white mb-1">
+                  {deleteStep === 1 ? 'האם אתה בטוח?' : 'אישור סופי — מחיקת גדוד'}
+                </h3>
+                {deleteStep === 1 ? (
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    אתה עומד למחוק את הגדוד{' '}
+                    <span className="font-semibold text-red-300">{battalionName.replace(/_/g, ' ')}</span>{' '}
+                    על כל החיילים, ההקצאות וההיסטוריה.
+                    <br />
+                    <strong className="text-red-300">פעולה זו אינה ניתנת לשחזור.</strong>
+                  </p>
+                ) : (
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    זוהי הזדמנות אחרונה לעצור. כדי למחוק את{' '}
+                    <span className="font-semibold text-red-300">{battalionName.replace(/_/g, ' ')}</span>{' '}
+                    סופית, הזן את סיסמת האישור.
+                  </p>
+                )}
               </div>
             </div>
 
-            <label className="block text-xs text-gray-400 mb-1">להמשך, הזן סיסמת אישור</label>
-            <input
-              type="password"
-              value={deletePassword}
-              onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && deletePassword && !deleting) handleDelete();
-              }}
-              disabled={deleting}
-              placeholder="סיסמה"
-              dir="ltr"
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm text-left focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50"
-              autoFocus
-            />
-
-            {deleteError && (
-              <p className="mt-2 text-red-300 text-sm">{deleteError}</p>
+            {deleteStep === 2 && (
+              <>
+                <label className="block text-xs text-gray-400 mb-1">סיסמת אישור</label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(''); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && deletePassword && !deleting) handleDelete();
+                  }}
+                  disabled={deleting}
+                  placeholder="סיסמה"
+                  dir="ltr"
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 text-white rounded-lg text-sm text-left focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50"
+                  autoFocus
+                />
+                {deleteError && (
+                  <p className="mt-2 text-red-300 text-sm">{deleteError}</p>
+                )}
+              </>
             )}
 
             <div className="flex justify-end gap-2 mt-5">
@@ -447,13 +466,22 @@ export const BattalionImportPage: React.FC = () => {
               >
                 ביטול
               </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting || !deletePassword}
-                className="px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-900 disabled:text-red-300 disabled:cursor-not-allowed text-white text-sm rounded-lg border border-red-600 transition-colors"
-              >
-                {deleting ? 'מוחק...' : 'מחק לצמיתות'}
-              </button>
+              {deleteStep === 1 ? (
+                <button
+                  onClick={() => setDeleteStep(2)}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm rounded-lg border border-red-600 transition-colors"
+                >
+                  כן, המשך למחיקה
+                </button>
+              ) : (
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting || !deletePassword}
+                  className="px-4 py-2 bg-red-700 hover:bg-red-600 disabled:bg-red-900 disabled:text-red-300 disabled:cursor-not-allowed text-white text-sm rounded-lg border border-red-600 transition-colors"
+                >
+                  {deleting ? 'מוחק...' : 'מחק לצמיתות'}
+                </button>
+              )}
             </div>
           </div>
         </div>
