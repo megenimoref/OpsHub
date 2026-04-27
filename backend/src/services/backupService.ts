@@ -2,7 +2,7 @@ import mysql from 'mysql2/promise';
 import fs from 'fs/promises';
 import path from 'path';
 import cron, { ScheduledTask } from 'node-cron';
-import { listBattalions, getBattalionDbName } from './battalionService';
+import { listBattalions, getBattalionDbName, ensureBattalionDatabase } from './battalionService';
 import { logger } from './logger';
 
 const dbConfig = {
@@ -202,6 +202,9 @@ export async function restoreFromFile(filename: string, battalionName: string): 
 
   const sql = await fs.readFile(filePath, 'utf8');
   const dbName = getBattalionDbName(battalionName);
+  // Make sure the target DB exists. Without this, restoring a backup of a
+  // battalion that was previously deleted fails with "Unknown database ...".
+  await ensureBattalionDatabase(battalionName);
   await restoreDatabase(dbName, sql);
   logger.info('Restore completed', { filename: safeName, battalionName, dbName });
 }
