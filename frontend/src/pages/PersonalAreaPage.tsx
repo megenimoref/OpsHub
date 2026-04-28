@@ -267,7 +267,7 @@ export const PersonalAreaPage: React.FC = () => {
               const openTimetable = async (role: 'user' | 'admin') => {
                 try {
                   const { data } = await api.post('/timetable-sso', { role });
-                  if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+                  if (data?.url) window.location.href = data.url;
                 } catch (err) {
                   console.error('Failed to open TimeTable', err);
                   alert('שגיאה בפתיחת Time Table');
