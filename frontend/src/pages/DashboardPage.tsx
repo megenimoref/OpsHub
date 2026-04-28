@@ -940,10 +940,10 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Tab: שאגת הארי */}
+      {/* Tab: שאגת הארי — exclude the גדודים מלאים battalions */}
       {activeTab === 'sheagat-haari' && (
         <div className="-mx-4 md:-mx-6 -mb-6">
-          <SheagatHaariPage />
+          <SheagatHaariPage excludeFilter={['335', '240', '241', '837', '7660']} />
         </div>
       )}
 

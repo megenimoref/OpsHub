@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import api from '../services/api';
 
 // Mirrors backend/src/services/sheagatHaariService.ts. Kept as a duplicate type
@@ -42,6 +43,78 @@ const COLOR_CLASSES: Record<string, { bg: string; bar: string; text: string; rin
 function pickColor(c: string) {
   return COLOR_CLASSES[c] || COLOR_CLASSES.slate;
 }
+
+// Hex equivalents of the Tailwind palette used by categories — recharts
+// doesn't understand utility class names, so we map them explicitly.
+const COLOR_HEX: Record<string, string> = {
+  emerald: '#10b981',
+  sky:     '#0ea5e9',
+  amber:   '#f59e0b',
+  rose:    '#f43f5e',
+  violet:  '#8b5cf6',
+  slate:   '#64748b',
+  cyan:    '#06b6d4',
+  fuchsia: '#d946ef',
+  orange:  '#f97316',
+};
+
+function hexForColor(c: string): string {
+  return COLOR_HEX[c] || '#64748b';
+}
+
+const CategoryPieChart: React.FC<{ categories: CategoryStat[]; total: number }> = ({ categories, total }) => {
+  const pieData = categories
+    .filter((c) => c.count > 0)
+    .map((c) => ({ name: c.label, value: c.count, color: c.color, pct: c.pct }));
+
+  if (pieData.length === 0) {
+    return <p className="text-xs text-gray-500 text-center py-4">אין נתונים לתצוגה</p>;
+  }
+
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, pct: pctVal }: any) => {
+    if (pctVal < 4) return null; // skip tiny slices
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.55;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight="bold">
+        {pctVal}%
+      </text>
+    );
+  };
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <PieChart>
+        <Pie
+          data={pieData}
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={95}
+          dataKey="value"
+          strokeWidth={0}
+          labelLine={false}
+          label={renderCustomLabel}
+        >
+          {pieData.map((entry, idx) => (
+            <Cell key={idx} fill={hexForColor(entry.color)} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', color: '#fff', fontSize: 12 }}
+          itemStyle={{ color: '#d1d5db' }}
+          formatter={(value: number) => [`${value} חיילים`, '']}
+        />
+        <Legend
+          wrapperStyle={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.8' }}
+          formatter={(value, entry: any) => `${value} (${entry.payload.pct}%)`}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+};
 
 const KpiCard: React.FC<{ label: string; value: number | string; sub?: string; tone?: 'emerald' | 'rose' | 'cyan' | 'amber' }> = ({ label, value, sub, tone = 'cyan' }) => {
   const map = { emerald: 'border-emerald-800/60 text-emerald-300', rose: 'border-rose-800/60 text-rose-300', cyan: 'border-cyan-800/60 text-cyan-300', amber: 'border-amber-800/60 text-amber-300' };
@@ -93,6 +166,15 @@ const BattalionDetailModal: React.FC<{ b: BattalionStats; onClose: () => void }>
         <KpiCard label="ממתינים לטיפול" value={b.untreated} sub={`${b.untreatedPct}%`} tone="rose" />
         <KpiCard label="לא סווגו" value={b.unmatched} sub={`${b.unmatchedPct}%`} tone="amber" />
       </div>
+      {/* Category distribution pie */}
+      {b.total > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-6">
+          <h3 className="text-sm font-semibold text-white mb-1">התפלגות נושאים</h3>
+          <p className="text-xs text-gray-500 mb-2">אחוז חיילים לפי קטגוריה (חייל נספר פעם אחת לכל קטגוריה שמשויך אליה)</p>
+          <CategoryPieChart categories={b.categories} total={b.total} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
         {b.categories.map((cat) => <CategoryRow key={cat.key} cat={cat} total={b.total} />)}
       </div>
@@ -162,6 +244,9 @@ interface SheagatHaariPageProps {
    *  the GdudimMaleimPage wrapper to reuse the entire page for a curated
    *  subset (335, 945, 240, 241, 7660) without duplicating the rendering. */
   battalionFilter?: string[];
+  /** When set, battalions whose name is in this list are hidden from the view
+   *  and excluded from the KPI totals. Takes effect after battalionFilter. */
+  excludeFilter?: string[];
   /** Optional page title override — defaults to the שאגת הארי label. */
   title?: string;
 }
@@ -204,7 +289,7 @@ function aggregate(battalions: BattalionStats[]): BattalionStats {
   return init;
 }
 
-export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFilter, title }) => {
+export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFilter, excludeFilter, title }) => {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,20 +319,31 @@ export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFil
       const allowed = new Set(battalionFilter.map((s) => s.trim()));
       list = list.filter((b) => allowed.has(b.battalion));
     }
+    if (excludeFilter && excludeFilter.length > 0) {
+      const excluded = new Set(excludeFilter.map((s) => s.trim()));
+      list = list.filter((b) => !excluded.has(b.battalion));
+    }
     const q = filter.trim();
     if (q) list = list.filter((b) => b.battalion.includes(q));
     return list;
-  }, [data, filter, battalionFilter]);
+  }, [data, filter, battalionFilter, excludeFilter]);
 
   // KPI strip uses the curated subset (NOT the search box) — the search box
   // is for narrowing the grid, while KPIs should reflect the page's scope.
   const kpiTotals = useMemo(() => {
     if (!data) return null;
-    if (!battalionFilter) return data.total; // unfiltered view: trust backend
-    const allowed = new Set(battalionFilter.map((s) => s.trim()));
-    const subset = data.battalions.filter((b) => allowed.has(b.battalion));
+    const excluded = excludeFilter ? new Set(excludeFilter.map((s) => s.trim())) : null;
+    if (!battalionFilter && !excluded) return data.total; // unfiltered view: trust backend
+    let subset = data.battalions;
+    if (battalionFilter && battalionFilter.length > 0) {
+      const allowed = new Set(battalionFilter.map((s) => s.trim()));
+      subset = subset.filter((b) => allowed.has(b.battalion));
+    }
+    if (excluded) {
+      subset = subset.filter((b) => !excluded.has(b.battalion));
+    }
     return aggregate(subset);
-  }, [data, battalionFilter]);
+  }, [data, battalionFilter, excludeFilter]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6" dir="rtl">
@@ -292,6 +388,15 @@ export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFil
               <KpiCard label="ממתינים לטיפול" value={kpiTotals?.untreated ?? 0} sub={`${kpiTotals?.untreatedPct ?? 0}%`} tone="rose" />
               <KpiCard label="לא סווגו לקטגוריה" value={kpiTotals?.unmatched ?? 0} sub={`${kpiTotals?.unmatchedPct ?? 0}%`} tone="amber" />
             </div>
+
+            {/* Overall category pie */}
+            {kpiTotals && kpiTotals.total > 0 && (
+              <div className="bg-gray-900 rounded-xl border border-gray-700 p-5 mb-6">
+                <h2 className="text-sm font-semibold text-white mb-1">סיכום התפלגות נושאים — כלל הגדודים</h2>
+                <p className="text-xs text-gray-500 mb-2">אחוז חיילים לפי קטגוריה (חייל נספר פעם אחת לכל קטגוריה)</p>
+                <CategoryPieChart categories={kpiTotals.categories} total={kpiTotals.total} />
+              </div>
+            )}
 
             {/* Battalion grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
