@@ -19,10 +19,12 @@ import serviceCallsRoutes from './routes/serviceCalls';
 import backupRoutes from './routes/backup';
 import notificationsRoutes from './routes/notifications';
 import communityRoutes from './routes/community';
+import timetableSsoRoutes from './routes/timetableSso';
 import './models/notification'; // ensure model is synced
 import './models/messageCampaign'; // ensure model is synced
 import './models/communityContact'; // ensure model is synced
 import { startScheduler } from './services/backupService';
+import { ensureBattalionDatabase } from './services/battalionService';
 import { logger } from './services/logger';
 
 const app = express();
@@ -63,6 +65,7 @@ app.use('/service-calls', serviceCallsRoutes);
 app.use('/backup', backupRoutes);
 app.use('/notifications', notificationsRoutes);
 app.use('/community', communityRoutes);
+app.use('/timetable-sso', timetableSsoRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -110,6 +113,22 @@ async function start() {
     await cleanupDuplicateEmailIndexes();
     await sequelize.sync({ alter: true });
     console.log('✓ Models synced');
+
+    // Auto-provision battalions that the dashboards expect to exist:
+    //  - כיבוי, קשר עורף  → for שאגת הארי
+    //  - 335, 945, 240, 241, 7660 → for גדודים מלאים (5722 already exists)
+    // Idempotent — re-running is a no-op. Importing real data is still a
+    // manual step; these just guarantee the schemas exist so the dashboards
+    // render the right cells (with 0 counts) from day one.
+    const SEED_BATTALIONS = ['כיבוי', 'קשר עורף', '335', '945', '240', '241', '7660'];
+    for (const seed of SEED_BATTALIONS) {
+      try {
+        await ensureBattalionDatabase(seed);
+      } catch (e: any) {
+        logger.error('Failed to ensure seed battalion', { seed, errorMessage: e.message });
+      }
+    }
+    console.log(`✓ Seed battalions ensured (${SEED_BATTALIONS.join(', ')})`);
 
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);

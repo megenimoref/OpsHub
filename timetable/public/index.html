@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeTable – ניהול משמרות</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #080c18;
+  --bg2: #0d1224;
+  --surface: rgba(255,255,255,0.035);
+  --surface2: rgba(255,255,255,0.07);
+  --surface3: rgba(255,255,255,0.11);
+  --border: rgba(255,255,255,0.09);
+  --border2: rgba(255,255,255,0.15);
+  --accent: #4f8ef7;
+  --accent2: #7c5cbf;
+  --morning: #3b82f6;
+  --evening: #f97316;
+  --double: #a855f7;
+  --vacation: #22c55e;
+  --field: #14b8a6;
+  --holiday: #ef4444;
+  --text: #dde2f0;
+  --text2: #7a849a;
+  --text3: #3a4255;
+  --r: 14px;
+}
+body {
+  font-family: 'Heebo', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  direction: rtl;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 70% 55% at 15% 5%, rgba(79,142,247,0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 85% 90%, rgba(124,92,191,0.09) 0%, transparent 55%);
+}
+#app { position:relative; z-index:1; }
+::-webkit-scrollbar { width:5px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+/* ── Base ── */
+.glass { background:var(--surface); backdrop-filter:blur(20px); border:1px solid var(--border); border-radius:var(--r); }
+.glass2 { background:var(--surface2); backdrop-filter:blur(20px); border:1px solid var(--border2); border-radius:var(--r); }
+
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  padding:10px 18px; border-radius:9px; border:none; cursor:pointer;
+  font-family:'Heebo',sans-serif; font-size:14px; font-weight:600; letter-spacing:.01em;
+  transition:all .18s;
+}
+.btn:active { transform:scale(.97); }
+.btn-primary {
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff; box-shadow:0 4px 16px rgba(79,142,247,.28);
+}
+.btn-primary:hover { box-shadow:0 6px 22px rgba(79,142,247,.45); transform:translateY(-1px); }
+.btn-ghost { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+.btn-ghost:hover { background:var(--surface3); }
+.btn-danger { background:rgba(239,68,68,.15); color:#f87171; border:1px solid rgba(239,68,68,.25); }
+.btn-danger:hover { background:rgba(239,68,68,.25); }
+.btn-sm { padding:7px 13px; font-size:13px; }
+.btn-xs { padding:5px 10px; font-size:12px; border-radius:7px; }
+
+/* ── Login ── */
+.login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.login-card {
+  width:100%; max-width:390px; padding:44px 36px;
+  background:rgba(12,18,36,.85); backdrop-filter:blur(40px);
+  border:1px solid rgba(255,255,255,.1); border-radius:22px;
+  box-shadow:0 24px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(79,142,247,.08);
+  animation:fadeUp .45s ease;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.login-logo { text-align:center; margin-bottom:32px; }
+.logo-icon {
+  width:62px; height:62px; margin:0 auto 14px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  border-radius:17px; display:flex; align-items:center; justify-content:center;
+  font-size:26px; box-shadow:0 8px 26px rgba(79,142,247,.38);
+}
+.login-logo h1 { font-size:24px; font-weight:800; }
+.login-logo p { font-size:13px; color:var(--text2); margin-top:3px; }
+.form-group { margin-bottom:18px; }
+.form-group label { display:block; font-size:12px; font-weight:700; color:var(--text2); margin-bottom:7px; letter-spacing:.04em; text-transform:uppercase; }
+.form-group input {
+  width:100%; padding:11px 14px;
+  background:rgba(255,255,255,.05); border:1px solid var(--border);
+  border-radius:9px; color:var(--text); font-family:'Heebo',sans-serif; font-size:15px;
+  outline:none; transition:border-color .18s, box-shadow .18s; direction:rtl;
+}
+.form-group input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,142,247,.13); }
+.form-group input::placeholder { color:var(--text3); }
+.login-error {
+  background:rgba(239,68,68,.13); border:1px solid rgba(239,68,68,.25);
+  color:#f87171; padding:9px 13px; border-radius:8px; font-size:13px;
+  margin-bottom:14px; text-align:center;
+}
+.login-hint {
+  margin-top:18px; padding:13px; background:rgba(255,255,255,.03);
+  border:1px solid var(--border); border-radius:9px;
+  font-size:12px; color:var(--text2); text-align:center; line-height:2;
+}
+
+/* ── Layout ── */
+.app-layout { display:flex; min-height:100vh; }
+.sidebar {
+  width:230px; min-height:100vh; padding:22px 14px;
+  background:rgba(8,12,24,.82); border-left:1px solid var(--border);
+  display:flex; flex-direction:column; gap:4px;
+  position:fixed; right:0; top:0; bottom:0;
+  backdrop-filter:blur(24px); z-index:100;
+}
+.sidebar-logo { padding:10px 10px 20px; border-bottom:1px solid var(--border); margin-bottom:6px; }
+.sidebar-logo h2 { font-size:17px; font-weight:800; }
+.sidebar-logo p { font-size:11px; color:var(--text2); margin-top:2px; }
+.nav-item {
+  display:flex; align-items:center; gap:9px;
+  padding:9px 11px; border-radius:9px; cursor:pointer;
+  color:var(--text2); font-size:13.5px; font-weight:500;
+  transition:all .15s; border:1px solid transparent;
+}
+.nav-item:hover { background:var(--surface2); color:var(--text); }
+.nav-item.active { background:rgba(79,142,247,.13); color:var(--accent); border-color:rgba(79,142,247,.18); }
+.nav-icon { font-size:17px; width:22px; text-align:center; }
+.nav-sep { height:1px; background:var(--border); margin:6px 0; }
+.sidebar-bottom { margin-top:auto; }
+.user-chip {
+  display:flex; align-items:center; gap:9px;
+  padding:11px; background:var(--surface2); border-radius:11px; border:1px solid var(--border);
+}
+.avatar {
+  width:34px; height:34px; border-radius:9px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:700; color:#fff; flex-shrink:0;
+}
+.user-chip-name { font-size:13.5px; font-weight:600; }
+.user-chip-role { font-size:11px; color:var(--text2); }
+.main-content { flex:1; margin-right:230px; padding:28px 30px; min-height:100vh; }
+
+/* ── Page Header ── */
+.page-header { margin-bottom:24px; }
+.page-header h1 { font-size:26px; font-weight:800; }
+.page-header p { font-size:13px; color:var(--text2); margin-top:3px; }
+
+/* ── Clock Card ── */
+.clock-card {
+  padding:28px; margin-bottom:22px;
+  background:linear-gradient(135deg,rgba(79,142,247,.12),rgba(124,92,191,.12));
+  border:1px solid rgba(79,142,247,.22); border-radius:18px;
+}
+.clock-display { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:18px; }
+.clock-time { font-size:50px; font-weight:900; color:var(--text); letter-spacing:-2px; line-height:1; }
+.clock-date { font-size:14px; color:var(--text2); margin-top:5px; }
+.clock-hebrew { font-size:13px; color:var(--accent); margin-top:2px; }
+.clock-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.btn-clock {
+  padding:13px 26px; border-radius:13px; border:none; cursor:pointer;
+  font-family:'Heebo',sans-serif; font-size:15px; font-weight:700;
+  transition:all .2s;
+}
+.btn-clock-in {
+  background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff;
+  box-shadow:0 4px 18px rgba(34,197,94,.32);
+}
+.btn-clock-in:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(34,197,94,.48); }
+.btn-clock-out {
+  background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff;
+  box-shadow:0 4px 18px rgba(239,68,68,.32);
+}
+.btn-clock-out:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(239,68,68,.48); }
+.clock-status {
+  display:inline-flex; align-items:center; gap:7px;
+  padding:7px 14px; border-radius:18px; font-size:13px; font-weight:600;
+}
+.status-in { background:rgba(34,197,94,.13); color:#4ade80; border:1px solid rgba(34,197,94,.22); }
+.status-out { background:rgba(100,116,139,.13); color:var(--text2); border:1px solid var(--border); }
+.dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dot-green { background:#4ade80; box-shadow:0 0 5px #4ade80; animation:blink 2s infinite; }
+.dot-grey { background:var(--text3); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* ── Section ── */
+.section { margin-bottom:24px; }
+.section-title { font-size:11px; font-weight:700; color:var(--text2); margin-bottom:12px; text-transform:uppercase; letter-spacing:.07em; }
+
+/* ── Calendar ── */
+.calendar-wrap { border-radius:18px; overflow:hidden; }
+.calendar-inner { padding:18px; }
+.cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+.cal-nav { display:flex; align-items:center; gap:10px; }
+.cal-nav-btn {
+  width:34px; height:34px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text); cursor:pointer; font-size:15px;
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.cal-nav-btn:hover { background:var(--surface3); }
+.cal-month-title { font-size:22px; font-weight:800; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-day-header { text-align:center; padding:10px 2px; font-size:15px; font-weight:700; color:var(--text3); letter-spacing:.04em; }
+.cal-cell {
+  position:relative; min-height:100px; padding:8px;
+  border-radius:10px; cursor:pointer;
+  background:var(--surface); border:1px solid transparent;
+  transition:all .13s;
+}
+.cal-cell:hover:not(.other) { background:var(--surface2); border-color:var(--border); }
+.cal-cell.other { opacity:.25; cursor:default; pointer-events:none; }
+.cal-cell.today { background:rgba(79,142,247,.1); border-color:rgba(79,142,247,.35); }
+.cal-cell.sabat { background:rgba(250,204,21,.03); }
+.cal-cell-top { display:flex; justify-content:space-between; align-items:flex-start; }
+.cal-num { font-size:20px; font-weight:700; }
+.cal-cell.today .cal-num { color:var(--accent); }
+.cal-heb { font-size:13px; color:var(--text3); margin-top:2px; }
+.shift-pill {
+  font-size:12px; font-weight:700; padding:3px 7px; border-radius:5px; margin-top:5px;
+  display:inline-block; letter-spacing:.02em;
+}
+.pill-morning { background:rgba(59,130,246,.22); color:#93c5fd; }
+.pill-evening { background:rgba(249,115,22,.22); color:#fdba74; }
+.pill-double  { background:rgba(168,85,247,.22); color:#d8b4fe; }
+.pill-vacation{ background:rgba(34,197,94,.22);  color:#86efac; }
+.pill-field   { background:rgba(20,184,166,.22); color:#5eead4; }
+.pill-other   { background:rgba(148,163,184,.15);color:#94a3b8; }
+.holiday-dot  { width:7px; height:7px; border-radius:50%; background:#ef4444; flex-shrink:0; margin-top:6px; }
+.hol-label    { font-size:11px; color:#fca5a5; font-weight:600; display:block; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.sabat-label  { font-size:11px; color:#fde68a; display:block; }
+.cell-note    { font-size:11px; color:var(--text2); margin-top:3px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+
+/* ── Modal ── */
+.overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.62);
+  display:flex; align-items:center; justify-content:center; z-index:1000; padding:18px;
+  animation:fadeIn .18s;
+}
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.modal {
+  width:100%; max-width:470px; background:#0c1225;
+  border:1px solid rgba(255,255,255,.13); border-radius:18px;
+  box-shadow:0 24px 80px rgba(0,0,0,.7); animation:slideUp .22s ease; overflow:hidden;
+}
+@keyframes slideUp { from{transform:translateY(18px);opacity:0} to{transform:translateY(0);opacity:1} }
+.modal-head {
+  padding:20px 22px 16px; border-bottom:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:flex-start;
+}
+.modal-head h3 { font-size:17px; font-weight:700; }
+.modal-head-sub { font-size:12px; color:var(--text2); margin-top:2px; }
+.modal-close {
+  width:30px; height:30px; border-radius:7px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--text2); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0;
+}
+.modal-body { padding:18px 22px 22px; }
+.shift-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:14px; }
+.shift-opt {
+  padding:11px 8px; border-radius:9px; cursor:pointer; text-align:center;
+  border:2px solid transparent; transition:all .13s; font-size:13px; font-weight:600;
+}
+.shift-opt:hover { filter:brightness(1.15); transform:translateY(-1px); }
+.shift-opt.sel { border-color:rgba(255,255,255,.6); }
+.opt-m { background:rgba(59,130,246,.14); color:#93c5fd; }
+.opt-e { background:rgba(249,115,22,.14); color:#fdba74; }
+.opt-d { background:rgba(168,85,247,.14); color:#d8b4fe; }
+.opt-v { background:rgba(34,197,94,.14);  color:#86efac; }
+.opt-f { background:rgba(20,184,166,.14); color:#5eead4; }
+.opt-x { background:rgba(100,116,139,.1); color:var(--text2); grid-column:1/-1; }
+.note-area {
+  width:100%; padding:9px 12px; background:var(--surface2);
+  border:1px solid var(--border); border-radius:9px; color:var(--text);
+  font-family:'Heebo',sans-serif; font-size:13.5px; outline:none;
+  transition:border-color .18s; direction:rtl; resize:vertical; min-height:66px;
+}
+.note-area:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(79,142,247,.1); }
+.note-area::placeholder { color:var(--text3); }
+.modal-foot { display:flex; gap:7px; justify-content:flex-end; margin-top:14px; }
+
+/* ── Stats ── */
+.stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; margin-bottom:22px; }
+.stat-card { padding:18px 14px; border-radius:13px; }
+.stat-val { font-size:30px; font-weight:900; line-height:1; }
+.stat-lbl { font-size:11px; color:var(--text2); margin-top:5px; font-weight:500; }
+
+/* ── Log List ── */
+.log-list { display:flex; flex-direction:column; gap:6px; }
+.log-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px; border-radius:9px;
+  background:var(--surface2); border:1px solid var(--border);
+}
+.log-badge { font-size:11px; font-weight:700; padding:3px 8px; border-radius:5px; }
+.badge-in  { background:rgba(34,197,94,.18); color:#4ade80; }
+.badge-out { background:rgba(239,68,68,.18); color:#f87171; }
+.log-time  { font-size:14px; font-weight:600; }
+.log-extra { font-size:12px; color:var(--text2); margin-right:auto; }
+
+/* ── Profile Card ── */
+.profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+.profile-row { display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:9px; background:var(--surface); border:1px solid var(--border); }
+.profile-row.full { grid-column:1/-1; }
+.profile-label { font-size:10px; font-weight:700; color:var(--text3); letter-spacing:.05em; text-transform:uppercase; }
+.profile-val { font-size:14px; font-weight:500; color:var(--text); }
+.profile-val a { color:var(--accent); text-decoration:none; }
+.profile-val a:hover { text-decoration:underline; }
+
+/* ── Employee Cards ── */
+.emp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:14px; }
+.emp-card {
+  padding:18px; border-radius:14px; cursor:pointer; transition:all .18s;
+  background:var(--surface); border:1px solid var(--border);
+}
+.emp-card:hover { background:var(--surface2); transform:translateY(-2px); box-shadow:0 10px 30px rgba(0,0,0,.35); }
+.emp-card-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.emp-name { font-size:16px; font-weight:700; }
+.emp-sub { font-size:12px; color:var(--text2); margin-top:1px; }
+.week-row { display:flex; gap:3px; }
+.week-cell {
+  flex:1; text-align:center; padding:5px 1px; border-radius:5px;
+  font-size:10px; font-weight:600; background:var(--surface2);
+  border:1px solid var(--border); color:var(--text3);
+}
+
+/* ── Tabs ── */
+.tab-bar { display:flex; gap:3px; padding:3px; background:var(--surface); border:1px solid var(--border); border-radius:11px; margin-bottom:22px; width:fit-content; }
+.tab-btn { padding:7px 16px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; color:var(--text2); transition:all .13s; }
+.tab-btn.act { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+.tab-btn:hover:not(.act) { color:var(--text); }
+
+/* ── Back ── */
+.back-row { display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text2); font-size:13px; margin-bottom:18px; width:fit-content; }
+.back-row:hover { color:var(--text); }
+
+/* ── Admin Mgmt ── */
+.mgmt-form { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.mgmt-form input {
+  padding:9px 13px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:9px; color:var(--text); font-family:'Heebo',sans-serif; font-size:13.5px;
+  outline:none; direction:rtl;
+}
+.mgmt-form input:focus { border-color:var(--accent); }
+.mgmt-form input::placeholder { color:var(--text3); }
+
+/* ── Spinner ── */
+.spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Mobile Bottom Nav ── */
+.mobile-nav {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0; z-index:200;
+  background:rgba(8,12,24,.95); backdrop-filter:blur(20px);
+  border-top:1px solid var(--border);
+  padding:6px 8px 10px; /* extra bottom for safe area */
+  padding-bottom:max(10px, env(safe-area-inset-bottom));
+}
+.mobile-nav-inner {
+  display:flex; justify-content:space-around; align-items:center; gap:2px;
+}
+.mobile-nav-btn {
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:6px 10px; border-radius:10px; cursor:pointer;
+  color:var(--text3); font-size:10px; font-weight:600; transition:all .15s;
+  border:none; background:none; font-family:'Heebo',sans-serif;
+}
+.mobile-nav-btn.active { color:var(--accent); background:rgba(79,142,247,.1); }
+.mobile-nav-btn .m-icon { font-size:20px; }
+
+/* ── Responsive ── */
+@media(max-width:720px){
+  .sidebar{width:190px;}
+  .main-content{margin-right:190px; padding:18px 14px;}
+  .clock-time{font-size:38px;}
+  .cal-cell{min-height:80px;}
+  .cal-num{font-size:16px;}
+  .cal-heb{font-size:11px;}
+  .shift-pill{font-size:10px;}
+  .hol-label{font-size:9px;}
+  .sabat-label{font-size:9px;}
+  .cell-note{font-size:9px;}
+}
+@media(max-width:560px){
+  .sidebar{display:none;}
+  .main-content{margin-right:0; padding:16px 12px 90px 12px;}
+  .mobile-nav{display:block;}
+  .page-header h1{font-size:22px;}
+  .clock-time{font-size:34px;}
+  .cal-cell{min-height:64px; padding:4px;}
+  .cal-num{font-size:15px;}
+  .cal-heb{font-size:10px;}
+  .cal-day-header{font-size:13px; padding:6px 2px;}
+  .shift-pill{font-size:9px; padding:2px 4px;}
+  .hol-label{font-size:8px;}
+  .cell-note{font-size:8px;}
+  .cal-month-title{font-size:18px;}
+  .emp-grid{grid-template-columns:1fr;}
+  .profile-grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:repeat(3,1fr);}
+  .tab-bar{flex-wrap:wrap;}
+}
+
+.fade-in { animation:fadeUp .35s ease; }
+
+/* ── Attendance Table ── */
+.att-wrap { overflow-x:auto; border-radius:var(--r); }
+.att-table { width:100%; border-collapse:collapse; min-width:620px; }
+.att-table thead th {
+  padding:11px 8px; background:var(--surface2);
+  border-bottom:2px solid var(--border2);
+  font-size:12px; font-weight:600; color:var(--text2);
+  white-space:nowrap; text-align:center;
+}
+.att-table thead th.att-name-col { text-align:right; padding-right:14px; min-width:140px; }
+.att-table td {
+  padding:7px 6px; border-bottom:1px solid var(--border);
+  text-align:center; vertical-align:middle;
+}
+.att-table td.att-name-col { text-align:right; padding-right:14px; font-weight:600; font-size:13px; }
+.att-table tbody tr:hover td { background:var(--surface); }
+.att-table th.today-col, .att-table td.today-col { background:rgba(79,142,247,.07); }
+.att-cell { display:flex; flex-direction:column; align-items:center; gap:2px; padding:2px 0; }
+.att-in  { color:#4ade80; font-size:11px; font-weight:500; }
+.att-out { color:#f87171; font-size:11px; font-weight:500; }
+.att-dur { color:var(--accent); font-size:13px; font-weight:700; margin-top:1px; }
+.att-total { color:#fbbf24; font-weight:700; font-size:14px; }
+</style>
+</head>
+<body>
+<div id="app"><div style="display:flex;align-items:center;justify-content:center;height:100vh;"><div class="spinner"></div></div></div>
+
+<script type="module">
+import { createElement as h, useState, useEffect, useCallback, useRef, Fragment } from 'https://esm.sh/react@18';
+import { createRoot } from 'https://esm.sh/react-dom@18/client';
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+// When deployed inside OpsHub, nginx serves TimeTable under /timetable/ and
+// reverse-proxies to this container. The Express app inside the container still
+// sees plain /api/... paths (the prefix is stripped by `proxy_pass .../;`), but
+// the browser must address everything via /timetable/api/... otherwise calls
+// would land on OpsHub's own /api/. Hard-code the base here in the vendored
+// copy — the upstream repo at /Users/sh.azulay/crm/TimeTable still uses '' so
+// it keeps working when run standalone.
+const API_BASE = '/timetable';
+const api = {
+  async post(url, body) {
+    const r = await fetch(API_BASE + url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||'שגיאה'); }
+    return r.json();
+  },
+  async get(url) {
+    const r = await fetch(API_BASE + url);
+    if (!r.ok) throw new Error('שגיאה');
+    return r.json();
+  },
+  async del(url, body) {
+    const r = await fetch(API_BASE + url, { method:'DELETE', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!r.ok) throw new Error('שגיאה');
+    return r.json();
+  },
+  async put(url, body) {
+    const r = await fetch(API_BASE + url, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!r.ok) throw new Error('שגיאה');
+    return r.json();
+  },
+};
+
+// ─── Hebrew Calendar ──────────────────────────────────────────────────────────
+const HEB_NUMS = ['','א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ז׳','ח׳','ט׳','י׳','י״א','י״ב','י״ג','י״ד','ט״ו','ט״ז','י״ז','י״ח','י״ט','כ׳','כ״א','כ״ב','כ״ג','כ״ד','כ״ה','כ״ו','כ״ז','כ״ח','כ״ט','ל׳'];
+const MONTHS_HE_NL = ['תשרי','חשון','כסלו','טבת','שבט','אדר','ניסן','אייר','סיון','תמוז','אב','אלול'];
+const MONTHS_HE_L  = ['תשרי','חשון','כסלו','טבת','שבט','אדר א׳','אדר ב׳','ניסן','אייר','סיון','תמוז','אב','אלול'];
+
+function isLeapH(y){ return [3,6,8,11,14,17,19].includes(y%19); }
+function elapsed(y){
+  const m=Math.floor((235*y-234)/19), parts=12084+13753*m;
+  let d=m*29+Math.floor(parts/25920);
+  if((3*(d+1))%7<3) d++;
+  return d;
+}
+function newYear(y){
+  const e=elapsed(y),e1=elapsed(y+1),e0=elapsed(y-1);
+  let r=e+347997;
+  if(e1-e===356) r+=2;
+  if(e-e0===382) r++;
+  return r;
+}
+function toHebrew(gy,gm,gd){
+  const jd=367*gy-Math.floor(7*(gy+Math.floor((gm+9)/12))/4)+Math.floor(275*gm/9)+gd+1721013;
+  let y=Math.floor((jd-347997)/365.25)+1;
+  while(newYear(y+1)<=jd) y++;
+  while(newYear(y)>jd) y--;
+  const leap=isLeapH(y);
+  const mLens=leap?[30,29,30,29,30,30,29,30,29,30,29,30,29]:[30,29,30,29,30,29,30,29,30,29,30,29];
+  // adjust cheshvan/kislev
+  const yearLen=newYear(y+1)-newYear(y);
+  if(yearLen===355||yearLen===385) mLens[1]=30;
+  if(yearLen===353||yearLen===383) mLens[2]=29;
+  let day=jd-newYear(y)+1, m=0;
+  while(day>mLens[m]){day-=mLens[m];m++;}
+  return {y,m:m+1,d:day,leap};
+}
+function hebDateStr(gy,gm,gd){
+  try{
+    const {y,m,d,leap}=toHebrew(gy,gm,gd);
+    const mn=(leap?MONTHS_HE_L:MONTHS_HE_NL)[m-1];
+    const yh=hebrewYearStr(y);
+    return `${HEB_NUMS[d]} ${mn} ${yh}`;
+  }catch{return '';}
+}
+function hebShort(gy,gm,gd){
+  try{ const {d}=toHebrew(gy,gm,gd); return HEB_NUMS[d]||''; }catch{return '';}
+}
+function hebrewYearStr(n){
+  const h=n%1000;
+  const H=['','ק','ר','ש','ת'],T=['','','כ','ל','מ','נ','ס','ע','פ','צ'],O=['','א','ב','ג','ד','ה','ו','ז','ח','ט'];
+  let s=(H[Math.floor(h/100)]||'')+(T[Math.floor((h%100)/10)]||'')+(O[h%10]||'');
+  if(s.length>1) s=s.slice(0,-1)+'״'+s.slice(-1); else s+='׳';
+  return s;
+}
+function getHolidays(gy,gm,gd){
+  try{
+    const {y,m,d,leap}=toHebrew(gy,gm,gd);
+    const NIS=leap?8:7, ADAR=leap?7:6;
+    const h=[];
+    if(m===1&&d===1) h.push('ראש השנה א׳');
+    if(m===1&&d===2) h.push('ראש השנה ב׳');
+    if(m===1&&d===10) h.push('יום כיפור');
+    if(m===1&&d===15) h.push('סוכות');
+    if(m===1&&d===21) h.push('הושענא רבה');
+    if(m===1&&d===22) h.push('שמחת תורה');
+    if(m===3&&d>=25) h.push('חנוכה');
+    if(m===4&&d<=3)  h.push('חנוכה');
+    if(m===ADAR&&d===14) h.push('פורים');
+    if(m===NIS&&d===15) h.push('פסח');
+    if(m===NIS&&d===16) h.push('פסח ב׳');
+    if(m===NIS&&d===21) h.push('פסח (ז׳)');
+    if(m===NIS&&d===22) h.push('פסח (ח׳)');
+    if(m===NIS&&d===27) h.push('יום הזיכרון');
+    if(m===NIS&&d===28) h.push('יום העצמאות');
+    if(m===(leap?9:8)&&d===6) h.push('שבועות');
+    if(m===(leap?12:11)&&d===9) h.push('תשעה באב');
+    return h;
+  }catch{return [];}
+}
+
+const DAY_NAMES=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const MONTHS_GR=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const SHIFT_LABELS={morning:'בוקר',evening:'ערב',double:'כפולה',vacation:'חופש',field:'יום שטח',other:'אחר'};
+const SHIFT_PILL={morning:'pill-morning',evening:'pill-evening',double:'pill-double',vacation:'pill-vacation',field:'pill-field',other:'pill-other'};
+
+function dateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+// Server stores SQLite localtime as "YYYY-MM-DD HH:MM:SS" (no TZ). Extract parts
+// directly so the browser doesn't re-interpret the string as UTC and shift hours.
+function fmtTime(ts){
+  if(!ts) return '';
+  const m=/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/.exec(ts);
+  if(m) return `${m[2]}:${m[3]}`;
+  const d=new Date(ts);
+  return isNaN(d)?'':d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDate(ts){
+  if(!ts) return '';
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(ts);
+  if(m) return `${m[3]}/${m[2]}/${m[1].slice(2)}`;
+  const d=new Date(ts);
+  return isNaN(d)?'':d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'});
+}
+
+// ─── DayModal ─────────────────────────────────────────────────────────────────
+function DayModal({day, userId, onClose, onSaved, addedBy}){
+  const [existing, setExisting] = useState(null);
+  const [shift, setShift] = useState('');
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(()=>{
+    api.get(`/api/schedule/${userId}`).then(rows=>{
+      const e = rows.find(r=>r.date===day.ds);
+      if(e){ setShift(e.shift_type); setNote(e.note||''); }
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  },[]);
+
+  const hols = getHolidays(day.y,day.m,day.d);
+
+  const save = async()=>{
+    setSaving(true);
+    try{
+      if(shift || note.trim()){
+        await api.post('/api/schedule',{userId,date:day.ds,shiftType:shift||'',note,addedBy:addedBy||''});
+      } else {
+        await api.del('/api/schedule',{userId,date:day.ds});
+      }
+      onSaved(); onClose();
+    }catch(e){ alert(e.message); setSaving(false); }
+  };
+
+  const opts=[
+    {id:'morning',label:'☀️ בוקר',cls:'opt-m'},
+    {id:'evening',label:'🌙 ערב',cls:'opt-e'},
+    {id:'double', label:'⚡ כפולה',cls:'opt-d'},
+    {id:'vacation',label:'🏖 חופש',cls:'opt-v'},
+    {id:'field',  label:'🌿 יום שטח',cls:'opt-f'},
+  ];
+
+  return h('div',{className:'overlay',onClick:e=>{if(e.target===e.currentTarget)onClose();}},
+    h('div',{className:'modal'},
+      h('div',{className:'modal-head'},
+        h('div',null,
+          h('h3',null,`${day.d}/${day.m}/${day.y}`),
+          h('div',{className:'modal-head-sub'},hebDateStr(day.y,day.m,day.d)),
+          hols.length>0 && h('div',{style:{fontSize:'12px',color:'#fca5a5',marginTop:'2px'}},hols.join(' · ')),
+        ),
+        h('button',{className:'modal-close',onClick:onClose},'×')
+      ),
+      h('div',{className:'modal-body'},
+        loading ? h('div',{style:{textAlign:'center',padding:'20px'}},h('div',{className:'spinner'})) :
+        h(Fragment,null,
+          h('div',{className:'section-title'},'משמרת'),
+          h('div',{className:'shift-grid'},
+            opts.map(o=>h('div',{key:o.id,className:`shift-opt ${o.cls}${shift===o.id?' sel':''}`,onClick:()=>setShift(shift===o.id?'':o.id)},o.label)),
+            h('div',{className:'shift-opt opt-x',onClick:()=>{setShift('');setNote('');}}, '🗑 נקה')
+          ),
+          h('div',{className:'section-title'},'הערה'),
+          h('textarea',{className:'note-area',placeholder:'הוסף הערה חופשית...',value:note,onChange:e=>setNote(e.target.value)}),
+          h('div',{className:'modal-foot'},
+            h('button',{className:'btn btn-ghost',onClick:onClose},'ביטול'),
+            h('button',{className:'btn btn-primary',onClick:save,disabled:saving},saving?h('div',{className:'spinner'}):'שמור')
+          )
+        )
+      )
+    )
+  );
+}
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+function Calendar({userId, readOnly=false, adminName=null, addedBy=null}){
+  const today = new Date();
+  const [vy,setVy]=useState(today.getFullYear());
+  const [vm,setVm]=useState(today.getMonth()+1);
+  const [selDay,setSelDay]=useState(null);
+  const [schedule,setSchedule]=useState([]);
+  const [ver,setVer]=useState(0);
+
+  useEffect(()=>{
+    api.get(`/api/schedule/${userId}`).then(setSchedule).catch(()=>{});
+  },[userId,ver]);
+
+  const firstDow = new Date(vy,vm-1,1).getDay();
+  const daysInM  = new Date(vy,vm,0).getDate();
+  const prevDays = new Date(vy,vm-1,0).getDate();
+  const cells=[];
+  for(let i=0;i<firstDow;i++) cells.push({d:prevDays-firstDow+1+i, m:vm===1?12:vm-1, y:vm===1?vy-1:vy, other:true});
+  for(let d=1;d<=daysInM;d++) cells.push({d,m:vm,y:vy,other:false});
+  while(cells.length<42) { const n=cells.length-firstDow-daysInM+1; cells.push({d:n,m:vm===12?1:vm+1,y:vm===12?vy+1:vy,other:true}); }
+
+  const byDate={};
+  schedule.forEach(s=>{ byDate[s.date]=s; });
+
+  const prev=()=>{ if(vm===1){setVm(12);setVy(y=>y-1);}else setVm(m=>m-1); };
+  const next=()=>{ if(vm===12){setVm(1);setVy(y=>y+1);}else setVm(m=>m+1); };
+
+  return h('div',{className:'calendar-wrap glass'},
+    h('div',{className:'calendar-inner'},
+      h('div',{className:'cal-header'},
+        h('div',{className:'cal-nav'},
+          h('button',{className:'cal-nav-btn',onClick:prev},'›'),
+          h('div',{className:'cal-month-title'},`${MONTHS_GR[vm-1]} ${vy}`),
+          h('button',{className:'cal-nav-btn',onClick:next},'‹'),
+        ),
+        h('div',{style:{display:'flex',gap:'8px',alignItems:'center'}},
+          adminName && h('div',{style:{fontSize:'13px',color:'var(--text2)'}},`עורך: ${adminName}`),
+          h('button',{className:'btn btn-ghost btn-xs',onClick:()=>{setVy(today.getFullYear());setVm(today.getMonth()+1);}},'היום')
+        )
+      ),
+      h('div',{className:'cal-grid'},
+        DAY_NAMES.map((d,i)=>h('div',{key:i,className:'cal-day-header'},d)),
+        cells.map((c,i)=>{
+          const ds=`${c.y}-${String(c.m).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
+          const isToday=!c.other&&c.d===today.getDate()&&c.m===today.getMonth()+1&&c.y===today.getFullYear();
+          const isSabat=new Date(c.y,c.m-1,c.d).getDay()===6;
+          const entry=byDate[ds];
+          const hols=c.other?[]:getHolidays(c.y,c.m,c.d);
+          const hShort=c.other?'':hebShort(c.y,c.m,c.d);
+          return h('div',{
+            key:i,
+            className:`cal-cell${c.other?' other':''}${isToday?' today':''}${isSabat&&!c.other?' sabat':''}`,
+            onClick:()=>{ if(!c.other && !readOnly) setSelDay({...c,ds}); }
+          },
+            h('div',{className:'cal-cell-top'},
+              h('div',null,
+                h('div',{className:'cal-num'},c.d),
+                h('div',{className:'cal-heb'},hShort),
+              ),
+              hols.length>0 && h('div',{className:'holiday-dot'}),
+            ),
+            isSabat && !c.other && h('span',{className:'sabat-label'},'שבת'),
+            hols.slice(0,1).map((hl,j)=>h('span',{key:j,className:'hol-label'},hl)),
+            entry && entry.shift_type && h('div',{className:`shift-pill ${SHIFT_PILL[entry.shift_type]}`},SHIFT_LABELS[entry.shift_type]),
+            entry?.note && h('div',{className:'cell-note',style:!entry.shift_type?{color:'#fbbf24',fontWeight:'600'}:{}},entry.note),
+            entry?.added_by && h('div',{style:{fontSize:'9px',color:'#f472b6',marginTop:'2px',fontWeight:'600'}},`✎ ${entry.added_by}`),
+          );
+        })
+      )
+    ),
+    selDay && h(DayModal,{day:selDay,userId,addedBy:addedBy||'',onClose:()=>setSelDay(null),onSaved:()=>setVer(v=>v+1)})
+  );
+}
+
+// ─── Clock Panel ──────────────────────────────────────────────────────────────
+function ClockPanel({user}){
+  const [now,setNow]=useState(new Date());
+  const [clockedIn,setClockedIn]=useState(null);
+  const [events,setEvents]=useState([]);
+  const [busy,setBusy]=useState(false);
+
+  useEffect(()=>{ const t=setInterval(()=>setNow(new Date()),1000); return()=>clearInterval(t); },[]);
+  useEffect(()=>{
+    api.get(`/api/clock/${user.id}/last`).then(r=>setClockedIn(r.type==='in')).catch(()=>setClockedIn(false));
+    api.get(`/api/clock/${user.id}?limit=10`).then(setEvents).catch(()=>{});
+  },[user.id]);
+
+  const punch=async()=>{
+    setBusy(true);
+    try{
+      const type=clockedIn?'out':'in';
+      await api.post('/api/clock',{userId:user.id,type});
+      setClockedIn(!clockedIn);
+      api.get(`/api/clock/${user.id}?limit=10`).then(setEvents);
+    }catch(e){alert(e.message);}
+    setBusy(false);
+  };
+
+  const timeStr=now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const dateLabel=now.toLocaleDateString('he-IL',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  return h('div',{className:'section'},
+    h('div',{className:'clock-card'},
+      h('div',{className:'clock-display'},
+        h('div',null,
+          h('div',{className:'clock-time'},timeStr),
+          h('div',{className:'clock-date'},dateLabel),
+          h('div',{className:'clock-hebrew'},hebDateStr(now.getFullYear(),now.getMonth()+1,now.getDate())),
+        ),
+        h('div',{className:'clock-actions'},
+          clockedIn!==null && h('div',{className:`clock-status ${clockedIn?'status-in':'status-out'}`},
+            h('div',{className:`dot ${clockedIn?'dot-green':'dot-grey'}`}),
+            clockedIn?'נוכח':'לא נוכח'
+          ),
+          h('button',{
+            className:`btn-clock ${clockedIn?'btn-clock-out':'btn-clock-in'}`,
+            onClick:punch, disabled:busy||clockedIn===null,
+          }, busy?h('div',{className:'spinner'}):clockedIn?'⬛ יציאה':'▶ כניסה')
+        )
+      )
+    ),
+    events.length>0 && h('div',null,
+      h('div',{className:'section-title'},'היסטוריית נוכחות'),
+      h('div',{className:'log-list'},
+        events.map((e,i)=>h('div',{key:i,className:'log-item'},
+          h('span',{className:`log-badge ${e.type==='in'?'badge-in':'badge-out'}`},e.type==='in'?'כניסה':'יציאה'),
+          h('span',{className:'log-time'},fmtTime(e.timestamp)),
+          h('span',{className:'log-extra'},fmtDate(e.timestamp)),
+        ))
+      )
+    )
+  );
+}
+
+// ─── Summary ──────────────────────────────────────────────────────────────────
+function Summary({userId}){
+  const [schedule,setSchedule]=useState([]);
+  useEffect(()=>{ api.get(`/api/schedule/${userId}`).then(setSchedule).catch(()=>{}); },[userId]);
+  const now=new Date();
+  const thisMonth=schedule.filter(s=>{ const d=new Date(s.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); });
+  const cnt={morning:0,evening:0,double:0,vacation:0,field:0};
+  thisMonth.forEach(s=>{ if(cnt[s.shift_type]!==undefined) cnt[s.shift_type]++; });
+  const statCards=[
+    {v:cnt.morning,l:'☀️ בוקר',c:'rgba(59,130,246,.18)',vc:'#93c5fd'},
+    {v:cnt.evening,l:'🌙 ערב',c:'rgba(249,115,22,.18)',vc:'#fdba74'},
+    {v:cnt.double, l:'⚡ כפולה',c:'rgba(168,85,247,.18)',vc:'#d8b4fe'},
+    {v:cnt.vacation,l:'🏖 חופש',c:'rgba(34,197,94,.18)',vc:'#86efac'},
+    {v:cnt.field,  l:'🌿 שטח',c:'rgba(20,184,166,.18)',vc:'#5eead4'},
+  ];
+  return h('div',{className:'fade-in'},
+    h('div',{className:'section-title'},'חודש נוכחי'),
+    h('div',{className:'stats-row'},
+      statCards.map((s,i)=>h('div',{key:i,className:'stat-card glass',style:{borderColor:s.c.replace('.18','.4')}},
+        h('div',{className:'stat-val',style:{color:s.vc}},s.v),
+        h('div',{className:'stat-lbl'},s.l),
+      ))
+    ),
+    h('div',{className:'section-title',style:{marginTop:'4px'}},'כל הרשומות'),
+    schedule.length===0 && h('div',{style:{color:'var(--text2)',fontSize:'14px'}},'אין רשומות. לחץ על יום בלוח השנה.'),
+    h('div',{className:'log-list'},
+      [...schedule].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40).map((s,i)=>{
+        const d=new Date(s.date);
+        return h('div',{key:i,className:'log-item'},
+          h('span',{className:`shift-pill ${SHIFT_PILL[s.shift_type]}`},SHIFT_LABELS[s.shift_type]),
+          h('span',{className:'log-time'},d.toLocaleDateString('he-IL',{weekday:'short',day:'2-digit',month:'2-digit'})),
+          s.note && h('span',{className:'log-extra'},s.note),
+        );
+      })
+    )
+  );
+}
+
+// ─── User Page ────────────────────────────────────────────────────────────────
+// ─── Mobile Nav ───────────────────────────────────────────────────────────────
+function MobileNav({tabs, active, onSelect}){
+  return h('div',{className:'mobile-nav'},
+    h('div',{className:'mobile-nav-inner'},
+      tabs.map(t=>h('button',{key:t.id,className:`mobile-nav-btn${active===t.id?' active':''}`,onClick:()=>onSelect(t.id)},
+        h('span',{className:'m-icon'},t.icon),
+        t.label,
+      ))
+    )
+  );
+}
+
+function UserPage({user,onLogout}){
+  const [tab,setTab]=useState('clock');
+  const now=new Date();
+  const tabs=[
+    {id:'clock',icon:'🕐',label:'נוכחות'},
+    {id:'calendar',icon:'📅',label:'לוח שנה'},
+    {id:'summary',icon:'📊',label:'סיכום'},
+    {id:'logout',icon:'🚪',label:'יציאה'},
+  ];
+  const onTab=(id)=>{ if(id==='logout') onLogout(); else setTab(id); };
+  return h('div',{className:'app-layout'},
+    h('div',{className:'sidebar'},
+      h('div',{className:'sidebar-logo'},h('h2',null,'⏱ TimeTable'),h('p',null,'ניהול משמרות')),
+      tabs.filter(t=>t.id!=='logout').map(it=>h('div',{key:it.id,className:`nav-item${tab===it.id?' active':''}`,onClick:()=>setTab(it.id)},
+        h('span',{className:'nav-icon'},it.icon), it.label
+      )),
+      h('div',{className:'sidebar-bottom'},
+        h('div',{className:'user-chip'},
+          h('div',{className:'avatar'},user.name[0]),
+          h('div',null, h('div',{className:'user-chip-name'},user.name), h('div',{className:'user-chip-role'},'חבר צוות'))
+        ),
+        h('div',{className:'nav-item',style:{marginTop:'8px'},onClick:onLogout}, h('span',{className:'nav-icon'},'🚪'),'התנתק')
+      )
+    ),
+    h('div',{className:'main-content fade-in'},
+      h('div',{className:'page-header'},
+        h('h1',null,`שלום, ${user.name} 👋`),
+        h('p',null,hebDateStr(now.getFullYear(),now.getMonth()+1,now.getDate())),
+      ),
+      tab==='clock'    && h(ClockPanel,{user}),
+      tab==='calendar' && h(Calendar,{userId:user.id}),
+      tab==='summary'  && h(Summary,{userId:user.id}),
+    ),
+    h(MobileNav,{tabs,active:tab,onSelect:onTab}),
+  );
+}
+
+// ─── Employee Detail (Admin) ──────────────────────────────────────────────────
+function EmployeeDetail({emp, onBack}){
+  const [tab,setTab]=useState('profile');
+  const [events,setEvents]=useState([]);
+  const [profile,setProfile]=useState(emp);
+  useEffect(()=>{
+    api.get(`/api/clock/${emp.id}?limit=20`).then(setEvents).catch(()=>{});
+    api.get(`/api/users/${emp.id}`).then(setProfile).catch(()=>{});
+  },[emp.id]);
+
+  const P = (label,val,full) => val ? h('div',{className:`profile-row${full?' full':''}`},
+    h('div',{className:'profile-label'},label),
+    h('div',{className:'profile-val'},val)
+  ) : null;
+
+  const PLink = (label,val,href,full) => val ? h('div',{className:`profile-row${full?' full':''}`},
+    h('div',{className:'profile-label'},label),
+    h('div',{className:'profile-val'},h('a',{href,target:'_blank'},val))
+  ) : null;
+
+  return h('div',{className:'fade-in'},
+    h('div',{className:'back-row',onClick:onBack},'‹ חזרה לכל העובדים'),
+    h('div',{style:{display:'flex',alignItems:'center',gap:'14px',marginBottom:'22px'}},
+      h('div',{className:'avatar',style:{width:'56px',height:'56px',fontSize:'22px',borderRadius:'14px'}},profile.name?profile.name[0]:''),
+      h('div',null,
+        h('h2',{style:{fontSize:'22px',fontWeight:'800'}},profile.name),
+        h('div',{style:{display:'flex',gap:'8px',marginTop:'4px',flexWrap:'wrap'}},
+          profile.phone && h('span',{style:{fontSize:'13px',color:'var(--accent)'}},profile.phone),
+          profile.employment && h('span',{style:{fontSize:'12px',color:'var(--text2)',padding:'2px 8px',background:'var(--surface2)',borderRadius:'6px'}},profile.employment),
+        )
+      )
+    ),
+    h('div',{className:'tab-bar',style:{flexWrap:'wrap'}},
+      h('div',{className:`tab-btn${tab==='profile'?' act':''}`,onClick:()=>setTab('profile')},'👤 פרטים'),
+      h('div',{className:`tab-btn${tab==='calendar'?' act':''}`,onClick:()=>setTab('calendar')},'📅 לוח שנה'),
+      h('div',{className:`tab-btn${tab==='clock'?' act':''}`,onClick:()=>setTab('clock')},'🕐 נוכחות'),
+    ),
+    tab==='profile' && h('div',{className:'fade-in'},
+      h('div',{className:'profile-grid'},
+        P('שם מלא',profile.name,true),
+        P('תאריך לידה',profile.birth_date),
+        P('מספר אישי',profile.id_number),
+        P('כתובת',profile.address,true),
+        PLink('טלפון',profile.phone,`tel:${profile.phone}`),
+        PLink('אימייל',profile.email,`mailto:${profile.email}`),
+        P('רכב',profile.vehicle),
+        P('תעסוקה',profile.employment),
+        P('מצב משפחתי',profile.family_status,true),
+        P('איש קשר חירום',profile.emergency_name),
+        PLink('טלפון חירום',profile.emergency_phone,`tel:${profile.emergency_phone}`),
+        profile.notes && P('הערות',profile.notes,true),
+      )
+    ),
+    tab==='calendar' && h(Calendar,{userId:emp.id,adminName:'מנהל',addedBy:'מנהל'}),
+    tab==='clock' && h('div',{className:'fade-in'},
+      events.length===0 ? h('div',{style:{color:'var(--text2)',fontSize:'14px'}},'אין נתוני נוכחות') :
+      h('div',{className:'log-list'},
+        events.map((e,i)=>h('div',{key:i,className:'log-item'},
+          h('span',{className:`log-badge ${e.type==='in'?'badge-in':'badge-out'}`},e.type==='in'?'כניסה':'יציאה'),
+          h('span',{className:'log-time'},fmtTime(e.timestamp)),
+          h('span',{className:'log-extra'},fmtDate(e.timestamp)),
+        ))
+      )
+    )
+  );
+}
+
+// ─── Admin Management ─────────────────────────────────────────────────────────
+function AdminManage({onRefresh}){
+  const [users,setUsers]=useState([]);
+  const [showForm,setShowForm]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const emptyForm={name:'',password:'1234',birth_date:'',id_number:'',address:'',phone:'',email:'',vehicle:'',employment:'',family_status:'',emergency_name:'',emergency_phone:'',notes:''};
+  const [form,setForm]=useState(emptyForm);
+  const load=()=>{ api.get('/api/users').then(setUsers).catch(()=>{}); };
+  useEffect(()=>load(),[]);
+
+  const setF=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const addUser=async()=>{
+    if(!form.name||!form.password) return alert('שם וסיסמה חובה');
+    setBusy(true);
+    try{ await api.post('/api/users',form); setForm(emptyForm); setShowForm(false); load(); onRefresh(); }
+    catch(e){ alert(e.message); }
+    setBusy(false);
+  };
+  const delUser=async(id,name)=>{
+    if(!confirm(`מחוק את ${name}?`)) return;
+    await api.del(`/api/users/${id}`,{}); load(); onRefresh();
+  };
+
+  const field=(label,key,type,placeholder)=>h('div',{className:'form-group',style:{marginBottom:'10px'}},
+    h('label',{style:{fontSize:'11px',fontWeight:'700',color:'var(--text2)',marginBottom:'5px',display:'block'}},label),
+    h('input',{type:type||'text',placeholder:placeholder||label,value:form[key],onChange:e=>setF(key,e.target.value),
+      style:{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:'8px',color:'var(--text)',fontFamily:"'Heebo',sans-serif",fontSize:'13.5px',outline:'none',direction:'rtl'}})
+  );
+
+  return h('div',{className:'fade-in'},
+    h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}},
+      h('div',{className:'section-title',style:{margin:0}},'ניהול עובדים'),
+      h('button',{className:'btn btn-primary btn-sm',onClick:()=>setShowForm(!showForm)},showForm?'ביטול':'+ הוסף עובד'),
+    ),
+    showForm && h('div',{className:'glass2',style:{padding:'20px',marginBottom:'20px'},},
+      h('div',{style:{fontSize:'16px',fontWeight:'700',marginBottom:'14px'}},'עובד חדש'),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}},
+        field('שם מלא *','name'),
+        field('סיסמה *','password','password'),
+        field('תאריך לידה','birth_date','text','DD/MM/YYYY'),
+        field('מספר אישי','id_number'),
+        h('div',{style:{gridColumn:'1/-1'}},field('כתובת','address')),
+        field('טלפון נייד','phone','tel'),
+        field('אימייל','email','email'),
+        field('רכב','vehicle','text','רכב פרטי'),
+        field('תעסוקה','employment','text','שכיר / עצמאי'),
+        h('div',{style:{gridColumn:'1/-1'}},field('מצב משפחתי','family_status','text','נשוי + 2')),
+        field('איש קשר חירום','emergency_name'),
+        field('טלפון חירום','emergency_phone','tel'),
+        h('div',{style:{gridColumn:'1/-1'}},field('הערות','notes')),
+      ),
+      h('div',{style:{display:'flex',gap:'8px',justifyContent:'flex-end',marginTop:'14px'}},
+        h('button',{className:'btn btn-ghost',onClick:()=>{setShowForm(false);setForm(emptyForm);}},'ביטול'),
+        h('button',{className:'btn btn-primary',onClick:addUser,disabled:busy},busy?h('div',{className:'spinner'}):'שמור עובד'),
+      )
+    ),
+    h('div',{className:'section-title',style:{marginTop:'4px'}},'רשימת עובדים'),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:'7px'}},
+      users.map(u=>h('div',{key:u.id,className:'log-item',style:{flexWrap:'wrap'}},
+        h('div',{className:'avatar',style:{width:'32px',height:'32px',fontSize:'14px',borderRadius:'8px'}},u.name[0]),
+        h('div',{style:{flex:1,minWidth:'120px'}},
+          h('div',{className:'log-time'},u.name),
+          h('div',{style:{fontSize:'11px',color:'var(--text2)'}},u.phone||''),
+        ),
+        h('div',{style:{fontSize:'11px',color:'var(--text2)'}},u.employment||''),
+        h('button',{className:'btn btn-danger btn-xs',onClick:()=>delUser(u.id,u.name)},'מחק'),
+      ))
+    )
+  );
+}
+
+// ─── Admin Today ──────────────────────────────────────────────────────────────
+function AdminToday(){
+  const [rows,setRows]=useState([]);
+  useEffect(()=>{ const load=()=>api.get('/api/report/today').then(setRows).catch(()=>{}); load(); const t=setInterval(load,30000); return()=>clearInterval(t); },[]);
+  const now=new Date();
+  return h('div',{className:'fade-in'},
+    h('div',{className:'section-title'},`נוכחות היום – ${now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'})}`),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:'8px'}},
+      rows.map(r=>h('div',{key:r.id,className:'glass2',style:{padding:'14px',display:'flex',alignItems:'center',gap:'10px'}},
+        h('div',{className:'avatar'},r.name[0]),
+        h('div',{style:{flex:1}},
+          h('div',{style:{fontWeight:'700',fontSize:'15px'}},r.name),
+          r.shift_type && h('span',{className:`shift-pill ${SHIFT_PILL[r.shift_type]}`},SHIFT_LABELS[r.shift_type]),
+          r.note && h('div',{style:{fontSize:'12px',color:'var(--text2)',marginTop:'3px'}},r.note),
+        ),
+        h('div',null,
+          r.last_clock==='in'
+            ? h('div',{className:'clock-status status-in'},h('div',{className:'dot dot-green'}),'נוכח')
+            : h('div',{className:'clock-status status-out'},h('div',{className:'dot dot-grey'}),'לא נוכח')
+        )
+      ))
+    )
+  );
+}
+
+// ─── Admin Attendance ─────────────────────────────────────────────────────────
+function AdminAttendance(){
+  const [weekOffset,setWeekOffset]=useState(0);
+  const [events,setEvents]=useState([]);
+  const [users,setUsers]=useState([]);
+
+  const getWeekDates=(offset)=>{
+    const base=new Date();
+    base.setDate(base.getDate()-base.getDay()+offset*7);
+    const dates=[];
+    for(let i=0;i<7;i++){const d=new Date(base);d.setDate(base.getDate()+i);dates.push(dateStr(d));}
+    return dates;
+  };
+
+  const weekDates=getWeekDates(weekOffset);
+  const todayStr=dateStr(new Date());
+
+  useEffect(()=>{
+    api.get('/api/users').then(setUsers).catch(()=>{});
+    api.get(`/api/report/attendance?start=${weekDates[0]}&end=${weekDates[6]}`).then(setEvents).catch(()=>{});
+  },[weekOffset]);
+
+  // map: userId_date -> {inT, outT}
+  const map={};
+  for(const e of events){
+    const day=e.timestamp.slice(0,10);
+    const k=`${e.user_id}_${day}`;
+    if(!map[k]) map[k]={inT:null,outT:null};
+    if(e.type==='in'&&!map[k].inT) map[k].inT=e.timestamp.slice(11,16);
+    if(e.type==='out') map[k].outT=e.timestamp.slice(11,16);
+  }
+
+  const calcMins=(inT,outT)=>{
+    if(!inT||!outT) return 0;
+    const[ih,im]=inT.split(':').map(Number);
+    const[oh,om]=outT.split(':').map(Number);
+    return(oh*60+om)-(ih*60+im);
+  };
+
+  const fmtDur=(mins)=>{
+    if(!mins||mins<=0) return null;
+    return `${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`;
+  };
+
+  const DAY_HE=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+  const ws=new Date(weekDates[0]+'T12:00:00');
+  const we=new Date(weekDates[6]+'T12:00:00');
+  const weekLabel=`${ws.getDate()}/${ws.getMonth()+1} – ${we.getDate()}/${we.getMonth()+1}/${we.getFullYear()}`;
+
+  return h('div',{className:'fade-in'},
+    h('div',{className:'section-title'},'טבלת נוכחות שבועית'),
+    h('div',{style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'18px',flexWrap:'wrap'}},
+      h('button',{className:'btn btn-ghost btn-sm',onClick:()=>setWeekOffset(o=>o-1)},'◀ שבוע קודם'),
+      h('span',{style:{fontWeight:'600',fontSize:'15px',color:'var(--text)'}},weekLabel),
+      h('button',{className:'btn btn-ghost btn-sm',onClick:()=>setWeekOffset(o=>Math.min(0,o+1)),disabled:weekOffset===0},'שבוע הבא ▶'),
+      weekOffset!==0&&h('button',{className:'btn btn-primary btn-sm',onClick:()=>setWeekOffset(0)},'השבוע'),
+    ),
+    h('div',{className:'glass att-wrap'},
+      h('table',{className:'att-table'},
+        h('thead',null,
+          h('tr',null,
+            h('th',{className:'att-name-col'},'שם'),
+            ...weekDates.map((d,i)=>{
+              const dt=new Date(d+'T12:00:00');
+              return h('th',{key:d,className:d===todayStr?'today-col':''},
+                DAY_HE[i],' ',`${dt.getDate()}/${dt.getMonth()+1}`
+              );
+            }),
+            h('th',null,'סה״כ')
+          )
+        ),
+        h('tbody',null,
+          users.map(u=>{
+            let totalMins=0;
+            const cells=weekDates.map(d=>{
+              const k=`${u.id}_${d}`;
+              const entry=map[k];
+              if(!entry||(!entry.inT&&!entry.outT)){
+                return h('td',{key:d,className:d===todayStr?'today-col':''});
+              }
+              const mins=calcMins(entry.inT,entry.outT);
+              if(mins>0) totalMins+=mins;
+              return h('td',{key:d,className:d===todayStr?'today-col':''},
+                h('div',{className:'att-cell'},
+                  entry.inT&&h('div',{className:'att-in'},`▶ ${entry.inT}`),
+                  entry.outT&&h('div',{className:'att-out'},`◀ ${entry.outT}`),
+                  mins>0&&h('div',{className:'att-dur'},fmtDur(mins)),
+                )
+              );
+            });
+            return h('tr',{key:u.id},
+              h('td',{className:'att-name-col'},
+                h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},
+                  h('div',{className:'avatar',style:{width:'30px',height:'30px',fontSize:'12px',flexShrink:0}},u.name[0]),
+                  h('span',null,u.name)
+                )
+              ),
+              ...cells,
+              h('td',null,
+                totalMins>0
+                  ?h('span',{className:'att-total'},fmtDur(totalMins))
+                  :h('span',{style:{color:'var(--text3)'}},'-')
+              )
+            );
+          })
+        )
+      )
+    )
+  );
+}
+
+// ─── Admin Page ───────────────────────────────────────────────────────────────
+function AdminPage({admin,onLogout}){
+  const [tab,setTab]=useState('overview');
+  const [selEmp,setSelEmp]=useState(null);
+  const [users,setUsers]=useState([]);
+  const [ver,setVer]=useState(0);
+
+  const loadUsers=()=>{ api.get('/api/users').then(setUsers).catch(()=>{}); };
+  useEffect(()=>loadUsers(),[ver]);
+
+  // week dates
+  const now=new Date();
+  const weekDates=[];
+  for(let i=0;i<7;i++){ const d=new Date(now); d.setDate(d.getDate()-d.getDay()+i); weekDates.push(dateStr(d)); }
+
+  const [weekSchedule,setWeekSchedule]=useState([]);
+  useEffect(()=>{ api.get('/api/schedule').then(setWeekSchedule).catch(()=>{}); },[ver,tab]);
+
+  const nav=[
+    {id:'overview',icon:'👥',label:'עובדים'},
+    {id:'today',icon:'📍',label:'היום'},
+    {id:'attendance',icon:'📊',label:'נוכחות'},
+    {id:'manage',icon:'⚙️',label:'ניהול'},
+    {id:'logout',icon:'🚪',label:'יציאה'},
+  ];
+  const onTab=(id)=>{ if(id==='logout') onLogout(); else {setTab(id);setSelEmp(null);} };
+
+  if(selEmp){
+    return h('div',{className:'app-layout'},
+      h('div',{className:'sidebar'},
+        h('div',{className:'sidebar-logo'},h('h2',null,'⏱ TimeTable'),h('p',null,'ניהול משמרות')),
+        nav.map(it=>h('div',{key:it.id,className:`nav-item${tab===it.id?' active':''}`,onClick:()=>{setTab(it.id);setSelEmp(null);}},h('span',{className:'nav-icon'},it.icon),it.label)),
+        h('div',{className:'sidebar-bottom'},
+          h('div',{className:'user-chip'},
+            h('div',{className:'avatar',style:{background:'linear-gradient(135deg,#ef4444,#dc2626)'}},admin.name[0]),
+            h('div',null, h('div',{className:'user-chip-name'},admin.name), h('div',{className:'user-chip-role'},'מנהל'))
+          ),
+          h('div',{className:'nav-item',style:{marginTop:'8px'},onClick:onLogout},h('span',{className:'nav-icon'},'🚪'),'התנתק')
+        )
+      ),
+      h('div',{className:'main-content'},h(EmployeeDetail,{emp:selEmp,onBack:()=>setSelEmp(null)})),
+      h(MobileNav,{tabs:nav,active:tab,onSelect:onTab}),
+    );
+  }
+
+  return h('div',{className:'app-layout'},
+    h('div',{className:'sidebar'},
+      h('div',{className:'sidebar-logo'},h('h2',null,'⏱ TimeTable'),h('p',null,'ניהול משמרות')),
+      nav.map(it=>h('div',{key:it.id,className:`nav-item${tab===it.id?' active':''}`,onClick:()=>setTab(it.id)},h('span',{className:'nav-icon'},it.icon),it.label)),
+      h('div',{className:'sidebar-bottom'},
+        h('div',{className:'user-chip'},
+          h('div',{className:'avatar',style:{background:'linear-gradient(135deg,#ef4444,#dc2626)'}},admin.name[0]),
+          h('div',null, h('div',{className:'user-chip-name'},admin.name), h('div',{className:'user-chip-role'},'מנהל'))
+        ),
+        h('div',{className:'nav-item',style:{marginTop:'8px'},onClick:onLogout},h('span',{className:'nav-icon'},'🚪'),'התנתק')
+      )
+    ),
+    h('div',{className:'main-content fade-in'},
+      h('div',{className:'page-header'},
+        h('h1',null,'לוח בקרה מנהל 🎯'),
+        h('p',null,hebDateStr(now.getFullYear(),now.getMonth()+1,now.getDate())),
+      ),
+      tab==='overview' && h('div',{className:'fade-in'},
+        h('div',{className:'section-title'},'כל העובדים – לחץ לפרטים'),
+        h('div',{className:'emp-grid'},
+          users.map(u=>{
+            const todayEntry=weekSchedule.find(s=>s.user_id===u.id&&s.date===dateStr(now));
+            const weekEntries=weekDates.map(d=>weekSchedule.find(s=>s.user_id===u.id&&s.date===d));
+            return h('div',{key:u.id,className:'emp-card',onClick:()=>setSelEmp(u)},
+              h('div',{className:'emp-card-head'},
+                h('div',{className:'avatar',style:{width:'42px',height:'42px'}},u.name[0]),
+                h('div',null,
+                  h('div',{className:'emp-name'},u.name),
+                  h('div',{className:'emp-sub'},u.phone||''),
+                  h('div',{className:'emp-sub'},u.employment||''),
+                  todayEntry && h('span',{className:`shift-pill ${SHIFT_PILL[todayEntry.shift_type]}`,style:{marginTop:'4px'}},`היום: ${SHIFT_LABELS[todayEntry.shift_type]}`),
+                )
+              ),
+              h('div',{style:{fontSize:'11px',color:'var(--text2)',marginBottom:'5px'}},'השבוע'),
+              h('div',{className:'week-row'},
+                DAY_NAMES.map((d,i)=>{
+                  const e=weekEntries[i];
+                  const bg=e?{
+                    morning:'rgba(59,130,246,.22)',evening:'rgba(249,115,22,.22)',
+                    double:'rgba(168,85,247,.22)',vacation:'rgba(34,197,94,.22)',field:'rgba(20,184,166,.22)'
+                  }[e.shift_type]||'rgba(148,163,184,.13)':'';
+                  const col=e?{
+                    morning:'#93c5fd',evening:'#fdba74',double:'#d8b4fe',vacation:'#86efac',field:'#5eead4'
+                  }[e.shift_type]||'#94a3b8':'';
+                  return h('div',{key:i,className:'week-cell',style:e?{background:bg,color:col,borderColor:'transparent'}:{}},d);
+                })
+              )
+            );
+          })
+        )
+      ),
+      tab==='today'      && h(AdminToday,null),
+      tab==='attendance' && h(AdminAttendance,null),
+      tab==='manage'     && h(AdminManage,{onRefresh:()=>setVer(v=>v+1)}),
+    ),
+    h(MobileNav,{tabs:nav,active:tab,onSelect:onTab}),
+  );
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+function Login({onLogin}){
+  const [name,setName]=useState('');
+  const [pass,setPass]=useState('');
+  const [err,setErr]=useState('');
+  const [busy,setBusy]=useState(false);
+
+  const doLogin=async()=>{
+    if(!name||!pass) return;
+    setBusy(true); setErr('');
+    try{ const u=await api.post('/api/login',{name,password:pass}); onLogin(u); }
+    catch(e){ setErr(e.message); }
+    setBusy(false);
+  };
+
+  return h('div',{className:'login-wrap'},
+    h('div',{className:'login-card'},
+      h('div',{className:'login-logo'},
+        h('div',{className:'logo-icon'},'⏱'),
+        h('h1',null,'TimeTable'),
+        h('p',null,'מערכת ניהול משמרות'),
+      ),
+      err && h('div',{className:'login-error'},err),
+      h('div',{className:'form-group'},
+        h('label',null,'שם משתמש'),
+        h('input',{type:'text',placeholder:'הכנס שם',value:name,onChange:e=>setName(e.target.value),onKeyDown:e=>e.key==='Enter'&&doLogin()})
+      ),
+      h('div',{className:'form-group'},
+        h('label',null,'סיסמה'),
+        h('input',{type:'password',placeholder:'הכנס סיסמה',value:pass,onChange:e=>setPass(e.target.value),onKeyDown:e=>e.key==='Enter'&&doLogin()})
+      ),
+      h('button',{className:'btn btn-primary',style:{width:'100%',padding:'13px',fontSize:'15px'},onClick:doLogin,disabled:busy},
+        busy?h('div',{className:'spinner'}):'כניסה'
+      ),
+      h('div',{className:'login-hint'},
+        h('strong',null,'הכנס את שמך המלא וסיסמה'),
+      )
+    )
+  );
+}
+
+// ─── App Root ─────────────────────────────────────────────────────────────────
+function App(){
+  const [user,setUser]=useState(null);
+  const [autoTried,setAutoTried]=useState(false);
+
+  useEffect(()=>{
+    if(user||autoTried) return;
+    const params=new URLSearchParams(window.location.search);
+    const email=params.get('email');
+    const name=params.get('name')||'';
+    // Optional signed payload from OpsHub. When present, the server verifies
+    // it and grants the asserted role ('user' or 'admin'). When absent, the
+    // server falls back to plain auto-login as 'user' (back-compat).
+    const role=params.get('role')||'';
+    const exp=params.get('exp')||'';
+    const sig=params.get('sig')||'';
+    if(!email){ setAutoTried(true); return; }
+    (async()=>{
+      try{
+        const body={email,name};
+        if(sig){ body.role=role; body.exp=exp; body.sig=sig; }
+        const u=await api.post('/api/login-by-email',body);
+        setUser(u);
+      }catch(e){ /* fall back to manual login */ }
+      finally{ setAutoTried(true); }
+    })();
+  },[user,autoTried]);
+
+  if(!user){
+    // While trying auto-login (email in URL), show a spinner instead of flashing the login form
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('email') && !autoTried){
+      return h('div',{className:'login-wrap'},
+        h('div',{className:'login-card',style:{textAlign:'center'}},
+          h('div',{className:'spinner',style:{margin:'40px auto'}}),
+          h('p',{style:{color:'var(--text2)',fontSize:'13px'}},'מתחבר...')
+        )
+      );
+    }
+    return h(Login,{onLogin:setUser});
+  }
+  if(user.role==='admin') return h(AdminPage,{admin:user,onLogout:()=>setUser(null)});
+  return h(UserPage,{user,onLogout:()=>setUser(null)});
+}
+
+createRoot(document.getElementById('app')).render(h(App));
+</script>
+</body>
+</html>

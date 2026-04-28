@@ -248,30 +248,60 @@ export const PersonalAreaPage: React.FC = () => {
               </svg>
               {refreshing ? 'מרענן...' : 'רענן'}
             </button>
-            <a
-              href={(() => {
-                const u = authService.getStoredUser();
-                const email = u?.email || '';
-                if (!email) return 'https://time-table.duckdns.org/';
-                const name = [u?.firstName, u?.lastName].filter(Boolean).join(' ').trim();
-                const qs = new URLSearchParams({ email });
-                if (name) qs.set('name', name);
-                return `https://time-table.duckdns.org/?${qs.toString()}`;
-              })()}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="פתח את Time Table עם המשתמש שלך"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg border border-indigo-500 transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-3.5 h-3.5"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              Time Table
-            </a>
+            {/*
+              TimeTable buttons. Both go through the OpsHub backend's
+              /timetable-sso endpoint, which returns a short-lived HMAC-signed
+              URL into the TimeTable microservice (no second login screen,
+              same origin via nginx /timetable/ proxy). The "ניהול" variant
+              is rendered only for OpsHub admins/super and asks for role:'admin'
+              — the backend re-checks the role server-side, so a non-admin
+              who hand-crafts the request still gets a 403.
+
+              Why call the backend on click instead of pre-computing the URL?
+              The signature has a 5-minute TTL — generating it lazily on
+              click means it's still fresh when the new tab loads.
+            */}
+            {(() => {
+              const u = authService.getStoredUser();
+              const isAdmin = u?.role === 'admin' || u?.role === 'super';
+              const openTimetable = async (role: 'user' | 'admin') => {
+                try {
+                  const { data } = await api.post('/timetable-sso', { role });
+                  if (data?.url) window.open(data.url, '_blank', 'noopener,noreferrer');
+                } catch (err) {
+                  console.error('Failed to open TimeTable', err);
+                  alert('שגיאה בפתיחת Time Table');
+                }
+              };
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => openTimetable('user')}
+                    title="פתח את Time Table עם המשתמש שלך"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg border border-indigo-500 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Time Table
+                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => openTimetable('admin')}
+                      title="פתח את Time Table במצב ניהול"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs rounded-lg border border-rose-500 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                      </svg>
+                      Time Table ניהול
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
           <p className="text-gray-400 text-sm">
             חיילים המוקצים לך — לחץ על העין לטעינת כרטיס החייל
