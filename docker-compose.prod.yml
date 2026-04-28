@@ -42,6 +42,10 @@ services:
       GREEN_API_ID_INSTANCE: ${GREEN_API_ID_INSTANCE:-}
       GREEN_API_TOKEN_INSTANCE: ${GREEN_API_TOKEN_INSTANCE:-}
       GREEN_API_URL: ${GREEN_API_URL:-}
+      # Shared HMAC secret for issuing signed TimeTable SSO links. MUST match
+      # the value passed to the `timetable` service. Generate with:
+      #   openssl rand -hex 32
+      TIMETABLE_SSO_SECRET: ${TIMETABLE_SSO_SECRET}
     depends_on: [db]
     restart: unless-stopped
     networks: [crm-net]
@@ -70,6 +74,38 @@ services:
     restart: unless-stopped
     networks: [crm-net]
 
+  # TimeTable — separate microservice (own image, own DB, own deploy cycle).
+  # Reverse-proxied by `web` at /timetable/. Auto-login via ?email=... uses the
+  # /api/login-by-email endpoint, so users coming from OpsHub never see a
+  # second login screen. To rebuild only this service without touching api/web:
+  #   docker compose -f docker-compose.prod.yml build timetable
+  #   docker compose -f docker-compose.prod.yml up -d timetable
+  timetable:
+    build:
+      context: ./timetable
+      dockerfile: Dockerfile
+    container_name: crm-timetable
+    environment:
+      PORT: "5222"
+      DB_PATH: /app/data/timetable.db
+      TZ: ${TZ:-Asia/Jerusalem}
+      # Same secret as the api service — used to verify signed SSO payloads
+      # arriving in /api/login-by-email.
+      TIMETABLE_SSO_SECRET: ${TIMETABLE_SSO_SECRET}
+    volumes:
+      - timetable-data:/app/data
+    restart: unless-stopped
+    networks: [crm-net]
+    healthcheck:
+      # /api/users returns JSON — a 200 means Express is up and SQLite opened
+      # cleanly. Use node (always present) instead of wget/curl which aren't
+      # guaranteed in node:20-alpine.
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5222/api/users',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   web:
     build:
       context: ./frontend
@@ -77,7 +113,7 @@ services:
       args:
         VITE_API_URL: ${PUBLIC_URL}/api
     container_name: crm-web
-    depends_on: [api]
+    depends_on: [api, timetable]
     ports:
       - "80:80"
     restart: unless-stopped
@@ -89,3 +125,4 @@ networks:
 
 volumes:
   dbdata:
+  timetable-data:
