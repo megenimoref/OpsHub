@@ -24,6 +24,7 @@ import './models/notification'; // ensure model is synced
 import './models/messageCampaign'; // ensure model is synced
 import './models/communityContact'; // ensure model is synced
 import { startScheduler } from './services/backupService';
+import { ensureBattalionDatabase } from './services/battalionService';
 import { logger } from './services/logger';
 
 const app = express();
@@ -112,6 +113,18 @@ async function start() {
     await cleanupDuplicateEmailIndexes();
     await sequelize.sync({ alter: true });
     console.log('✓ Models synced');
+
+    // Auto-provision the two extra battalions requested for the שאגת הארי
+    // dashboard so they show up in the UI from day one (importing real data
+    // into them is still a manual step). Idempotent — re-running is a no-op.
+    for (const seed of ['כיבוי', 'קשר עורף']) {
+      try {
+        await ensureBattalionDatabase(seed);
+      } catch (e: any) {
+        logger.error('Failed to ensure seed battalion', { seed, errorMessage: e.message });
+      }
+    }
+    console.log('✓ Seed battalions ensured (כיבוי, קשר עורף)');
 
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);

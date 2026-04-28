@@ -3,6 +3,8 @@ import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
 import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats, deallocateSoldiers, assignSoldiers } from '../controllers/allocationController';
+import { getSheagatHaariStats } from '../services/sheagatHaariService';
+import { logger } from '../services/logger';
 
 const router = Router();
 
@@ -28,6 +30,19 @@ router.get('/list', authMiddleware, getBattalions);
 router.post('/create', authMiddleware, adminMiddleware, createBattalion);
 router.delete('/:name', authMiddleware, adminMiddleware, deleteBattalion);
 router.get('/dashboard', authMiddleware, getDashboard);
+
+// "שאגת הארי" — battalion-level statistics with category breakdown.
+// Heavy query (touches every battalion DB once); cache layer can be added
+// later if it becomes a hot endpoint.
+router.get('/sheagat-haari', authMiddleware, async (req, res) => {
+  try {
+    const data = await getSheagatHaariStats();
+    res.json(data);
+  } catch (error: any) {
+    logger.error('sheagat-haari endpoint failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: 'שגיאה בטעינת סטטיסטיקת שאגת הארי' });
+  }
+});
 router.post('/import', authMiddleware, upload.single('file'), importBattalion);
 router.post('/allocate', authMiddleware, allocateMiddleware, allocateSoldiers);
 router.post('/deallocate', authMiddleware, allocateMiddleware, deallocateSoldiers);
