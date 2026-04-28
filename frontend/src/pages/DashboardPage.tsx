@@ -4,6 +4,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import api from '../services/api';
+import { SheagatHaariPage } from './SheagatHaariPage';
+import { GdudimMaleimPage } from './GdudimMaleimPage';
 
 interface PersonDashboard {
   name: string;
@@ -131,7 +133,7 @@ export const DashboardPage: React.FC = () => {
   const [expandedSoldiers, setExpandedSoldiers] = useState<AssistanceSoldier[]>([]);
   const [expandedLoading, setExpandedLoading] = useState(false);
   const [selectedBattalion, setSelectedBattalion] = useState('');
-  const [activeTab, setActiveTab] = useState<'general' | 'battalionStatus' | 'comparison' | 'users'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'battalionStatus' | 'comparison' | 'users' | 'sheagat-haari' | 'gdudim-maleim'>('general');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -221,6 +223,8 @@ export const DashboardPage: React.FC = () => {
     { key: 'battalionStatus', label: 'סטטוס פניות לפי גדוד' },
     { key: 'comparison', label: 'השוואה בין גדודים' },
     { key: 'users', label: 'משתמשים' },
+    { key: 'sheagat-haari', label: 'שאגת הארי' },
+    { key: 'gdudim-maleim', label: 'גדודים מלאים' },
   ] as const;
 
   // --- Comparison tab derived data ---
@@ -933,6 +937,20 @@ export const DashboardPage: React.FC = () => {
             </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Tab: שאגת הארי */}
+      {activeTab === 'sheagat-haari' && (
+        <div className="-mx-4 md:-mx-6 -mb-6">
+          <SheagatHaariPage />
+        </div>
+      )}
+
+      {/* Tab: גדודים מלאים */}
+      {activeTab === 'gdudim-maleim' && (
+        <div className="-mx-4 md:-mx-6 -mb-6">
+          <GdudimMaleimPage />
         </div>
       )}
 
