@@ -79,11 +79,10 @@ export const CATEGORIES: Category[] = [
     color: 'emerald',
     subcategories: [
       { key: 'grant_household',  label: 'מענק כלכלת בית',           keywords: ['מענק כלכלת בית', 'כלכלת בית', 'מענק בית'] },
-      { key: 'grant_special',    label: 'מענק מיוחד',               keywords: ['מענק מיוחד', 'מענק לא משרתים', 'מענק אי שירות', 'מענק חד פעמי'] },
-      { key: 'aid_general',      label: 'סיוע כלכלי / קרן הסיוע',  keywords: [
+      { key: 'grant_special',    label: 'מענק מיוחד',               keywords: ['מענק מיוחד', 'מענק אי שירות', 'מענק חד פעמי'] },
+      { key: 'aid_general',      label: 'סיוע כלכלי כללי',          keywords: [
           'סיוע כלכלי', 'עזרה כלכלית', 'מצוקה כלכלית',
-          'קרן הסיוע', 'קרן סיוע', 'זכאות', 'זכאויות',
-          'הטבות', 'השלמת הכנסה', 'הלוואה', 'מענק',
+          'השלמת הכנסה', 'הלוואה',
         ] },
       { key: 'fighter_card',     label: 'כרטיס דיגיטלי פייטר',      keywords: ['פייטר', 'כרטיס דיגיטלי', 'fighter'] },
       { key: 'vacation_voucher', label: 'שובר חופשה',               keywords: ['שובר חופשה', 'שוברי חופשה'] },
@@ -129,7 +128,7 @@ export const CATEGORIES: Category[] = [
       { key: 'accountant',       label: 'רואי חשבון / ייעוץ',         keywords: ['רואה חשבון', 'רו"ח', 'יועץ מס', 'ייעוץ חשבונאי'] },
       { key: 'business_advisory', label: 'ליווי וייעוץ עסקי',         keywords: ['ייעוץ עסקי', 'ליווי עסקי', 'יועץ עסקי'] },
       { key: 'tax_authority',    label: 'מס הכנסה (נזק עקיף)',        keywords: ['מס הכנסה', 'נזק עקיף', 'מע"מ'] },
-      { key: 'aid_fund_business',label: 'קרן סיוע — השלמות לעסקים',   keywords: ['השלמה לעסק', 'השלמות לעסקים'] },
+      { key: 'aid_fund_business',label: 'השלמות לעסקים',              keywords: ['השלמה לעסק', 'השלמות לעסקים'] },
       { key: 'self_employed_ni', label: 'תגמולי מילואים עצמאי',        keywords: [
           'מילואים עצמאי', 'תגמולי עצמאי', 'עצמאי',
         ] },
@@ -138,9 +137,14 @@ export const CATEGORIES: Category[] = [
   },
   {
     key: 'family',
-    label: 'מעטפת משפחתית ונשות מילואים',
+    label: 'מעטפת משפחתית',
     color: 'rose',
     subcategories: [
+      { key: 'welfare_fund',     label: 'קרן הסיוע',                  keywords: [
+          'קרן הסיוע', 'קרן סיוע', 'זכאות', 'זכאויות',
+          'מענק לא משרתים', 'הגשת בקשה לקרן', 'הגשה לקרן',
+          'זכאות בקרן', 'הטבות', 'קישורים רלוונטיים',
+        ] },
       { key: 'babysitter',       label: 'בייביסיטר',                  keywords: [
           'בייביסיטר', 'בייבי סיטר', 'baby sitter', 'מטפלת',
           'מטפל ילדים', 'איש בית', 'עוזרת בית',
@@ -162,10 +166,6 @@ export const CATEGORIES: Category[] = [
       { key: 'divorced',         label: 'גרושים/ות (חליף משמורת)',     keywords: [
           'גרוש', 'גרושה', 'משמורת', 'הורות משותפת', 'חליף משמורת',
           'גרושים', 'פרוד', 'פרודה',
-        ] },
-      { key: 'reserve_wives',    label: 'נשות מילואים',                keywords: [
-          'נשות מילואים', 'אשת מילואים', 'אישת מילואים',
-          'נשות', 'אישה במילואים',
         ] },
       { key: 'single_parent',    label: 'הורה יחיד',                   keywords: [
           'הורה יחיד', 'הורה בודד', 'משפחה חד הורית', 'חד הורי', 'חד-הורי',
