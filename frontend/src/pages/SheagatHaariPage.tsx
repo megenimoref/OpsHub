@@ -162,6 +162,9 @@ interface SheagatHaariPageProps {
    *  the GdudimMaleimPage wrapper to reuse the entire page for a curated
    *  subset (335, 945, 240, 241, 7660) without duplicating the rendering. */
   battalionFilter?: string[];
+  /** When set, battalions whose name is in this list are hidden from the view
+   *  and excluded from the KPI totals. Takes effect after battalionFilter. */
+  excludeFilter?: string[];
   /** Optional page title override — defaults to the שאגת הארי label. */
   title?: string;
 }
@@ -204,7 +207,7 @@ function aggregate(battalions: BattalionStats[]): BattalionStats {
   return init;
 }
 
-export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFilter, title }) => {
+export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFilter, excludeFilter, title }) => {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,20 +237,31 @@ export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFil
       const allowed = new Set(battalionFilter.map((s) => s.trim()));
       list = list.filter((b) => allowed.has(b.battalion));
     }
+    if (excludeFilter && excludeFilter.length > 0) {
+      const excluded = new Set(excludeFilter.map((s) => s.trim()));
+      list = list.filter((b) => !excluded.has(b.battalion));
+    }
     const q = filter.trim();
     if (q) list = list.filter((b) => b.battalion.includes(q));
     return list;
-  }, [data, filter, battalionFilter]);
+  }, [data, filter, battalionFilter, excludeFilter]);
 
   // KPI strip uses the curated subset (NOT the search box) — the search box
   // is for narrowing the grid, while KPIs should reflect the page's scope.
   const kpiTotals = useMemo(() => {
     if (!data) return null;
-    if (!battalionFilter) return data.total; // unfiltered view: trust backend
-    const allowed = new Set(battalionFilter.map((s) => s.trim()));
-    const subset = data.battalions.filter((b) => allowed.has(b.battalion));
+    const excluded = excludeFilter ? new Set(excludeFilter.map((s) => s.trim())) : null;
+    if (!battalionFilter && !excluded) return data.total; // unfiltered view: trust backend
+    let subset = data.battalions;
+    if (battalionFilter && battalionFilter.length > 0) {
+      const allowed = new Set(battalionFilter.map((s) => s.trim()));
+      subset = subset.filter((b) => allowed.has(b.battalion));
+    }
+    if (excluded) {
+      subset = subset.filter((b) => !excluded.has(b.battalion));
+    }
     return aggregate(subset);
-  }, [data, battalionFilter]);
+  }, [data, battalionFilter, excludeFilter]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6" dir="rtl">
