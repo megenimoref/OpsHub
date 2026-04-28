@@ -114,17 +114,21 @@ async function start() {
     await sequelize.sync({ alter: true });
     console.log('✓ Models synced');
 
-    // Auto-provision the two extra battalions requested for the שאגת הארי
-    // dashboard so they show up in the UI from day one (importing real data
-    // into them is still a manual step). Idempotent — re-running is a no-op.
-    for (const seed of ['כיבוי', 'קשר עורף']) {
+    // Auto-provision battalions that the dashboards expect to exist:
+    //  - כיבוי, קשר עורף  → for שאגת הארי
+    //  - 335, 945, 240, 241, 7660 → for גדודים מלאים (5722 already exists)
+    // Idempotent — re-running is a no-op. Importing real data is still a
+    // manual step; these just guarantee the schemas exist so the dashboards
+    // render the right cells (with 0 counts) from day one.
+    const SEED_BATTALIONS = ['כיבוי', 'קשר עורף', '335', '945', '240', '241', '7660'];
+    for (const seed of SEED_BATTALIONS) {
       try {
         await ensureBattalionDatabase(seed);
       } catch (e: any) {
         logger.error('Failed to ensure seed battalion', { seed, errorMessage: e.message });
       }
     }
-    console.log('✓ Seed battalions ensured (כיבוי, קשר עורף)');
+    console.log(`✓ Seed battalions ensured (${SEED_BATTALIONS.join(', ')})`);
 
     app.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);

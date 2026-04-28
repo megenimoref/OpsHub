@@ -124,7 +124,7 @@ export async function getSheagatHaariStats(): Promise<SheagatHaariResponse> {
 
   // Static seeds — show in dashboard even with 0 soldiers so the user can
   // see they exist and start importing into them.
-  const staticSeeds = ['כיבוי', 'קשר עורף'];
+  const staticSeeds = ['כיבוי', 'קשר עורף', '335', '945', '240', '241', '7660'];
   const seenNames = new Set(dbNames.map((d) => d.replace(/^battalion_/, '')));
   for (const seed of staticSeeds) {
     if (!seenNames.has(seed)) dbNames.push(`battalion_${seed}`);

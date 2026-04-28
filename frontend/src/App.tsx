@@ -23,6 +23,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BackupPage } from './pages/BackupPage';
 import { CommunityPage } from './pages/CommunityPage';
 import { SheagatHaariPage } from './pages/SheagatHaariPage';
+import { GdudimMaleimPage } from './pages/GdudimMaleimPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import { NotificationBell } from './components/NotificationBell';
@@ -193,6 +194,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
             </svg>
             שאגת הארי
+          </NavLink>
+        )}
+
+        {/* All roles — גדודים מלאים (curated subset of שאגת הארי) */}
+        {(user.role === 'staff' || user.role === 'super' || user.role === 'manager' || user.role === 'admin') && (
+          <NavLink to="/gdudim-maleim" onClick={closeMenu}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            גדודים מלאים
           </NavLink>
         )}
 
@@ -448,6 +460,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SheagatHaariPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/gdudim-maleim"
+            element={
+              <ProtectedRoute>
+                <GdudimMaleimPage />
               </ProtectedRoute>
             }
           />

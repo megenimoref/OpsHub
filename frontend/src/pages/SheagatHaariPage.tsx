@@ -156,7 +156,55 @@ const BattalionCard: React.FC<{ b: BattalionStats; onOpen: () => void }> = ({ b,
   </button>
 );
 
-export const SheagatHaariPage: React.FC = () => {
+interface SheagatHaariPageProps {
+  /** When set, only battalions whose name is in this list are shown, and the
+   *  "overall" KPI strip is recomputed from those battalions only. Used by
+   *  the GdudimMaleimPage wrapper to reuse the entire page for a curated
+   *  subset (335, 945, 240, 241, 7660) without duplicating the rendering. */
+  battalionFilter?: string[];
+  /** Optional page title override — defaults to the שאגת הארי label. */
+  title?: string;
+}
+
+/** Recompute overall KPIs from a subset of battalions. The backend's
+ *  `total` reflects ALL battalions, which would be misleading on a filtered
+ *  view. Same shape as BattalionStats so the existing KPI strip just works. */
+function aggregate(battalions: BattalionStats[]): BattalionStats {
+  const init: BattalionStats = {
+    battalion: 'סך הכל',
+    total: 0, treated: 0, treatedPct: 0, untreated: 0, untreatedPct: 0,
+    categories: [], unmatched: 0, unmatchedPct: 0, unmatchedSamples: [],
+  };
+  if (battalions.length === 0) return init;
+  // Seed categories shape from the first battalion (all have identical layout).
+  init.categories = battalions[0].categories.map((c) => ({
+    key: c.key, label: c.label, color: c.color, count: 0, pct: 0,
+    subcategories: c.subcategories.map((s) => ({ key: s.key, label: s.label, count: 0, pct: 0 })),
+  }));
+  for (const b of battalions) {
+    init.total += b.total;
+    init.treated += b.treated;
+    init.untreated += b.untreated;
+    init.unmatched += b.unmatched;
+    for (let i = 0; i < init.categories.length; i++) {
+      init.categories[i].count += b.categories[i]?.count || 0;
+      for (let j = 0; j < init.categories[i].subcategories.length; j++) {
+        init.categories[i].subcategories[j].count += b.categories[i]?.subcategories[j]?.count || 0;
+      }
+    }
+  }
+  const pct = (n: number, d: number) => (d ? Math.round((n / d) * 1000) / 10 : 0);
+  init.treatedPct = pct(init.treated, init.total);
+  init.untreatedPct = pct(init.untreated, init.total);
+  init.unmatchedPct = pct(init.unmatched, init.total);
+  for (const cat of init.categories) {
+    cat.pct = pct(cat.count, init.total);
+    for (const s of cat.subcategories) s.pct = pct(s.count, init.total);
+  }
+  return init;
+}
+
+export const SheagatHaariPage: React.FC<SheagatHaariPageProps> = ({ battalionFilter, title }) => {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -178,19 +226,35 @@ export const SheagatHaariPage: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
-  const filtered = useMemo(() => {
+  // Apply both the curated battalionFilter (route-level) and the search box.
+  const visibleBattalions = useMemo(() => {
     if (!data) return [];
+    let list = data.battalions;
+    if (battalionFilter && battalionFilter.length > 0) {
+      const allowed = new Set(battalionFilter.map((s) => s.trim()));
+      list = list.filter((b) => allowed.has(b.battalion));
+    }
     const q = filter.trim();
-    if (!q) return data.battalions;
-    return data.battalions.filter((b) => b.battalion.includes(q));
-  }, [data, filter]);
+    if (q) list = list.filter((b) => b.battalion.includes(q));
+    return list;
+  }, [data, filter, battalionFilter]);
+
+  // KPI strip uses the curated subset (NOT the search box) — the search box
+  // is for narrowing the grid, while KPIs should reflect the page's scope.
+  const kpiTotals = useMemo(() => {
+    if (!data) return null;
+    if (!battalionFilter) return data.total; // unfiltered view: trust backend
+    const allowed = new Set(battalionFilter.map((s) => s.trim()));
+    const subset = data.battalions.filter((b) => allowed.has(b.battalion));
+    return aggregate(subset);
+  }, [data, battalionFilter]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6" dir="rtl">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-bold">שאגת הארי — סטטיסטיקת גדודים</h1>
+            <h1 className="text-2xl font-bold">{title || 'שאגת הארי — סטטיסטיקת גדודים'}</h1>
             {data?.generatedAt && (
               <p className="text-xs text-gray-500 mt-1">
                 עודכן: {new Date(data.generatedAt).toLocaleString('he-IL')}
@@ -223,20 +287,20 @@ export const SheagatHaariPage: React.FC = () => {
           <>
             {/* Overall KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-              <KpiCard label="סך הכל חיילים (כל הגדודים)" value={data.total.total} tone="cyan" />
-              <KpiCard label="טופלו" value={data.total.treated} sub={`${data.total.treatedPct}%`} tone="emerald" />
-              <KpiCard label="ממתינים לטיפול" value={data.total.untreated} sub={`${data.total.untreatedPct}%`} tone="rose" />
-              <KpiCard label="לא סווגו לקטגוריה" value={data.total.unmatched} sub={`${data.total.unmatchedPct}%`} tone="amber" />
+              <KpiCard label={battalionFilter ? 'סך הכל חיילים' : 'סך הכל חיילים (כל הגדודים)'} value={kpiTotals?.total ?? 0} tone="cyan" />
+              <KpiCard label="טופלו" value={kpiTotals?.treated ?? 0} sub={`${kpiTotals?.treatedPct ?? 0}%`} tone="emerald" />
+              <KpiCard label="ממתינים לטיפול" value={kpiTotals?.untreated ?? 0} sub={`${kpiTotals?.untreatedPct ?? 0}%`} tone="rose" />
+              <KpiCard label="לא סווגו לקטגוריה" value={kpiTotals?.unmatched ?? 0} sub={`${kpiTotals?.unmatchedPct ?? 0}%`} tone="amber" />
             </div>
 
             {/* Battalion grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filtered.map((b) => (
+              {visibleBattalions.map((b) => (
                 <BattalionCard key={b.battalion} b={b} onOpen={() => setDrill(b)} />
               ))}
             </div>
 
-            {filtered.length === 0 && (
+            {visibleBattalions.length === 0 && (
               <div className="text-gray-500 text-sm text-center py-12">לא נמצאו גדודים תואמים</div>
             )}
           </>
