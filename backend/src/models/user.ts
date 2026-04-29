@@ -17,6 +17,7 @@ class User extends Model {
   public totpResetToken!: string | null;
   public totpResetExpires!: Date | null;
   public totpPendingSecret!: string | null;
+  public hidePersonalNumber!: boolean;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -98,6 +99,11 @@ User.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       defaultValue: null,
+    },
+    hidePersonalNumber: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
   },
   {

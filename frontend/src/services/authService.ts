@@ -14,9 +14,10 @@ export const authService = {
     await api.put(`/users/${userId}/reset-password`, { password: newPassword });
   },
 
-  updateUser: async (userId: number, firstName?: string, lastName?: string, role?: string, email?: string, mobilePhone?: string | null): Promise<any> => {
+  updateUser: async (userId: number, firstName?: string, lastName?: string, role?: string, email?: string, mobilePhone?: string | null, hidePersonalNumber?: boolean): Promise<any> => {
     const payload: Record<string, any> = { firstName, lastName, role, email };
     if (mobilePhone !== undefined) payload.mobilePhone = mobilePhone;
+    if (hidePersonalNumber !== undefined) payload.hidePersonalNumber = hidePersonalNumber;
     const { data } = await api.put(`/users/${userId}`, payload);
     return data;
   },

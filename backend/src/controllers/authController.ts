@@ -97,7 +97,7 @@ export const login = async (req: Request, res: Response) => {
 
     // @ts-ignore
     const token = jwt.sign(
-      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
+      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName, hidePersonalNumber: user.hidePersonalNumber },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
