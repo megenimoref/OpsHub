@@ -184,6 +184,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const readOnly = user?.role === 'manager';
+  const hidePN = user?.hidePersonalNumber === true;
   const [battalions, setBattalions] = useState<string[]>([]);
   const [selectedBattalion, setSelectedBattalion] = useState('');
   const [searchPersonalNumber, setSearchPersonalNumber] = useState('');
@@ -457,7 +458,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           </div>
 
           {/* Personal Number input with autocomplete */}
-          <div className="w-full relative">
+          <div className={`w-full relative${hidePN ? ' hidden' : ''}`}>
             <label className="block text-sm font-medium text-gray-300 mb-1">מספר אישי</label>
             <input
               type="text"
@@ -502,7 +503,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           <div className="flex justify-between items-center mb-5">
             <h2 className="text-lg font-semibold text-white">
               {soldier.first_name} {soldier.last_name}
-              <span className="text-sm font-normal text-gray-400 mr-2">({soldier.personal_number})</span>
+              {!hidePN && <span className="text-sm font-normal text-gray-400 mr-2">({soldier.personal_number})</span>}
             </h2>
             {!readOnly && (
               <button
@@ -550,7 +551,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {FIELD_LABELS.map(({ key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail }) => {
+            {FIELD_LABELS.filter(({ key }) => !(hidePN && key === 'personal_number')).map(({ key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail }) => {
               const fieldChanges = changes.filter((c) => c.field_name === key);
               const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
               return (
