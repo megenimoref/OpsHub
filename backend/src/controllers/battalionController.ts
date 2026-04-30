@@ -24,6 +24,7 @@ import {
   getSoldiersByAssistanceType,
   getBattalionDbName,
   findCrossBattalionDuplicates,
+  searchSoldiersGlobalByNameOrPhone,
   SoldierRow,
   SoldierRowWithExtras,
 } from '../services/battalionService';
@@ -1071,4 +1072,19 @@ export const downloadTemplate = async (_req: Request, res: Response): Promise<vo
   res.setHeader('Content-Disposition', 'attachment; filename="battalion_template.xlsx"');
   await workbook.xlsx.write(res);
   res.end();
+};
+
+export const searchFieldTeam = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { q } = req.query;
+    if (!q || String(q).trim().length < 2) {
+      res.status(400).json({ error: 'נדרש לפחות 2 תווים לחיפוש' });
+      return;
+    }
+    const results = await searchSoldiersGlobalByNameOrPhone(String(q).trim());
+    res.json({ results });
+  } catch (error: any) {
+    logger.error('Field team search failed', { errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה בחיפוש' });
+  }
 };

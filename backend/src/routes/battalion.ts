@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
-import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations } from '../controllers/battalionController';
+import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, searchFieldTeam } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats, deallocateSoldiers, assignSoldiers } from '../controllers/allocationController';
 import { getSheagatHaariStats } from '../services/sheagatHaariService';
 import { logger } from '../services/logger';
@@ -49,6 +49,7 @@ router.post('/deallocate', authMiddleware, allocateMiddleware, deallocateSoldier
 router.post('/assign', authMiddleware, allocateMiddleware, assignSoldiers);
 router.get('/allocation-stats', authMiddleware, allocateMiddleware, getUserAllocationStats);
 router.get('/search-global', authMiddleware, searchSoldierGlobalHandler);
+router.get('/field-team-search', authMiddleware, searchFieldTeam);
 router.get('/my-soldiers', authMiddleware, getMySoldiers);
 router.get('/allocations/:name', authMiddleware, getAllocationsByBattalion);
 router.post('/:name/refresh-allocations', authMiddleware, allocateMiddleware, refreshAllocations);

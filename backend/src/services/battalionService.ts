@@ -837,6 +837,37 @@ export async function searchSoldierByName(
   }
 }
 
+/** Search across ALL battalions by first/last name or phone. Returns up to `limit` results. */
+export async function searchSoldiersGlobalByNameOrPhone(
+  query: string,
+  limit = 50
+): Promise<Array<{ soldier: { personal_number: string; first_name: string; last_name: string; mobile_phone: string; request_status: string }; battalionName: string }>> {
+  const battalions = await listBattalions();
+  const results: Array<{ soldier: any; battalionName: string }> = [];
+  const term = `%${query}%`;
+
+  for (const bn of battalions) {
+    if (results.length >= limit) break;
+    const dbName = getBattalionDbName(bn);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT personal_number, first_name, last_name, mobile_phone, request_status
+         FROM soldiers
+         WHERE first_name LIKE ? OR last_name LIKE ? OR mobile_phone LIKE ?
+         LIMIT ?`,
+        [term, term, term, limit - results.length]
+      );
+      for (const row of rows) {
+        results.push({ soldier: row, battalionName: bn });
+      }
+    } finally {
+      await conn.end();
+    }
+  }
+  return results;
+}
+
 const FIELD_LABEL_MAP: Record<string, string> = {
   personal_number: 'מספר אישי',
   last_name: 'שם משפחה',
