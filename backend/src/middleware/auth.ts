@@ -10,6 +10,7 @@ declare global {
       userEmail?: string;
       userFirstName?: string;
       userLastName?: string;
+      userHidePersonalNumber?: boolean;
     }
   }
 }
@@ -49,6 +50,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     req.userEmail = decoded.email;
     req.userFirstName = decoded.firstName;
     req.userLastName = decoded.lastName;
+    req.userHidePersonalNumber = decoded.hidePersonalNumber === true;
     next();
   } catch (error: any) {
     // Distinguish the failure modes — every one of these throws the user

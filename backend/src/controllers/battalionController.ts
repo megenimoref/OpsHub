@@ -29,6 +29,16 @@ import {
 } from '../services/battalionService';
 import { logger } from '../services/logger';
 
+/** Mask personal_number for users with hidePersonalNumber permission */
+function maskSoldier<T extends Record<string, any>>(soldier: T, hide: boolean): T {
+  if (!hide) return soldier;
+  return { ...soldier, personal_number: '****' };
+}
+function maskSoldiers<T extends Record<string, any>>(soldiers: T[], hide: boolean): T[] {
+  if (!hide) return soldiers;
+  return soldiers.map((s) => maskSoldier(s, true));
+}
+
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
@@ -702,7 +712,7 @@ export const getBattalionSoldiers = async (req: Request, res: Response): Promise
       return;
     }
     const soldiers = await getSoldiersFromBattalion(decodeURIComponent(name));
-    res.json({ soldiers });
+    res.json({ soldiers: maskSoldiers(soldiers, req.userHidePersonalNumber === true) });
   } catch (error: any) {
     logger.error('Get battalion soldiers failed', {
       battalionName: req.params?.name,
@@ -737,7 +747,7 @@ export const searchSoldier = async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ error: 'חייל לא נמצא' });
       return;
     }
-    res.json({ soldier });
+    res.json({ soldier: maskSoldier(soldier, req.userHidePersonalNumber === true) });
   } catch (error: any) {
     logger.error('Search soldier failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בחיפוש חייל' });
@@ -756,7 +766,7 @@ export const searchSoldierGlobalHandler = async (req: Request, res: Response): P
       res.status(404).json({ error: 'חייל לא נמצא' });
       return;
     }
-    res.json({ soldier: result.soldier, battalionName: result.battalionName });
+    res.json({ soldier: maskSoldier(result.soldier, req.userHidePersonalNumber === true), battalionName: result.battalionName });
   } catch (error: any) {
     logger.error('Global search failed', { errorMessage: error.message });
     res.status(500).json({ error: error.message || 'שגיאה בחיפוש' });
@@ -933,7 +943,7 @@ export const getAssistanceSoldiers = async (req: Request, res: Response): Promis
       decodeURIComponent(name),
       String(type) as 'national_insurance' | 'welfare_fund' | 'other_assistance'
     );
-    res.json({ soldiers });
+    res.json({ soldiers: maskSoldiers(soldiers, req.userHidePersonalNumber === true) });
   } catch (error: any) {
     logger.error('Get assistance soldiers failed', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בשליפת חיילים לפי סיוע' });

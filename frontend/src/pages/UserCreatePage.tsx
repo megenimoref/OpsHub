@@ -10,6 +10,7 @@ interface UserRecord {
   lastName?: string;
   mobilePhone?: string | null;
   role: 'admin' | 'staff' | 'super' | 'manager';
+  hidePersonalNumber?: boolean;
 }
 
 export const UserCreatePage: React.FC = () => {
@@ -20,6 +21,7 @@ export const UserCreatePage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
   const [role, setRole] = useState<'staff' | 'admin' | 'super' | 'manager'>('staff');
+  const [hidePersonalNumber, setHidePersonalNumber] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -51,7 +53,7 @@ export const UserCreatePage: React.FC = () => {
     setSuccess('');
     setLoading(true);
     try {
-      await api.post('/users', { email, password, role, firstName, lastName, mobilePhone: mobilePhone.trim() || undefined });
+      await api.post('/users', { email, password, role, firstName, lastName, mobilePhone: mobilePhone.trim() || undefined, hidePersonalNumber });
       setSuccess(`המשתמש ${firstName} ${lastName} (${email}) נוצר בהצלחה`);
       setFirstName('');
       setLastName('');
@@ -59,6 +61,7 @@ export const UserCreatePage: React.FC = () => {
       setPassword('');
       setMobilePhone('');
       setRole('staff');
+      setHidePersonalNumber(false);
       fetchUsers();
     } catch (err: any) {
       setError(err.response?.data?.error || 'שגיאה ביצירת המשתמש');
@@ -203,7 +206,8 @@ export const UserCreatePage: React.FC = () => {
         data.lastName,
         data.role,
         data.email,
-        data.mobilePhone ?? null
+        data.mobilePhone ?? null,
+        data.hidePersonalNumber
       );
       setResetMsg(`${userName} עודכן בהצלחה`);
       setEditData({});
@@ -313,6 +317,19 @@ export const UserCreatePage: React.FC = () => {
               <option value="admin">Admin</option>
             </select>
           </div>
+          <div>
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hidePersonalNumber}
+                onChange={(e) => setHidePersonalNumber(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-300">
+                מנהל מערכת 1 — <span className="text-gray-400">לא יוכל לראות מספר אישי של חיילים</span>
+              </span>
+            </label>
+          </div>
           <div className="flex gap-3 pt-2">
             <button
               type="submit"
@@ -420,6 +437,17 @@ export const UserCreatePage: React.FC = () => {
                         <option value="admin">Admin</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={editData[u.id]?.hidePersonalNumber ?? u.hidePersonalNumber ?? false}
+                          onChange={(e) => setEditData({ ...editData, [u.id]: { ...editData[u.id], hidePersonalNumber: e.target.checked } })}
+                          className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-700 text-blue-500"
+                        />
+                        <span className="text-xs text-gray-300">מנהל מערכת 1 — לא רואה מספר אישי</span>
+                      </label>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleSaveEdit(u.id, `${u.firstName} ${u.lastName}`)}
@@ -465,6 +493,11 @@ export const UserCreatePage: React.FC = () => {
                             <span className="absolute left-1 top-0.5 text-xs animate-spin">⟳</span>
                           )}
                         </div>
+                        {u.hidePersonalNumber && (
+                          <span className="text-xs px-2 py-0.5 rounded-full border bg-orange-900/60 border-orange-700 text-orange-300 font-semibold">
+                            מנהל מערכת 1
+                          </span>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <button

@@ -19,6 +19,7 @@ interface BackupFile {
 
 interface RestoreModal {
   file: BackupFile;
+  targetBattalion: string;
 }
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -48,6 +49,7 @@ export const BackupPage: React.FC = () => {
 
   const [files, setFiles] = useState<BackupFile[]>([]);
   const [filesLoading, setFilesLoading] = useState(true);
+  const [battalions, setBattalions] = useState<string[]>([]);
 
   const [backingUp, setBackingUp] = useState(false);
   const [backupMsg, setBackupMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -76,6 +78,9 @@ export const BackupPage: React.FC = () => {
   useEffect(() => {
     loadConfig();
     loadFiles();
+    api.get<{ battalions: string[] }>('/battalion').then(({ data }) =>
+      setBattalions(data.battalions || [])
+    ).catch(() => {});
   }, [loadConfig, loadFiles]);
 
   const toggleDay = (day: number) => {
@@ -119,7 +124,7 @@ export const BackupPage: React.FC = () => {
     try {
       const { data } = await api.post<{ message: string }>('/backup/restore', {
         filename: restoreModal.file.filename,
-        battalionName: restoreModal.file.battalionName,
+        battalionName: restoreModal.targetBattalion,
       });
       setRestoreMsg(data.message);
     } catch (err: any) {
@@ -320,7 +325,7 @@ export const BackupPage: React.FC = () => {
                         </div>
                       </div>
                       <button
-                        onClick={() => { setRestoreModal({ file: f }); setRestoreMsg(''); }}
+                        onClick={() => { setRestoreModal({ file: f, targetBattalion: f.battalionName }); setRestoreMsg(''); }}
                         className="flex-shrink-0 mr-3 px-3 py-1.5 text-xs bg-blue-700/60 hover:bg-blue-600 text-blue-200 rounded-lg border border-blue-600/50 transition-colors font-medium"
                       >
                         שחזר
@@ -343,10 +348,10 @@ export const BackupPage: React.FC = () => {
               ⚠️ פעולה זו תחליף את נתוני הגדוד הנוכחיים
             </p>
 
-            <div className="bg-gray-800 rounded-lg p-4 mb-5 space-y-1.5 text-sm">
+            <div className="bg-gray-800 rounded-lg p-4 mb-4 space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-400">גדוד:</span>
-                <span className="text-white font-medium">גדוד {restoreModal.file.battalionName}</span>
+                <span className="text-gray-400">גדוד מקור:</span>
+                <span className="text-white font-medium">{restoreModal.file.battalionName}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">קובץ:</span>
@@ -360,6 +365,33 @@ export const BackupPage: React.FC = () => {
                 <span className="text-gray-400">גודל:</span>
                 <span className="text-gray-300">{formatSize(restoreModal.file.size)}</span>
               </div>
+            </div>
+
+            {/* Restore target selector */}
+            <div className="mb-4">
+              <label className="block text-sm text-gray-400 mb-1.5">שחזר אל גדוד:</label>
+              <select
+                value={restoreModal.targetBattalion}
+                onChange={(e) => setRestoreModal((m) => m ? { ...m, targetBattalion: e.target.value } : m)}
+                className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm mb-2"
+                disabled={restoring}
+              >
+                {battalions.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+                {!battalions.includes(restoreModal.targetBattalion) && restoreModal.targetBattalion && (
+                  <option value={restoreModal.targetBattalion}>{restoreModal.targetBattalion} (חדש)</option>
+                )}
+              </select>
+              <input
+                type="text"
+                placeholder="או הקלד שם גדוד חדש..."
+                value={restoreModal.targetBattalion}
+                onChange={(e) => setRestoreModal((m) => m ? { ...m, targetBattalion: e.target.value } : m)}
+                className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm placeholder-gray-500"
+                disabled={restoring}
+                dir="rtl"
+              />
             </div>
 
             {restoreMsg && (

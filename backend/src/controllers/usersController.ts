@@ -78,7 +78,7 @@ export const createUser = async (req: Request, res: Response) => {
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'email', 'firstName', 'lastName', 'role', 'mobilePhone', 'totpEnabled', 'createdAt'],
+      attributes: ['id', 'email', 'firstName', 'lastName', 'role', 'mobilePhone', 'totpEnabled', 'hidePersonalNumber', 'createdAt'],
       order: [['createdAt', 'DESC']],
     });
     res.json(users);
@@ -176,7 +176,7 @@ export const resetUserPassword = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const targetId = parseInt(req.params.id, 10);
-    const { firstName, lastName, role, email, mobilePhone } = req.body;
+    const { firstName, lastName, role, email, mobilePhone, hidePersonalNumber } = req.body;
 
     if (isNaN(targetId)) {
       return res.status(400).json({ error: 'Invalid user ID' });
@@ -203,6 +203,7 @@ export const updateUser = async (req: Request, res: Response) => {
     if (lastName !== undefined) user.lastName = lastName;
     if (role !== undefined) user.role = ['admin', 'super', 'staff', 'manager'].includes(role) ? role : 'staff';
     if (mobilePhone !== undefined) user.mobilePhone = mobilePhone ? String(mobilePhone).trim() : null;
+    if (hidePersonalNumber !== undefined) user.hidePersonalNumber = hidePersonalNumber === true || hidePersonalNumber === 'true';
 
     await user.save();
 
