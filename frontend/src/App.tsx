@@ -169,7 +169,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </>
         )}
 
-        {/* Super + Admin — הקצאת חיילים */}
+        {/* Super + Admin — צוות שטח + הקצאת חיילים */}
+        {(user.role === 'super' || user.role === 'admin') && (
+          <NavLink to="/field-team" onClick={closeMenu}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            צוות שטח
+          </NavLink>
+        )}
         {(user.role === 'super' || user.role === 'admin') && (
           <NavLink to="/battalion/allocate" onClick={closeMenu}>
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
