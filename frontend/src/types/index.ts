@@ -16,6 +16,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   role: 'admin' | 'staff' | 'super' | 'manager';
+  hidePersonalNumber?: boolean;
 }
 
 export interface AuthResponse {
