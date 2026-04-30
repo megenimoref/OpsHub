@@ -22,6 +22,7 @@ import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { BackupPage } from './pages/BackupPage';
 import { CommunityPage } from './pages/CommunityPage';
+import { FieldTeamPage } from './pages/FieldTeamPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import { NotificationBell } from './components/NotificationBell';
@@ -156,6 +157,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               חיפוש חייל
+            </NavLink>
+
+            <NavLink to="/field-team" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              צוות שטח
             </NavLink>
           </>
         )}
@@ -497,6 +506,7 @@ function App() {
           />
           <Route path="/backup" element={<ProtectedRoute><BackupPage /></ProtectedRoute>} />
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
+          <Route path="/field-team" element={<ProtectedRoute><FieldTeamPage /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         </Routes>
       </Layout>
