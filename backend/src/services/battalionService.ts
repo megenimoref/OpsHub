@@ -1003,3 +1003,57 @@ export async function getSoldierChanges(
     await conn.end();
   }
 }
+
+export interface DuplicateSoldier {
+  personal_number: string;
+  first_name: string;
+  last_name: string;
+  mobile_phone: string;
+  request_status: string;
+  battalions: string[];
+}
+
+/** Find soldiers that appear in more than one battalion DB (by personal_number or mobile_phone). */
+export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: DuplicateSoldier[]; byPhone: DuplicateSoldier[] }> {
+  const battalions = await listBattalions();
+
+  const byPN = new Map<string, { soldier: any; battalionName: string }[]>();
+  const byPhone = new Map<string, { soldier: any; battalionName: string }[]>();
+
+  for (const bn of battalions) {
+    const conn = await mysql.createConnection({ ...dbConfig, database: getBattalionDbName(bn) });
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT personal_number, first_name, last_name, mobile_phone, request_status FROM soldiers`
+      );
+      for (const row of rows) {
+        const pn = String(row.personal_number || '').trim();
+        const phone = String(row.mobile_phone || '').replace(/\D/g, '').trim();
+
+        if (pn) {
+          if (!byPN.has(pn)) byPN.set(pn, []);
+          byPN.get(pn)!.push({ soldier: row, battalionName: bn });
+        }
+        if (phone && phone.length >= 9) {
+          if (!byPhone.has(phone)) byPhone.set(phone, []);
+          byPhone.get(phone)!.push({ soldier: row, battalionName: bn });
+        }
+      }
+    } finally {
+      await conn.end();
+    }
+  }
+
+  const toDuplicates = (map: Map<string, { soldier: any; battalionName: string }[]>): DuplicateSoldier[] =>
+    [...map.entries()]
+      .filter(([, entries]) => entries.length > 1)
+      .map(([, entries]) => ({
+        ...entries[0].soldier,
+        battalions: entries.map((e) => e.battalionName),
+      }));
+
+  return {
+    byPersonalNumber: toDuplicates(byPN),
+    byPhone: toDuplicates(byPhone),
+  };
+}
