@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
-import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, searchFieldTeam, getDuplicateSoldiersHandler } from '../controllers/battalionController';
+import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats, deallocateSoldiers, assignSoldiers } from '../controllers/allocationController';
 import { getSheagatHaariStats } from '../services/sheagatHaariService';
 import { logger } from '../services/logger';
@@ -59,6 +59,7 @@ router.get('/:name/assistance-soldiers', authMiddleware, getAssistanceSoldiers);
 router.get('/:name/soldiers', authMiddleware, getBattalionSoldiers);
 router.get('/:name/soldiers/search', authMiddleware, searchSoldier);
 router.put('/:name/soldiers/:id', authMiddleware, updateSoldierHandler);
+router.delete('/:name/soldiers/:personal_number', authMiddleware, adminMiddleware, deleteSoldierHandler);
 router.get('/:name/soldiers/:id/changes', authMiddleware, getSoldierChangesHandler);
 
 export default router;

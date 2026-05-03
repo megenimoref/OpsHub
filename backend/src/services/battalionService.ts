@@ -1057,3 +1057,21 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
     byPhone: toDuplicates(byPhone),
   };
 }
+
+/** Delete a single soldier from a battalion DB by personal_number. */
+export async function deleteSoldierFromBattalion(
+  battalionName: string,
+  personalNumber: string
+): Promise<{ deleted: boolean }> {
+  const dbName = getBattalionDbName(battalionName);
+  const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+  try {
+    const [result] = await conn.execute<mysql.ResultSetHeader>(
+      `DELETE FROM soldiers WHERE personal_number = ? LIMIT 1`,
+      [personalNumber]
+    );
+    return { deleted: result.affectedRows > 0 };
+  } finally {
+    await conn.end();
+  }
+}

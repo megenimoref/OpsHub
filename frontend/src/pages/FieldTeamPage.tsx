@@ -35,6 +35,12 @@ const STATUS_COLOR: Record<string, string> = {
   'ממתין לטיפול': 'bg-cyan-900/50 text-cyan-300 border-cyan-700',
 };
 
+interface DeleteModal {
+  soldier: DuplicateSoldier;
+  selectedBattalion: string;
+  deleting: boolean;
+}
+
 export const FieldTeamPage: React.FC = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'search' | 'duplicates'>('search');
@@ -50,6 +56,7 @@ export const FieldTeamPage: React.FC = () => {
   const [dupData, setDupData] = useState<DuplicatesData | null>(null);
   const [dupLoading, setDupLoading] = useState(false);
   const [dupType, setDupType] = useState<'byPersonalNumber' | 'byPhone'>('byPersonalNumber');
+  const [deleteModal, setDeleteModal] = useState<DeleteModal | null>(null);
 
   const doSearch = useCallback(async (q: string) => {
     if (q.trim().length < 2) {
@@ -90,6 +97,29 @@ export const FieldTeamPage: React.FC = () => {
 
   const openDuplicateSoldier = (d: DuplicateSoldier, battalionName: string) => {
     navigate(`/battalion/soldier?battalion=${encodeURIComponent(battalionName)}&personal_number=${encodeURIComponent(d.personal_number)}`);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
+    setDeleteModal({ ...deleteModal, deleting: true });
+    try {
+      await api.delete(`/battalion/${encodeURIComponent(deleteModal.selectedBattalion)}/soldiers/${encodeURIComponent(deleteModal.soldier.personal_number)}`);
+      // Remove from results
+      setDupData((prev) => {
+        if (!prev) return prev;
+        const filter = (list: DuplicateSoldier[]) =>
+          list.map((d) =>
+            d.personal_number === deleteModal.soldier.personal_number
+              ? { ...d, battalions: d.battalions.filter((b) => b !== deleteModal.selectedBattalion) }
+              : d
+          ).filter((d) => d.battalions.length > 1);
+        return { byPersonalNumber: filter(prev.byPersonalNumber), byPhone: filter(prev.byPhone) };
+      });
+      setDeleteModal(null);
+    } catch {
+      alert('שגיאה במחיקה, נסה שוב');
+      setDeleteModal((m) => m ? { ...m, deleting: false } : null);
+    }
   };
 
   const runDuplicateCheck = async () => {
@@ -285,11 +315,22 @@ export const FieldTeamPage: React.FC = () => {
                             <span className="text-white font-semibold">{d.first_name} {d.last_name}</span>
                             {d.mobile_phone && <span dir="ltr" className="text-gray-400 text-sm mr-3">{d.mobile_phone}</span>}
                           </div>
-                          {d.request_status && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full border flex-shrink-0 ${STATUS_COLOR[d.request_status] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
-                              {d.request_status}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {d.request_status && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLOR[d.request_status] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                                {d.request_status}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => setDeleteModal({ soldier: d, selectedBattalion: d.battalions[0], deleting: false })}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 hover:border-red-600 rounded-lg text-xs text-red-400 hover:text-red-300 transition-all"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              הורד כפול
+                            </button>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {d.battalions.map((bn) => (
@@ -311,6 +352,54 @@ export const FieldTeamPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-white font-bold text-lg mb-1">הורדת כפול</h3>
+            <p className="text-gray-400 text-sm mb-5">
+              בחר מאיזה גדוד להסיר את <span className="text-white">{deleteModal.soldier.first_name} {deleteModal.soldier.last_name}</span>
+            </p>
+
+            <div className="space-y-2 mb-5">
+              {deleteModal.soldier.battalions.map((bn) => (
+                <button
+                  key={bn}
+                  onClick={() => setDeleteModal({ ...deleteModal, selectedBattalion: bn })}
+                  className={`w-full text-right px-4 py-3 rounded-xl border text-sm transition-all ${
+                    deleteModal.selectedBattalion === bn
+                      ? 'bg-red-900/50 border-red-600 text-red-300'
+                      : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
+                  }`}
+                >
+                  <span className="font-medium">גדוד {bn}</span>
+                  {deleteModal.selectedBattalion === bn && (
+                    <span className="mr-2 text-xs text-red-400">← יימחק מכאן</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={confirmDelete}
+                disabled={deleteModal.deleting}
+                className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                {deleteModal.deleting ? 'מוחק...' : 'מחק מגדוד ' + deleteModal.selectedBattalion}
+              </button>
+              <button
+                onClick={() => setDeleteModal(null)}
+                disabled={deleteModal.deleting}
+                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
