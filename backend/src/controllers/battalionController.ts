@@ -25,6 +25,7 @@ import {
   getBattalionDbName,
   findCrossBattalionDuplicates,
   searchSoldiersGlobalByNameOrPhone,
+  findDuplicateSoldiers,
   SoldierRow,
   SoldierRowWithExtras,
 } from '../services/battalionService';
@@ -1089,5 +1090,15 @@ export const searchFieldTeam = async (req: Request, res: Response): Promise<void
   } catch (error: any) {
     logger.error('Field team search failed', { errorMessage: error.message });
     res.status(500).json({ error: error.message || 'שגיאה בחיפוש' });
+  }
+};
+
+export const getDuplicateSoldiersHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await findDuplicateSoldiers();
+    res.json(data);
+  } catch (error: any) {
+    logger.error('Duplicate soldiers search failed', { errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה בחיפוש כפילויות' });
   }
 };
