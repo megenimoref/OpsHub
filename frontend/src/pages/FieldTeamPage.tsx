@@ -15,8 +15,7 @@ interface SearchResult {
 
 interface DuplicateBattalionEntry {
   battalionName: string;
-  contact_date?: string;
-  updated_at?: string;
+  last_updated?: string;
 }
 
 interface DuplicateSoldier {
@@ -340,15 +339,15 @@ export const FieldTeamPage: React.FC = () => {
                         </div>
                         {(() => {
                           const getTs = (e: DuplicateBattalionEntry) =>
-                            new Date(e.contact_date || e.updated_at || 0).getTime();
+                            new Date(e.last_updated || 0).getTime();
                           const maxTs = Math.max(...d.battalions.map(getTs));
                           return (
                             <div className="flex flex-wrap gap-2">
                               {d.battalions.map((entry) => {
                                 const ts = getTs(entry);
                                 const isLatest = ts === maxTs && ts > 0;
-                                const dateStr = (entry.contact_date || entry.updated_at)
-                                  ? new Date(entry.contact_date || entry.updated_at!).toLocaleDateString('he-IL')
+                                const dateStr = entry.last_updated
+                                  ? new Date(entry.last_updated).toLocaleDateString('he-IL')
                                   : null;
                                 return (
                                   <button
@@ -405,9 +404,7 @@ export const FieldTeamPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="font-medium">גדוד {entry.battalionName}</span>
                     <span className="text-xs text-gray-400">
-                      {(entry.contact_date || entry.updated_at)
-                        ? new Date(entry.contact_date || entry.updated_at!).toLocaleDateString('he-IL')
-                        : ''}
+                      {entry.last_updated ? new Date(entry.last_updated).toLocaleDateString('he-IL') : ''}
                     </span>
                   </div>
                   {deleteModal.selectedBattalion === entry.battalionName && (

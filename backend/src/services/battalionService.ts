@@ -1006,8 +1006,7 @@ export async function getSoldierChanges(
 
 export interface DuplicateBattalionEntry {
   battalionName: string;
-  contact_date?: string;
-  updated_at?: string;
+  last_updated?: string;
 }
 
 export interface DuplicateSoldier {
@@ -1027,10 +1026,25 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
   const byPhone = new Map<string, { soldier: any; battalionName: string }[]>();
 
   for (const bn of battalions) {
-    const conn = await mysql.createConnection({ ...dbConfig, database: getBattalionDbName(bn) });
+    const dbName = getBattalionDbName(bn);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
     try {
+      // Detect available columns to avoid errors on older DBs
+      const [colRows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+        [dbName]
+      );
+      const availableCols = new Set(colRows.map((r) => r.COLUMN_NAME as string));
+      const dateCol = availableCols.has('contact_date')
+        ? availableCols.has('updated_at')
+          ? 'COALESCE(contact_date, updated_at) AS last_updated'
+          : 'contact_date AS last_updated'
+        : availableCols.has('updated_at')
+          ? 'updated_at AS last_updated'
+          : 'NULL AS last_updated';
+
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        `SELECT personal_number, first_name, last_name, mobile_phone, request_status, contact_date, updated_at FROM soldiers`
+        `SELECT personal_number, first_name, last_name, mobile_phone, request_status, ${dateCol} FROM soldiers`
       );
       for (const row of rows) {
         const pn = String(row.personal_number || '').trim();
@@ -1057,8 +1071,7 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
         ...entries[0].soldier,
         battalions: entries.map((e) => ({
           battalionName: e.battalionName,
-          contact_date: e.soldier.contact_date || undefined,
-          updated_at: e.soldier.updated_at || undefined,
+          last_updated: e.soldier.last_updated || undefined,
         })),
       }));
 
