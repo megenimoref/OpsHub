@@ -1004,13 +1004,19 @@ export async function getSoldierChanges(
   }
 }
 
+export interface DuplicateBattalionEntry {
+  battalionName: string;
+  contact_date?: string;
+  updated_at?: string;
+}
+
 export interface DuplicateSoldier {
   personal_number: string;
   first_name: string;
   last_name: string;
   mobile_phone: string;
   request_status: string;
-  battalions: string[];
+  battalions: DuplicateBattalionEntry[];
 }
 
 /** Find soldiers that appear in more than one battalion DB (by personal_number or mobile_phone). */
@@ -1049,7 +1055,11 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
       .filter(([, entries]) => entries.length > 1)
       .map(([, entries]) => ({
         ...entries[0].soldier,
-        battalions: entries.map((e) => e.battalionName),
+        battalions: entries.map((e) => ({
+          battalionName: e.battalionName,
+          contact_date: e.soldier.contact_date || undefined,
+          updated_at: e.soldier.updated_at || undefined,
+        })),
       }));
 
   return {
