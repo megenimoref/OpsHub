@@ -844,6 +844,7 @@ export async function searchSoldiersGlobalByNameOrPhone(
 ): Promise<Array<{ soldier: { personal_number: string; first_name: string; last_name: string; mobile_phone: string; request_status: string }; battalionName: string }>> {
   const battalions = await listBattalions();
   const results: Array<{ soldier: any; battalionName: string }> = [];
+  const seen = new Set<string>();
   const term = `%${query}%`;
 
   for (const bn of battalions) {
@@ -859,6 +860,9 @@ export async function searchSoldiersGlobalByNameOrPhone(
         [term, term, term, limit - results.length]
       );
       for (const row of rows) {
+        const key = String(row.personal_number || '').trim();
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
         results.push({ soldier: row, battalionName: bn });
       }
     } finally {
