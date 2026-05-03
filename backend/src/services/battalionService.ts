@@ -1004,13 +1004,18 @@ export async function getSoldierChanges(
   }
 }
 
+export interface DuplicateBattalionEntry {
+  battalionName: string;
+  last_updated?: string;
+}
+
 export interface DuplicateSoldier {
   personal_number: string;
   first_name: string;
   last_name: string;
   mobile_phone: string;
   request_status: string;
-  battalions: string[];
+  battalions: DuplicateBattalionEntry[];
 }
 
 /** Find soldiers that appear in more than one battalion DB (by personal_number or mobile_phone). */
@@ -1021,10 +1026,25 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
   const byPhone = new Map<string, { soldier: any; battalionName: string }[]>();
 
   for (const bn of battalions) {
-    const conn = await mysql.createConnection({ ...dbConfig, database: getBattalionDbName(bn) });
+    const dbName = getBattalionDbName(bn);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
     try {
+      // Detect available date columns to avoid errors on older DBs
+      const [colRows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+        [dbName]
+      );
+      const availableCols = new Set(colRows.map((r) => r.COLUMN_NAME as string));
+      const dateExpr = availableCols.has('contact_date') && availableCols.has('updated_at')
+        ? 'COALESCE(NULLIF(TRIM(contact_date),\'\'), updated_at) AS last_updated'
+        : availableCols.has('contact_date')
+          ? 'contact_date AS last_updated'
+          : availableCols.has('updated_at')
+            ? 'updated_at AS last_updated'
+            : 'NULL AS last_updated';
+
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        `SELECT personal_number, first_name, last_name, mobile_phone, request_status FROM soldiers`
+        `SELECT personal_number, first_name, last_name, mobile_phone, request_status, ${dateExpr} FROM soldiers`
       );
       for (const row of rows) {
         const pn = String(row.personal_number || '').trim();
@@ -1049,7 +1069,10 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
       .filter(([, entries]) => entries.length > 1)
       .map(([, entries]) => ({
         ...entries[0].soldier,
-        battalions: entries.map((e) => e.battalionName),
+        battalions: entries.map((e) => ({
+          battalionName: e.battalionName,
+          last_updated: e.soldier.last_updated ? String(e.soldier.last_updated) : undefined,
+        })),
       }));
 
   return {
