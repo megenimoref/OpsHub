@@ -13,13 +13,18 @@ interface SearchResult {
   battalionName: string;
 }
 
+interface DuplicateBattalionEntry {
+  battalionName: string;
+  last_updated?: string;
+}
+
 interface DuplicateSoldier {
   personal_number: string;
   first_name: string;
   last_name: string;
   mobile_phone: string;
   request_status: string;
-  battalions: string[];
+  battalions: DuplicateBattalionEntry[];
 }
 
 interface DuplicatesData {
@@ -95,8 +100,8 @@ export const FieldTeamPage: React.FC = () => {
     navigate(`/battalion/soldier?battalion=${encodeURIComponent(r.battalionName)}&personal_number=${encodeURIComponent(r.soldier.personal_number)}`);
   };
 
-  const openDuplicateSoldier = (d: DuplicateSoldier, battalionName: string) => {
-    navigate(`/battalion/soldier?battalion=${encodeURIComponent(battalionName)}&personal_number=${encodeURIComponent(d.personal_number)}`);
+  const openDuplicateSoldier = (d: DuplicateSoldier, entry: DuplicateBattalionEntry) => {
+    navigate(`/battalion/soldier?battalion=${encodeURIComponent(entry.battalionName)}&personal_number=${encodeURIComponent(d.personal_number)}`);
   };
 
   const confirmDelete = async () => {
@@ -110,7 +115,7 @@ export const FieldTeamPage: React.FC = () => {
         const filter = (list: DuplicateSoldier[]) =>
           list.map((d) =>
             d.personal_number === deleteModal.soldier.personal_number
-              ? { ...d, battalions: d.battalions.filter((b) => b !== deleteModal.selectedBattalion) }
+              ? { ...d, battalions: d.battalions.filter((b) => b.battalionName !== deleteModal.selectedBattalion) }
               : d
           ).filter((d) => d.battalions.length > 1);
         return { byPersonalNumber: filter(prev.byPersonalNumber), byPhone: filter(prev.byPhone) };
@@ -322,7 +327,7 @@ export const FieldTeamPage: React.FC = () => {
                               </span>
                             )}
                             <button
-                              onClick={() => setDeleteModal({ soldier: d, selectedBattalion: d.battalions[0], deleting: false })}
+                              onClick={() => setDeleteModal({ soldier: d, selectedBattalion: d.battalions[0].battalionName, deleting: false })}
                               className="flex items-center gap-1 px-2.5 py-1 bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 hover:border-red-600 rounded-lg text-xs text-red-400 hover:text-red-300 transition-all"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,17 +337,40 @@ export const FieldTeamPage: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {d.battalions.map((bn) => (
-                            <button
-                              key={bn}
-                              onClick={() => openDuplicateSoldier(d, bn)}
-                              className="px-3 py-1 bg-gray-700 hover:bg-blue-700 border border-gray-600 hover:border-blue-500 rounded-lg text-xs text-gray-300 hover:text-white transition-all"
-                            >
-                              גדוד {bn}
-                            </button>
-                          ))}
-                        </div>
+                        {(() => {
+                          const getTs = (e: DuplicateBattalionEntry) =>
+                            new Date(e.last_updated || 0).getTime();
+                          const maxTs = Math.max(...d.battalions.map(getTs));
+                          return (
+                            <div className="flex flex-wrap gap-2">
+                              {d.battalions.map((entry) => {
+                                const ts = getTs(entry);
+                                const isLatest = ts === maxTs && ts > 0;
+                                const dateStr = entry.last_updated
+                                  ? new Date(entry.last_updated).toLocaleDateString('he-IL')
+                                  : null;
+                                return (
+                                  <button
+                                    key={entry.battalionName}
+                                    onClick={() => openDuplicateSoldier(d, entry)}
+                                    className={`flex flex-col items-start px-3 py-1.5 rounded-lg text-xs transition-all border ${
+                                      isLatest
+                                        ? 'bg-green-900/40 border-green-700 text-green-300 hover:bg-green-800/50'
+                                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-blue-700 hover:border-blue-500 hover:text-white'
+                                    }`}
+                                  >
+                                    <span className="font-medium">גדוד {entry.battalionName}</span>
+                                    {dateStr && (
+                                      <span className={`mt-0.5 ${isLatest ? 'text-green-400' : 'text-gray-500'}`}>
+                                        {isLatest ? '✓ ' : ''}{dateStr}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -363,19 +391,24 @@ export const FieldTeamPage: React.FC = () => {
             </p>
 
             <div className="space-y-2 mb-5">
-              {deleteModal.soldier.battalions.map((bn) => (
+              {deleteModal.soldier.battalions.map((entry) => (
                 <button
-                  key={bn}
-                  onClick={() => setDeleteModal({ ...deleteModal, selectedBattalion: bn })}
+                  key={entry.battalionName}
+                  onClick={() => setDeleteModal({ ...deleteModal, selectedBattalion: entry.battalionName })}
                   className={`w-full text-right px-4 py-3 rounded-xl border text-sm transition-all ${
-                    deleteModal.selectedBattalion === bn
+                    deleteModal.selectedBattalion === entry.battalionName
                       ? 'bg-red-900/50 border-red-600 text-red-300'
                       : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
                   }`}
                 >
-                  <span className="font-medium">גדוד {bn}</span>
-                  {deleteModal.selectedBattalion === bn && (
-                    <span className="mr-2 text-xs text-red-400">← יימחק מכאן</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">גדוד {entry.battalionName}</span>
+                    <span className="text-xs text-gray-400">
+                      {entry.last_updated ? new Date(entry.last_updated).toLocaleDateString('he-IL') : ''}
+                    </span>
+                  </div>
+                  {deleteModal.selectedBattalion === entry.battalionName && (
+                    <span className="text-xs text-red-400">← יימחק מכאן</span>
                   )}
                 </button>
               ))}
