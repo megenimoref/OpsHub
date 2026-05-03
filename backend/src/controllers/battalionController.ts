@@ -26,6 +26,7 @@ import {
   findCrossBattalionDuplicates,
   searchSoldiersGlobalByNameOrPhone,
   findDuplicateSoldiers,
+  deleteSoldierFromBattalion,
   SoldierRow,
   SoldierRowWithExtras,
 } from '../services/battalionService';
@@ -1100,5 +1101,25 @@ export const getDuplicateSoldiersHandler = async (req: Request, res: Response): 
   } catch (error: any) {
     logger.error('Duplicate soldiers search failed', { errorMessage: error.message });
     res.status(500).json({ error: error.message || 'שגיאה בחיפוש כפילויות' });
+  }
+};
+
+export const deleteSoldierHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, personal_number } = req.params;
+    if (!name || !personal_number) {
+      res.status(400).json({ error: 'חסרים פרמטרים' });
+      return;
+    }
+    const result = await deleteSoldierFromBattalion(name, personal_number);
+    if (!result.deleted) {
+      res.status(404).json({ error: 'חייל לא נמצא' });
+      return;
+    }
+    logger.info('Soldier deleted', { battalionName: name, personalNumber: personal_number, deletedBy: req.userId });
+    res.json({ success: true });
+  } catch (error: any) {
+    logger.error('Delete soldier failed', { errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה במחיקת חייל' });
   }
 };
