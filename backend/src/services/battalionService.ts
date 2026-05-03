@@ -1024,7 +1024,7 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
     const conn = await mysql.createConnection({ ...dbConfig, database: getBattalionDbName(bn) });
     try {
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        `SELECT personal_number, first_name, last_name, mobile_phone, request_status FROM soldiers`
+        `SELECT personal_number, first_name, last_name, mobile_phone, request_status, contact_date, updated_at FROM soldiers`
       );
       for (const row of rows) {
         const pn = String(row.personal_number || '').trim();

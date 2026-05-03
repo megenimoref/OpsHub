@@ -19,6 +19,8 @@ interface DuplicateSoldier {
   last_name: string;
   mobile_phone: string;
   request_status: string;
+  contact_date?: string;
+  updated_at?: string;
   battalions: string[];
 }
 
@@ -332,6 +334,12 @@ export const FieldTeamPage: React.FC = () => {
                             </button>
                           </div>
                         </div>
+                        {(d.contact_date || d.updated_at) && (
+                          <p className="text-xs text-gray-500 mb-2">
+                            עודכן אחרון:{' '}
+                            {new Date(d.contact_date || d.updated_at!).toLocaleDateString('he-IL')}
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-2">
                           {d.battalions.map((bn) => (
                             <button
