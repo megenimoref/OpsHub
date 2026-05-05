@@ -277,15 +277,16 @@ export const UserCreatePage: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
-              טלפון נייד <span className="text-gray-500 text-xs">(לשליחת SMS)</span>
+              טלפון נייד <span className="text-red-400 text-xs font-bold">* חובה לאימות SMS</span>
             </label>
             <input
               type="tel"
               value={mobilePhone}
               onChange={(e) => setMobilePhone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white placeholder-gray-400"
+              className="w-full px-3 py-2 border border-orange-600 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 bg-gray-700 text-white placeholder-gray-400"
               placeholder="05X-XXXXXXX"
               dir="ltr"
+              required
             />
           </div>
           <div>
@@ -469,8 +470,10 @@ export const UserCreatePage: React.FC = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-white text-sm font-medium">{u.firstName} {u.lastName}</span>
                         <span className="text-xs text-gray-400" dir="ltr">({u.email})</span>
-                        {u.mobilePhone && (
+                        {u.mobilePhone ? (
                           <span className="text-xs text-gray-400 font-mono" dir="ltr">{u.mobilePhone}</span>
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/60 border border-red-700 text-red-300 font-semibold">⚠ אין טלפון — לא יוכל להתחבר</span>
                         )}
                         {/* Inline role-change select */}
                         <div className="relative">
