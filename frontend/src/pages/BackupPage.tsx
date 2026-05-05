@@ -80,6 +80,8 @@ export const BackupPage: React.FC = () => {
   const [dupDeleteModal, setDupDeleteModal] = useState<DupDeleteModal | null>(null);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ deleted: number; skipped: number } | null>(null);
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkSelectedBattalion, setBulkSelectedBattalion] = useState<string>('');
 
   const runDuplicateCheck = useCallback(async () => {
     setDupLoading(true);
@@ -116,19 +118,29 @@ export const BackupPage: React.FC = () => {
     }
   };
 
-  const removeAllOlderDuplicates = async () => {
+  // All distinct battalion names that appear in current duplicates
+  const dupBattalionOptions = (dups: DuplicateSoldier[]) => {
+    const s = new Set<string>();
+    for (const d of dups) for (const e of d.battalions) s.add(e.battalionName);
+    return Array.from(s).sort();
+  };
+
+  const openBulkModal = () => {
     if (!dupData) return;
+    const opts = dupBattalionOptions(dupData[dupType]);
+    setBulkSelectedBattalion(opts[0] || '');
+    setBulkModal(true);
+  };
+
+  const removeAllFromBattalion = async () => {
+    if (!dupData || !bulkSelectedBattalion) return;
     const dups = dupData[dupType];
-    const toDelete: { battalionName: string; personal_number: string }[] = [];
-    for (const d of dups) {
-      const withDate = d.battalions.filter((e) => e.last_updated);
-      if (withDate.length < 2) continue;
-      const sorted = [...withDate].sort(
-        (a, b) => new Date(a.last_updated!).getTime() - new Date(b.last_updated!).getTime()
-      );
-      toDelete.push({ battalionName: sorted[0].battalionName, personal_number: d.personal_number });
-    }
-    if (toDelete.length === 0) return;
+    // Only delete soldiers that actually appear in the selected battalion AND at least one other battalion
+    const toDelete = dups
+      .filter((d) => d.battalions.some((e) => e.battalionName === bulkSelectedBattalion) && d.battalions.length > 1)
+      .map((d) => ({ battalionName: bulkSelectedBattalion, personal_number: d.personal_number }));
+    if (toDelete.length === 0) { setBulkModal(false); return; }
+    setBulkModal(false);
     setBulkDeleting(true);
     setBulkResult(null);
     let deleted = 0, skipped = 0;
@@ -146,7 +158,7 @@ export const BackupPage: React.FC = () => {
   };
 
   const currentDups = dupData ? dupData[dupType] : [];
-  const deletableCount = currentDups.filter((d) => d.battalions.filter((e) => e.last_updated).length >= 2).length;
+  const deletableCount = currentDups.filter((d) => d.battalions.length > 1).length;
 
   // ── Backup state ─────────────────────────────────────────────────────────
   const [config, setConfig] = useState<BackupConfig>({
@@ -327,14 +339,14 @@ export const BackupPage: React.FC = () => {
                 <div className="mr-auto flex gap-2">
                   {deletableCount > 0 && (
                     <button
-                      onClick={removeAllOlderDuplicates}
+                      onClick={openBulkModal}
                       disabled={bulkDeleting}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-red-900/50 border border-red-700 text-red-300 hover:bg-red-800/60 hover:text-red-200 disabled:opacity-50 transition-all"
                     >
                       {bulkDeleting ? (
                         <><div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />מסיר...</>
                       ) : (
-                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>הסר כל הכפולים הישנים ({deletableCount})</>
+                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>הסר כפולים מגדוד ({deletableCount})</>
                       )}
                     </button>
                   )}
@@ -702,6 +714,59 @@ export const BackupPage: React.FC = () => {
       )}
 
       </> /* end backup tab */}
+
+      {/* ── Bulk remove modal ── */}
+      {bulkModal && dupData && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-white font-bold text-lg mb-1">הסר כפולים מגדוד</h3>
+            <p className="text-gray-400 text-sm mb-5">
+              בחר מאיזה גדוד להסיר את כל החיילים הכפולים
+            </p>
+            <div className="space-y-2 mb-5 max-h-64 overflow-y-auto">
+              {dupBattalionOptions(dupData[dupType]).map((bn) => {
+                const count = dupData[dupType].filter(
+                  (d) => d.battalions.some((e) => e.battalionName === bn) && d.battalions.length > 1
+                ).length;
+                return (
+                  <button
+                    key={bn}
+                    onClick={() => setBulkSelectedBattalion(bn)}
+                    className={`w-full text-right px-4 py-3 rounded-xl border text-sm transition-all ${
+                      bulkSelectedBattalion === bn
+                        ? 'bg-red-900/50 border-red-600 text-red-300'
+                        : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">גדוד {bn}</span>
+                      <span className="text-xs text-gray-400">{count} כפולים</span>
+                    </div>
+                    {bulkSelectedBattalion === bn && (
+                      <span className="text-xs text-red-400">← יוסר מכאן</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={removeAllFromBattalion}
+                disabled={!bulkSelectedBattalion}
+                className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                הסר מגדוד {bulkSelectedBattalion}
+              </button>
+              <button
+                onClick={() => setBulkModal(false)}
+                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Duplicate delete modal ── */}
       {dupDeleteModal && (
