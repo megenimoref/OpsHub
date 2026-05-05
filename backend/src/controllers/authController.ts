@@ -5,6 +5,7 @@ import User from '../models/user';
 import validator from 'validator';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '../services/emailService';
+import { sendBulkSms } from '../services/smsService';
 import { logger } from '../services/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
@@ -93,7 +94,59 @@ export const login = async (req: Request, res: Response) => {
       logger.error(`login failed: password mismatch`, { email, userId: user.id, hashPrefix: user.password.substring(0, 10) });
       return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
     }
-    logger.info(`login success`, { email, userId: user.id });
+    logger.info(`login success - sending OTP`, { email, userId: user.id });
+
+    // Check phone
+    if (!user.mobilePhone) {
+      logger.error(`login failed: no mobile phone`, { email, userId: user.id });
+      return res.status(403).json({ error: 'אין מספר טלפון מוגדר לחשבון זה. פנה למנהל המערכת.' });
+    }
+
+    // Generate 6-digit OTP
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    await user.update({ otpCode: otp, otpExpiresAt: expiresAt });
+
+    try {
+      await sendBulkSms([user.mobilePhone], `קוד האימות שלך: ${otp}\nהקוד תקף ל-5 דקות.`);
+    } catch (smsErr: any) {
+      logger.error('OTP SMS send failed', { email, error: smsErr.message });
+      return res.status(500).json({ error: 'שגיאה בשליחת SMS. נסה שוב.' });
+    }
+
+    return res.json({ otpRequired: true, message: `קוד נשלח ל-${user.mobilePhone.slice(-4).padStart(user.mobilePhone.length, '*')}` });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'חסרים פרמטרים' });
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
+
+    if (!user.otpCode || !user.otpExpiresAt) {
+      return res.status(401).json({ error: 'לא נמצא קוד אימות. התחבר מחדש.' });
+    }
+
+    if (new Date() > user.otpExpiresAt) {
+      await user.update({ otpCode: null, otpExpiresAt: null });
+      return res.status(401).json({ error: 'קוד האימות פג תוקף. התחבר מחדש.' });
+    }
+
+    if (user.otpCode !== String(otp).trim()) {
+      return res.status(401).json({ error: 'קוד שגוי' });
+    }
+
+    // Clear OTP
+    await user.update({ otpCode: null, otpExpiresAt: null });
+
+    logger.info(`OTP verified - login complete`, { email, userId: user.id });
 
     // @ts-ignore
     const token = jwt.sign(
@@ -107,7 +160,7 @@ export const login = async (req: Request, res: Response) => {
       user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, hidePersonalNumber: user.hidePersonalNumber },
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('OTP verify error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 };

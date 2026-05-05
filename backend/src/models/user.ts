@@ -18,6 +18,8 @@ class User extends Model {
   public totpResetExpires!: Date | null;
   public totpPendingSecret!: string | null;
   public hidePersonalNumber!: boolean;
+  public otpCode!: string | null;
+  public otpExpiresAt!: Date | null;
   public createdAt!: Date;
   public updatedAt!: Date;
 
@@ -104,6 +106,16 @@ User.init(
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false,
+    },
+    otpCode: {
+      type: DataTypes.STRING(6),
+      allowNull: true,
+      defaultValue: null,
+    },
+    otpExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
     },
   },
   {
