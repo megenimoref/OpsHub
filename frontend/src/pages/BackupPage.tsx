@@ -1,6 +1,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
+// ── Duplicates types ──────────────────────────────────────────────────────────
+interface DuplicateBattalionEntry {
+  battalionName: string;
+  last_updated?: string;
+}
+
+interface DuplicateSoldier {
+  personal_number: string;
+  first_name: string;
+  last_name: string;
+  mobile_phone: string;
+  request_status: string;
+  battalions: DuplicateBattalionEntry[];
+}
+
+interface DuplicatesData {
+  byPersonalNumber: DuplicateSoldier[];
+  byPhone: DuplicateSoldier[];
+}
+
+interface DupDeleteModal {
+  soldier: DuplicateSoldier;
+  selectedBattalion: string;
+  deleting: boolean;
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  'טופלה': 'bg-green-900/50 text-green-300 border-green-700',
+  'חייל לא זמין': 'bg-yellow-900/50 text-yellow-300 border-yellow-700',
+  'חייל ממתין לתשובה': 'bg-red-900/50 text-red-300 border-red-700',
+  'חייל ביקש שיחזרו אליו': 'bg-sky-900/50 text-sky-300 border-sky-700',
+  'ממתין לטיפול': 'bg-cyan-900/50 text-cyan-300 border-cyan-700',
+};
+
 interface BackupConfig {
   enabled: boolean;
   hour: number;
@@ -37,6 +71,84 @@ function formatDate(iso: string): string {
 }
 
 export const BackupPage: React.FC = () => {
+  const [mainTab, setMainTab] = useState<'backup' | 'duplicates'>('backup');
+
+  // ── Duplicates state ─────────────────────────────────────────────────────
+  const [dupData, setDupData] = useState<DuplicatesData | null>(null);
+  const [dupLoading, setDupLoading] = useState(false);
+  const [dupType, setDupType] = useState<'byPersonalNumber' | 'byPhone'>('byPersonalNumber');
+  const [dupDeleteModal, setDupDeleteModal] = useState<DupDeleteModal | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ deleted: number; skipped: number } | null>(null);
+
+  const runDuplicateCheck = useCallback(async () => {
+    setDupLoading(true);
+    setBulkResult(null);
+    try {
+      const { data } = await api.get('/battalion/duplicate-soldiers');
+      setDupData(data);
+    } catch {
+      setDupData({ byPersonalNumber: [], byPhone: [] });
+    } finally {
+      setDupLoading(false);
+    }
+  }, []);
+
+  const confirmDupDelete = async () => {
+    if (!dupDeleteModal) return;
+    setDupDeleteModal({ ...dupDeleteModal, deleting: true });
+    try {
+      await api.delete(`/battalion/${encodeURIComponent(dupDeleteModal.selectedBattalion)}/soldiers/${encodeURIComponent(dupDeleteModal.soldier.personal_number)}`);
+      setDupData((prev) => {
+        if (!prev) return prev;
+        const filter = (list: DuplicateSoldier[]) =>
+          list.map((d) =>
+            d.personal_number === dupDeleteModal.soldier.personal_number
+              ? { ...d, battalions: d.battalions.filter((b) => b.battalionName !== dupDeleteModal.selectedBattalion) }
+              : d
+          ).filter((d) => d.battalions.length > 1);
+        return { byPersonalNumber: filter(prev.byPersonalNumber), byPhone: filter(prev.byPhone) };
+      });
+      setDupDeleteModal(null);
+    } catch {
+      alert('שגיאה במחיקה, נסה שוב');
+      setDupDeleteModal((m) => m ? { ...m, deleting: false } : null);
+    }
+  };
+
+  const removeAllOlderDuplicates = async () => {
+    if (!dupData) return;
+    const dups = dupData[dupType];
+    const toDelete: { battalionName: string; personal_number: string }[] = [];
+    for (const d of dups) {
+      const withDate = d.battalions.filter((e) => e.last_updated);
+      if (withDate.length < 2) continue;
+      const sorted = [...withDate].sort(
+        (a, b) => new Date(a.last_updated!).getTime() - new Date(b.last_updated!).getTime()
+      );
+      toDelete.push({ battalionName: sorted[0].battalionName, personal_number: d.personal_number });
+    }
+    if (toDelete.length === 0) return;
+    setBulkDeleting(true);
+    setBulkResult(null);
+    let deleted = 0, skipped = 0;
+    for (const item of toDelete) {
+      try {
+        await api.delete(`/battalion/${encodeURIComponent(item.battalionName)}/soldiers/${encodeURIComponent(item.personal_number)}`);
+        deleted++;
+      } catch {
+        skipped++;
+      }
+    }
+    setBulkDeleting(false);
+    setBulkResult({ deleted, skipped });
+    runDuplicateCheck();
+  };
+
+  const currentDups = dupData ? dupData[dupType] : [];
+  const deletableCount = currentDups.filter((d) => d.battalions.filter((e) => e.last_updated).length >= 2).length;
+
+  // ── Backup state ─────────────────────────────────────────────────────────
   const [config, setConfig] = useState<BackupConfig>({
     enabled: false,
     hour: 2,
@@ -147,10 +259,168 @@ export const BackupPage: React.FC = () => {
 
   return (
     <div className="p-6 max-w-4xl mx-auto" dir="rtl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white mb-1">גיבוי בסיס הנתונים</h1>
-        <p className="text-gray-400 text-sm">גיבוי אוטומטי לכל גדוד — רוטציה של 7 ימים</p>
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-white mb-1">גיבוי DB</h1>
       </div>
+
+      {/* Main tabs */}
+      <div className="flex gap-1 mb-6 bg-gray-800 rounded-xl p-1 max-w-sm">
+        <button
+          onClick={() => setMainTab('backup')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${mainTab === 'backup' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          גיבוי ושחזור
+        </button>
+        <button
+          onClick={() => setMainTab('duplicates')}
+          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${mainTab === 'duplicates' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          מצא כפולים
+        </button>
+      </div>
+
+      {/* ── Duplicates tab ── */}
+      {mainTab === 'duplicates' && (
+        <div className="max-w-2xl">
+          {!dupData && !dupLoading && (
+            <div className="text-center py-16">
+              <div className="text-5xl mb-4">🔁</div>
+              <p className="text-gray-400 text-sm mb-6">הפעל בדיקה כדי למצוא חיילים שמופיעים ביותר מגדוד אחד</p>
+              <button
+                onClick={runDuplicateCheck}
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors"
+              >
+                הפעל בדיקת כפילויות
+              </button>
+            </div>
+          )}
+
+          {dupLoading && (
+            <div className="text-center py-16">
+              <div className="w-10 h-10 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-gray-400 text-sm">סורק את כל הגדודים...</p>
+            </div>
+          )}
+
+          {dupData && !dupLoading && (
+            <>
+              {/* Sub-tabs + actions */}
+              <div className="flex flex-wrap gap-2 mb-4 items-center">
+                <button
+                  onClick={() => setDupType('byPersonalNumber')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all border ${dupType === 'byPersonalNumber' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                >
+                  לפי מספר אישי
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${dupType === 'byPersonalNumber' ? 'bg-blue-500' : 'bg-gray-700'}`}>
+                    {dupData.byPersonalNumber.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setDupType('byPhone')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all border ${dupType === 'byPhone' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                >
+                  לפי טלפון
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${dupType === 'byPhone' ? 'bg-blue-500' : 'bg-gray-700'}`}>
+                    {dupData.byPhone.length}
+                  </span>
+                </button>
+                <div className="mr-auto flex gap-2">
+                  {deletableCount > 0 && (
+                    <button
+                      onClick={removeAllOlderDuplicates}
+                      disabled={bulkDeleting}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-red-900/50 border border-red-700 text-red-300 hover:bg-red-800/60 hover:text-red-200 disabled:opacity-50 transition-all"
+                    >
+                      {bulkDeleting ? (
+                        <><div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />מסיר...</>
+                      ) : (
+                        <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>הסר כל הכפולים הישנים ({deletableCount})</>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={runDuplicateCheck}
+                    className="px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white bg-gray-800 border border-gray-700 transition-all"
+                  >
+                    רענן
+                  </button>
+                </div>
+              </div>
+
+              {bulkResult && (
+                <div className="mb-4 p-3 rounded-xl bg-gray-800 border border-gray-700 text-sm text-gray-300">
+                  ✅ הוסרו <span className="text-white font-semibold">{bulkResult.deleted}</span> כפולים
+                  {bulkResult.skipped > 0 && <>, <span className="text-red-400">{bulkResult.skipped}</span> נכשלו</>}
+                </div>
+              )}
+
+              {currentDups.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">
+                  <div className="text-4xl mb-3">✅</div>
+                  <p>לא נמצאו כפילויות</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 mb-3">{currentDups.length} חיילים כפולים</p>
+                  {currentDups.map((d, i) => {
+                    const getTs = (e: DuplicateBattalionEntry) => new Date(e.last_updated || 0).getTime();
+                    const maxTs = Math.max(...d.battalions.map(getTs));
+                    return (
+                      <div key={i} className="bg-gray-800 border border-orange-800/50 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div>
+                            <span className="text-white font-semibold">{d.first_name} {d.last_name}</span>
+                            {d.mobile_phone && <span dir="ltr" className="text-gray-400 text-sm mr-3">{d.mobile_phone}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {d.request_status && (
+                              <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLOR[d.request_status] || 'bg-gray-700 text-gray-300 border-gray-600'}`}>
+                                {d.request_status}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => setDupDeleteModal({ soldier: d, selectedBattalion: d.battalions[0].battalionName, deleting: false })}
+                              className="flex items-center gap-1 px-2.5 py-1 bg-red-900/40 hover:bg-red-800/60 border border-red-700/50 hover:border-red-600 rounded-lg text-xs text-red-400 hover:text-red-300 transition-all"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              הורד כפול
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {d.battalions.map((entry) => {
+                            const ts = getTs(entry);
+                            const isLatest = ts === maxTs && ts > 0;
+                            const dateStr = entry.last_updated ? new Date(entry.last_updated).toLocaleDateString('he-IL') : null;
+                            return (
+                              <div
+                                key={entry.battalionName}
+                                className={`flex flex-col items-start px-3 py-1.5 rounded-lg text-xs border ${isLatest ? 'bg-green-900/40 border-green-700 text-green-300' : 'bg-gray-700 border-gray-600 text-gray-300'}`}
+                              >
+                                <span className="font-medium">גדוד {entry.battalionName}</span>
+                                {dateStr && (
+                                  <span className={`mt-0.5 ${isLatest ? 'text-green-400' : 'text-gray-500'}`}>
+                                    {isLatest ? '✓ ' : ''}{dateStr}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Backup tab ── */}
+      {mainTab === 'backup' && <>
 
       {/* ── Settings card ── */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-6 mb-6">
@@ -427,6 +697,55 @@ export const BackupPage: React.FC = () => {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      </> /* end backup tab */}
+
+      {/* ── Duplicate delete modal ── */}
+      {dupDeleteModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" dir="rtl">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 w-full max-w-sm">
+            <h3 className="text-white font-bold text-lg mb-1">הורדת כפול</h3>
+            <p className="text-gray-400 text-sm mb-5">
+              בחר מאיזה גדוד להסיר את <span className="text-white">{dupDeleteModal.soldier.first_name} {dupDeleteModal.soldier.last_name}</span>
+            </p>
+            <div className="space-y-2 mb-5">
+              {dupDeleteModal.soldier.battalions.map((entry) => (
+                <button
+                  key={entry.battalionName}
+                  onClick={() => setDupDeleteModal({ ...dupDeleteModal, selectedBattalion: entry.battalionName })}
+                  className={`w-full text-right px-4 py-3 rounded-xl border text-sm transition-all ${dupDeleteModal.selectedBattalion === entry.battalionName ? 'bg-red-900/50 border-red-600 text-red-300' : 'bg-gray-700 border-gray-600 text-gray-300 hover:border-gray-500'}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">גדוד {entry.battalionName}</span>
+                    <span className="text-xs text-gray-400">
+                      {entry.last_updated ? new Date(entry.last_updated).toLocaleDateString('he-IL') : ''}
+                    </span>
+                  </div>
+                  {dupDeleteModal.selectedBattalion === entry.battalionName && (
+                    <span className="text-xs text-red-400">← יימחק מכאן</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={confirmDupDelete}
+                disabled={dupDeleteModal.deleting}
+                className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors"
+              >
+                {dupDeleteModal.deleting ? 'מוחק...' : 'מחק מגדוד ' + dupDeleteModal.selectedBattalion}
+              </button>
+              <button
+                onClick={() => setDupDeleteModal(null)}
+                disabled={dupDeleteModal.deleting}
+                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-xl text-sm transition-colors"
+              >
+                ביטול
+              </button>
+            </div>
           </div>
         </div>
       )}
