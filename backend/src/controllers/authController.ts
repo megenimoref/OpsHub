@@ -9,7 +9,7 @@ import { sendBulkSms } from '../services/smsService';
 import { logger } from '../services/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 export const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
 export const PASSWORD_ERROR = 'הסיסמה חייבת להכיל לפחות 8 תווים, אות גדולה אחת, ספרה אחת וסימן מיוחד אחד';
 
@@ -24,7 +24,7 @@ export const refreshToken = (req: Request, res: Response) => {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     // @ts-ignore
     const newToken = jwt.sign(
-      { userId: decoded.userId, role: decoded.role, email: decoded.email, firstName: decoded.firstName, lastName: decoded.lastName },
+      { userId: decoded.userId, role: decoded.role, email: decoded.email, firstName: decoded.firstName, lastName: decoded.lastName, hidePersonalNumber: decoded.hidePersonalNumber },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
