@@ -69,6 +69,8 @@ export const Login: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.post('/auth/verify-otp', { email, otp: otpCode });
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       setAuth(res.data.token, res.data.user);
       navigate('/');
     } catch (err: any) {
