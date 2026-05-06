@@ -63,6 +63,10 @@ export const BattalionImportPage: React.FC = () => {
   const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
   const [verifyError, setVerifyError] = useState('');
 
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ updated: number; unchanged: number } | null>(null);
+  const [syncError, setSyncError] = useState('');
+
   // Delete state — two-step confirmation:
   //   step 1 = warning + first "האם אתה בטוח?"
   //   step 2 = password entry + final "מחק לצמיתות"
@@ -163,6 +167,8 @@ export const BattalionImportPage: React.FC = () => {
     setResult(null);
     setVerifyResult(null);
     setVerifyError('');
+    setSyncResult(null);
+    setSyncError('');
   };
 
   const handleVerify = async () => {
@@ -183,6 +189,30 @@ export const BattalionImportPage: React.FC = () => {
       setVerifyError(err.response?.data?.error || err.message || 'שגיאה בבדיקת ההתאמה');
     } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncError('');
+    setSyncResult(null);
+    if (!battalionName) { setSyncError('יש לבחור גדוד'); return; }
+    if (!file) { setSyncError('יש לבחור קובץ Excel'); return; }
+    setSyncLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('battalionName', battalionName);
+      formData.append('file', file);
+      const response = await api.post<{ success: boolean; updated: number; unchanged: number }>(
+        '/battalion/sync-excel-details', formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setSyncResult(response.data);
+      // Re-run verify to reflect the updated state
+      setVerifyResult(null);
+    } catch (err: any) {
+      setSyncError(err.response?.data?.error || err.message || 'שגיאה בסנכרון');
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -302,6 +332,25 @@ export const BattalionImportPage: React.FC = () => {
             <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
               <p className="font-bold text-red-300 mb-1">שגיאה:</p>
               <p className="text-red-300 text-sm whitespace-pre-wrap">{error}</p>
+            </div>
+          )}
+
+          {/* Sync error */}
+          {syncError && (
+            <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
+              <p className="font-bold text-red-300 mb-1">שגיאה בסנכרון:</p>
+              <p className="text-red-300 text-sm">{syncError}</p>
+            </div>
+          )}
+
+          {/* Sync result */}
+          {syncResult && (
+            <div className="bg-teal-900/40 border border-teal-700 rounded-lg p-4">
+              <p className="font-bold text-teal-300 mb-2">✓ סנכרון הושלם</p>
+              <div className="flex gap-5 text-sm">
+                <span className="text-white">עודכנו: <span className="font-bold text-teal-300">{syncResult.updated}</span></span>
+                <span className="text-gray-400">ללא שינוי: <span className="font-bold">{syncResult.unchanged}</span></span>
+              </div>
             </div>
           )}
 
@@ -464,6 +513,23 @@ export const BattalionImportPage: React.FC = () => {
                 </svg>
               )}
               {verifyLoading ? 'בודק...' : 'בדיקת התאמה'}
+            </button>
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={syncLoading || loading || !file || !battalionName || battalionsLoading}
+              className="px-5 py-2 bg-teal-700 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium inline-flex items-center gap-2"
+              title="עדכן שם פרטי, שם משפחה וטלפון בדאטה בייס לפי ערכי האקסל"
+            >
+              {syncLoading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              {syncLoading ? 'מסנכרן...' : 'סנכרון התאמה'}
             </button>
             <button
               type="button"
