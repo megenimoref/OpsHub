@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { authService } from '../services/authService';
-import { useAuthStore } from '../hooks/useAuth';
 
 interface SoldierBasic {
   personal_number: string;
@@ -46,8 +45,6 @@ const getStatusColor = (status: string): string => {
 const PAGE_SIZE = 20;
 
 export const PersonalAreaPage: React.FC = () => {
-  const { user: currentUser } = useAuthStore();
-  const hidePN = currentUser?.hidePersonalNumber === true;
   const [soldiers, setSoldiers] = useState<SoldierBasic[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -452,7 +449,6 @@ export const PersonalAreaPage: React.FC = () => {
                   <th className="px-4 py-3 font-semibold text-gray-200">טלפון</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם משפחה</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם פרטי</th>
-                  {!hidePN && <th className="px-4 py-3 font-semibold text-gray-200">מספר אישי</th>}
                 </tr>
               </thead>
               <tbody>
@@ -514,20 +510,11 @@ export const PersonalAreaPage: React.FC = () => {
                         >
                           {soldier.first_name}
                         </td>
-                        {!hidePN && (
-                          <td
-                            className="px-4 py-3 font-medium text-gray-200 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
-                            title="לחץ לחיפוש חייל אחר"
-                            onClick={() => isSearching ? closeSearch() : openSearch(rowKey)}
-                          >
-                            {soldier.personal_number}
-                          </td>
-                        )}
                       </tr>
                       {/* Inline search row */}
                       {isSearching && (
                         <tr className="border-b border-blue-800 bg-blue-950/40">
-                          <td colSpan={hidePN ? 7 : 8} className="px-4 py-3">
+                          <td colSpan={7} className="px-4 py-3">
                             <form onSubmit={handleGlobalSearch} className="flex items-center gap-2 flex-wrap">
                               <span className="text-blue-300 text-xs font-medium whitespace-nowrap">חיפוש חייל לפי מספר אישי:</span>
                               <div className="relative flex-1 max-w-xs">
