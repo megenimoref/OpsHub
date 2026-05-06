@@ -9,6 +9,7 @@ interface SoldierBasic {
   request_status: string;
   battalion_name: string;
   contact_date: string;
+  mobile_phone: string;
 }
 
 const STATUS_OPTIONS: { value: string; color: string }[] = [
@@ -445,6 +446,7 @@ export const PersonalAreaPage: React.FC = () => {
                   <th className="px-4 py-3 font-semibold text-gray-200">גדוד</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">סטטוס פנייה</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">תאריך קשר</th>
+                  <th className="px-4 py-3 font-semibold text-gray-200">טלפון</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם משפחה</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">שם פרטי</th>
                   <th className="px-4 py-3 font-semibold text-gray-200">מספר אישי</th>
@@ -491,6 +493,9 @@ export const PersonalAreaPage: React.FC = () => {
                             ? new Date(soldier.contact_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' })
                             : <span className="text-gray-600">-</span>}
                         </td>
+                        <td className="px-4 py-3 text-gray-300 text-sm font-mono" dir="ltr">
+                          {soldier.mobile_phone || <span className="text-gray-600">-</span>}
+                        </td>
                         {/* Clickable name/number cells */}
                         <td
                           className="px-4 py-3 text-gray-300 cursor-pointer hover:text-blue-400 hover:bg-blue-900/10 rounded transition-colors select-none"
@@ -517,7 +522,7 @@ export const PersonalAreaPage: React.FC = () => {
                       {/* Inline search row */}
                       {isSearching && (
                         <tr className="border-b border-blue-800 bg-blue-950/40">
-                          <td colSpan={7} className="px-4 py-3">
+                          <td colSpan={8} className="px-4 py-3">
                             <form onSubmit={handleGlobalSearch} className="flex items-center gap-2 flex-wrap">
                               <span className="text-blue-300 text-xs font-medium whitespace-nowrap">חיפוש חייל לפי מספר אישי:</span>
                               <div className="relative flex-1 max-w-xs">

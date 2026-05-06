@@ -138,6 +138,7 @@ interface SoldierData {
   request_status: string;
   battalion_name: string;
   contact_date: string;
+  mobile_phone: string;
 }
 
 async function getSoldiersByAllocation(userId: number): Promise<SoldierData[]> {
@@ -159,7 +160,7 @@ async function getSoldiersByAllocation(userId: number): Promise<SoldierData[]> {
     try {
       const placeholders = personalNumbers.map(() => '?').join(',');
       const [rows] = await conn.execute<SoldierAllocationRow[]>(
-        `SELECT personal_number, first_name, last_name, request_status, contact_date FROM soldiers WHERE personal_number IN (${placeholders})`,
+        `SELECT personal_number, first_name, last_name, request_status, contact_date, mobile_phone FROM soldiers WHERE personal_number IN (${placeholders})`,
         personalNumbers
       );
       for (const row of rows) {
@@ -170,6 +171,7 @@ async function getSoldiersByAllocation(userId: number): Promise<SoldierData[]> {
           request_status: row.request_status || '',
           battalion_name: battalionName,
           contact_date: (row as any).contact_date || '',
+          mobile_phone: (row as any).mobile_phone || '',
         });
       }
     } finally {
@@ -190,7 +192,7 @@ async function getSoldiersByContactBy(contactName: string): Promise<SoldierData[
         const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
         try {
           const [rows] = await conn.execute<SoldierAllocationRow[]>(
-            `SELECT personal_number, first_name, last_name, request_status, contact_date
+            `SELECT personal_number, first_name, last_name, request_status, contact_date, mobile_phone
              FROM soldiers
              WHERE contact_by = ? AND personal_number IS NOT NULL AND personal_number != ''`,
             [contactName]
@@ -203,6 +205,7 @@ async function getSoldiersByContactBy(contactName: string): Promise<SoldierData[
               request_status: row.request_status || '',
               battalion_name: battalionName,
               contact_date: (row as any).contact_date || '',
+              mobile_phone: (row as any).mobile_phone || '',
             });
           }
         } finally {
