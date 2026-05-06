@@ -2,6 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 
+interface AllBattalionSoldier {
+  battalion: string;
+  soldier_personal_number: string;
+  first_name?: string;
+  last_name?: string;
+  mobile_phone?: string;
+  request_status?: string;
+}
+
 interface SoldierRow {
   personal_number: string;
   first_name?: string;
@@ -35,27 +44,65 @@ export const UserSoldiersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [soldiers, setSoldiers] = useState<SoldierRow[]>([]);
   const [allocations, setAllocations] = useState<AllocationRow[]>([]);
+  const [allBattalionRows, setAllBattalionRows] = useState<AllBattalionSoldier[]>([]);
   const [user, setUser] = useState<UserItem | null>(null);
   const [page, setPage] = useState(1);
 
+  // mode: specific battalion or all-battalions
+  const allBattalions = !battalion;
+
   useEffect(() => {
-    if (!battalion || !userId) {
-      setError('חסרים נתוני גדוד או משתמש');
+    if (!userId) {
+      setError('חסר מזהה משתמש');
       setLoading(false);
       return;
     }
     const load = async () => {
       try {
         setLoading(true);
-        const [soldiersRes, allocRes, usersRes] = await Promise.all([
-          api.get<{ soldiers: SoldierRow[] }>(`/battalion/${encodeURIComponent(battalion)}/soldiers`),
-          api.get<AllocationRow[]>(`/battalion/allocations/${encodeURIComponent(battalion)}`),
-          api.get<UserItem[]>('/users'),
-        ]);
-        setSoldiers(soldiersRes.data.soldiers || []);
-        setAllocations(allocRes.data || []);
-        const u = (usersRes.data || []).find((x) => x.id === userId) || null;
-        setUser(u);
+        if (allBattalions) {
+          // Fetch all allocations for this user across all battalions
+          const [allocRes, usersRes, battalionsRes] = await Promise.all([
+            api.get<{ allocations: { battalion: string; soldier_personal_number: string }[] }>(`/battalion/my-soldiers-by-user/${userId}`).catch(() =>
+              // fallback: fetch global allocations and filter
+              api.get<AllocationRow[]>('/battalion/allocations-all').catch(() => ({ data: [] as AllocationRow[] }))
+            ),
+            api.get<UserItem[]>('/users'),
+            api.get<{ battalions: string[] }>('/battalion'),
+          ]);
+          const u = (usersRes.data || []).find((x) => x.id === userId) || null;
+          setUser(u);
+          // Use the my-soldiers endpoint approach
+          setAllBattalionRows([]);
+          // Simpler: show all from the list
+          const batNames: string[] = battalionsRes.data?.battalions || [];
+          const rows: AllBattalionSoldier[] = [];
+          for (const bn of batNames) {
+            try {
+              const [solRes, aRes] = await Promise.all([
+                api.get<{ soldiers: SoldierRow[] }>(`/battalion/${encodeURIComponent(bn)}/soldiers`),
+                api.get<AllocationRow[]>(`/battalion/allocations/${encodeURIComponent(bn)}`),
+              ]);
+              const pns = new Set((aRes.data || []).filter((a) => a.user_id === userId).map((a) => a.soldier_personal_number));
+              for (const s of (solRes.data.soldiers || [])) {
+                if (pns.has(s.personal_number)) {
+                  rows.push({ battalion: bn, soldier_personal_number: s.personal_number, ...s });
+                }
+              }
+            } catch { /* skip failed battalion */ }
+          }
+          setAllBattalionRows(rows);
+        } else {
+          const [soldiersRes, allocRes, usersRes] = await Promise.all([
+            api.get<{ soldiers: SoldierRow[] }>(`/battalion/${encodeURIComponent(battalion)}/soldiers`),
+            api.get<AllocationRow[]>(`/battalion/allocations/${encodeURIComponent(battalion)}`),
+            api.get<UserItem[]>('/users'),
+          ]);
+          setSoldiers(soldiersRes.data.soldiers || []);
+          setAllocations(allocRes.data || []);
+          const u = (usersRes.data || []).find((x) => x.id === userId) || null;
+          setUser(u);
+        }
       } catch (err: any) {
         setError(err.response?.data?.error || 'שגיאה בטעינת הנתונים');
       } finally {
@@ -63,12 +110,13 @@ export const UserSoldiersPage: React.FC = () => {
       }
     };
     load();
-  }, [battalion, userId]);
+  }, [battalion, userId, allBattalions]);
 
   const assignedRows = useMemo(() => {
+    if (allBattalions) return allBattalionRows as any[];
     const pns = new Set(allocations.filter((a) => a.user_id === userId).map((a) => a.soldier_personal_number));
     return soldiers.filter((s) => pns.has(s.personal_number));
-  }, [soldiers, allocations, userId]);
+  }, [soldiers, allocations, userId, allBattalions, allBattalionRows]);
 
   const totalPages = Math.max(1, Math.ceil(assignedRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -81,7 +129,7 @@ export const UserSoldiersPage: React.FC = () => {
           <h1 className="text-2xl font-bold text-white mb-1">
             חיילים מוקצים ל{user ? `${user.firstName} ${user.lastName}` : `משתמש ${userId}`}
           </h1>
-          <p className="text-gray-400 text-sm">גדוד: {battalion} &middot; סה״כ: {assignedRows.length}</p>
+          <p className="text-gray-400 text-sm">{allBattalions ? 'כל הגדודים' : `גדוד: ${battalion}`} &middot; סה״כ: {assignedRows.length}</p>
         </div>
         <Link
           to="/battalion/allocate"
@@ -124,11 +172,11 @@ export const UserSoldiersPage: React.FC = () => {
                       <td className="py-2 px-2 text-gray-200">{s.last_name || '—'}</td>
                       <td className="py-2 px-2 text-gray-300 font-mono">{s.mobile_phone || '—'}</td>
                       <td className="py-2 px-2 text-gray-300">{s.platoon || '—'}</td>
-                      <td className="py-2 px-2 text-gray-300">{battalion}</td>
+                      <td className="py-2 px-2 text-gray-300">{(s as any).battalion || battalion}</td>
                       <td className="py-2 px-2 text-gray-300">{s.request_status || '—'}</td>
                       <td className="py-2 px-2 text-center">
                         <Link
-                          to={`/battalion/soldier?battalion=${encodeURIComponent(battalion)}&personal_number=${encodeURIComponent(s.personal_number)}`}
+                          to={`/battalion/soldier?battalion=${encodeURIComponent((s as any).battalion || battalion)}&personal_number=${encodeURIComponent(s.personal_number)}`}
                           title="פתח כרטיס חייל"
                           className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-700 hover:bg-indigo-600 transition-colors"
                         >

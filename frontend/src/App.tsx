@@ -179,7 +179,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             צוות שטח
           </NavLink>
         )}
-        {(user.role === 'super' || user.role === 'admin') && (
+        {(user.role === 'super' || user.role === 'admin' || user.role === 'manager') && (
           <NavLink to="/battalion/allocate" onClick={closeMenu}>
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -897,13 +898,25 @@ export const DashboardPage: React.FC = () => {
                     {/* Header */}
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <h3 className={`text-base font-bold ${cls.title}`}>{u.firstName} {u.lastName}</h3>
-                      <div className="flex gap-2 flex-wrap">
+                      <div className="flex gap-2 flex-wrap items-center">
                         <span className={`text-xs px-2 py-1 rounded-full ${cls.badge}`}>
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                         <span className="text-xs px-2 py-1 rounded-full bg-gray-800 text-gray-200">
                           סה"כ: {u.allocated}
                         </span>
+                        {selectedBattalion && (
+                          <Link
+                            to={`/battalion/user-soldiers?battalion=${encodeURIComponent(selectedBattalion)}&userId=${u.id}`}
+                            title="צפייה ברשימת החיילים המוקצים"
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-700 hover:bg-indigo-600 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9h2m-2 4h6" />
+                            </svg>
+                          </Link>
+                        )}
                       </div>
                     </div>
 
