@@ -69,7 +69,7 @@ export const allocateSoldiers = async (req: Request, res: Response): Promise<voi
     const allocatedSet = new Set(allocated.map((a) => a.soldier_personal_number));
 
     // Step 3: Filter out already-allocated soldiers and soldiers with contact_by set
-    const unallocated = allSoldiers.filter((s) => !allocatedSet.has(s.personal_number) && !s.contact_by.trim());
+    const unallocated = allSoldiers.filter((s) => !allocatedSet.has(s.personal_number) && !s.contact_by?.trim());
 
     logger.info('Allocation calculation', {
       battalionName,
