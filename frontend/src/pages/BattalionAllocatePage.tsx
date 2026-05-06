@@ -153,7 +153,7 @@ const PieChart: React.FC<PieChartProps> = ({ data, users, label, battalionForLin
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-500">{Math.round((d.count / total) * 100)}%</span>
               <span className="text-base font-bold text-white w-10 text-left">{d.count}</span>
-              {battalionForLinks && (
+              {battalionForLinks !== null && battalionForLinks !== undefined && (
                 <Link
                   to={`/battalion/user-soldiers?battalion=${encodeURIComponent(battalionForLinks)}&userId=${d.userId}`}
                   title="צפייה ברשימת החיילים המוקצים"
@@ -591,7 +591,7 @@ export const BattalionAllocatePage: React.FC = () => {
             data={pieData}
             users={staffUsers}
             label={pieLabel}
-            battalionForLinks={selectedBattalion}
+            battalionForLinks={selectedBattalion || ''}
           />
         )}
       </div>
