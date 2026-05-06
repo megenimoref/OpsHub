@@ -329,7 +329,7 @@ export const BattalionImportPage: React.FC = () => {
               </div>
 
               {/* Perfect match */}
-              {verifyResult.mismatches.length === 0 && verifyResult.notFound.length === 0 && (
+              {verifyResult.mismatches.length === 0 && (
                 <div className="bg-green-900/40 border border-green-700 rounded-lg p-4 text-green-300 text-sm font-medium">
                   ✅ כל הפרטים תואמים בין הקובץ לדאטה בייס
                 </div>
