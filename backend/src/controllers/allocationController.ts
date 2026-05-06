@@ -351,7 +351,7 @@ export const deallocateSoldiers = async (req: Request, res: Response): Promise<v
     let toRemove = personalNumbers.filter((pn) => {
       if (forceAll) return true; // force-remove everyone regardless of status
       if (HANDLED.includes(statusMap[pn])) return false;
-      if (userFullName && contactByMap[pn].trim() === userFullName) return false;
+      if (userFullName && (contactByMap[pn] || '').trim() === userFullName) return false;
       return true;
     });
     if (count !== undefined) {
