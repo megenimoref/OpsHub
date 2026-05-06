@@ -1180,34 +1180,22 @@ export const verifyExcelDetails = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Query battalion DB for those soldiers
+    // Query ALL soldiers from the battalion DB — DB is the reference
     const dbName = getBattalionDbName(battalionName);
     const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
     let dbRows: mysql.RowDataPacket[] = [];
     try {
-      const placeholders = personalNumbers.map(() => '?').join(', ');
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        `SELECT personal_number, first_name, last_name, mobile_phone FROM soldiers WHERE personal_number IN (${placeholders})`,
-        personalNumbers
+        `SELECT personal_number, first_name, last_name, mobile_phone FROM soldiers`
       );
       dbRows = rows;
     } finally {
       await conn.end();
     }
 
-    const dbMap: Record<string, { first_name: string; last_name: string; mobile_phone: string }> = {};
-    for (const row of dbRows) {
-      dbMap[row.personal_number] = {
-        first_name:   (row.first_name   || '').trim(),
-        last_name:    (row.last_name    || '').trim(),
-        mobile_phone: (row.mobile_phone || '').trim(),
-      };
-    }
-
     // Normalise phone numbers for comparison (strip spaces and dashes)
     const normPhone = (p: string) => p.replace(/[\s\-]/g, '');
 
-    const notFound: string[] = [];
     const mismatches: {
       personal_number: string;
       excel: { first_name: string; last_name: string; mobile_phone: string };
@@ -1215,15 +1203,25 @@ export const verifyExcelDetails = async (req: Request, res: Response): Promise<v
       changedFields: string[];
     }[] = [];
     let matched = 0;
+    let skipped = 0; // DB soldiers not present in Excel → ignored
 
-    for (const pn of personalNumbers) {
+    // Iterate over DB rows (DB is the source of truth)
+    for (const row of dbRows) {
+      const pn = (row.personal_number || '').trim();
       const ex = excelMap[pn];
-      const db = dbMap[pn];
-      if (!db) { notFound.push(pn); continue; }
+
+      // Soldier exists in DB but not in Excel → not relevant, skip
+      if (!ex) { skipped++; continue; }
+
+      const db = {
+        first_name:   (row.first_name   || '').trim(),
+        last_name:    (row.last_name    || '').trim(),
+        mobile_phone: (row.mobile_phone || '').trim(),
+      };
 
       const changedFields: string[] = [];
-      if (ex.first_name   !== db.first_name)                   changedFields.push('שם פרטי');
-      if (ex.last_name    !== db.last_name)                    changedFields.push('שם משפחה');
+      if (ex.first_name !== db.first_name)                         changedFields.push('שם פרטי');
+      if (ex.last_name  !== db.last_name)                          changedFields.push('שם משפחה');
       if (normPhone(ex.mobile_phone) !== normPhone(db.mobile_phone)) changedFields.push('טלפון נייד');
 
       if (changedFields.length > 0) {
@@ -1235,18 +1233,17 @@ export const verifyExcelDetails = async (req: Request, res: Response): Promise<v
 
     logger.info('Verify excel details completed', {
       battalionName,
-      total: personalNumbers.length,
+      dbTotal: dbRows.length,
       matched,
       mismatches: mismatches.length,
-      notFound: notFound.length,
+      skipped,
     });
 
     res.json({
       success: true,
-      total:     personalNumbers.length,
+      total:   matched + mismatches.length, // soldiers checked (in both DB and Excel)
       matched,
       mismatches,
-      notFound,
     });
   } catch (error: any) {
     logger.error('Verify excel details failed', {

@@ -41,7 +41,6 @@ interface VerifyResult {
   total: number;
   matched: number;
   mismatches: VerifyMismatch[];
-  notFound: string[];
 }
 
 export const BattalionImportPage: React.FC = () => {
@@ -321,13 +320,10 @@ export const BattalionImportPage: React.FC = () => {
               <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
                 <p className="text-white font-semibold mb-2">תוצאות בדיקת התאמה — {battalionName}</p>
                 <div className="flex flex-wrap gap-4 text-sm">
-                  <span className="text-gray-300">סה"כ בקובץ: <span className="font-bold text-white">{verifyResult.total}</span></span>
+                  <span className="text-gray-300">חיילים שנבדקו (קיימים בשניהם): <span className="font-bold text-white">{verifyResult.total}</span></span>
                   <span className="text-green-400">תואמים: <span className="font-bold">{verifyResult.matched}</span></span>
                   {verifyResult.mismatches.length > 0 && (
                     <span className="text-amber-400">אי-התאמות: <span className="font-bold">{verifyResult.mismatches.length}</span></span>
-                  )}
-                  {verifyResult.notFound.length > 0 && (
-                    <span className="text-red-400">לא נמצאו ב-DB: <span className="font-bold">{verifyResult.notFound.length}</span></span>
                   )}
                 </div>
               </div>
@@ -387,13 +383,6 @@ export const BattalionImportPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Not found in DB */}
-              {verifyResult.notFound.length > 0 && (
-                <div className="border border-red-700/50 rounded-lg p-3 bg-red-900/20">
-                  <p className="text-red-300 font-semibold text-sm mb-1">🔴 מספרים אישיים שבקובץ אך לא קיימים ב-DB ({verifyResult.notFound.length}):</p>
-                  <p className="text-red-200 text-xs font-mono">{verifyResult.notFound.join(', ')}</p>
-                </div>
-              )}
             </div>
           )}
 
