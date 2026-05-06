@@ -1123,3 +1123,134 @@ export const deleteSoldierHandler = async (req: Request, res: Response): Promise
     res.status(500).json({ error: error.message || 'שגיאה במחיקת חייל' });
   }
 };
+
+// ─── Verify Excel vs DB ────────────────────────────────────────────────────
+// Parses the uploaded Excel and compares personal_number, first_name,
+// last_name and mobile_phone against what is stored in the battalion DB.
+// Returns a diff list — no data is written.
+export const verifyExcelDetails = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionName = req.body.battalionName?.trim();
+    if (!battalionName) { res.status(400).json({ error: 'חסר שם גדוד' }); return; }
+    if (!req.file)       { res.status(400).json({ error: 'חסר קובץ Excel' }); return; }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer as any);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) { res.status(400).json({ error: 'הקובץ ריק' }); return; }
+
+    // Parse header row — only track the 4 identity fields
+    const KEY_FIELDS = new Set<keyof SoldierRow>(['personal_number', 'first_name', 'last_name', 'mobile_phone']);
+    const headerRow = worksheet.getRow(1);
+    const colMap: Record<number, keyof SoldierRow> = {};
+    headerRow.eachCell((cell, colNumber) => {
+      const header = cell.text?.trim();
+      if (!header) return;
+      const field = COLUMN_MAP[header];
+      if (field && KEY_FIELDS.has(field) && !colMap[colNumber]) {
+        colMap[colNumber] = field;
+      }
+    });
+
+    // Parse data rows — one entry per personal_number
+    const excelMap: Record<string, { first_name: string; last_name: string; mobile_phone: string }> = {};
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const s: Record<string, string> = {};
+      row.eachCell((cell, colNumber) => {
+        const field = colMap[colNumber];
+        if (field) {
+          const cv = cell.value;
+          s[field] = cv instanceof Date ? '' : (cell.text?.trim() || '');
+        }
+      });
+      if (s.personal_number?.trim()) {
+        const pn = s.personal_number.trim();
+        excelMap[pn] = {
+          first_name:   (s.first_name || '').trim(),
+          last_name:    (s.last_name  || '').trim(),
+          mobile_phone: (s.mobile_phone || '').trim(),
+        };
+      }
+    });
+
+    const personalNumbers = Object.keys(excelMap);
+    if (personalNumbers.length === 0) {
+      res.status(400).json({ error: 'לא נמצאו מספרים אישיים בקובץ' });
+      return;
+    }
+
+    // Query ALL soldiers from the battalion DB — DB is the reference
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    let dbRows: mysql.RowDataPacket[] = [];
+    try {
+      const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT personal_number, first_name, last_name, mobile_phone FROM soldiers`
+      );
+      dbRows = rows;
+    } finally {
+      await conn.end();
+    }
+
+    // Normalise phone numbers for comparison (strip spaces and dashes)
+    const normPhone = (p: string) => p.replace(/[\s\-]/g, '');
+
+    const mismatches: {
+      personal_number: string;
+      excel: { first_name: string; last_name: string; mobile_phone: string };
+      db:    { first_name: string; last_name: string; mobile_phone: string };
+      changedFields: string[];
+    }[] = [];
+    let matched = 0;
+    let skipped = 0; // DB soldiers not present in Excel → ignored
+
+    // Iterate over DB rows (DB is the source of truth)
+    for (const row of dbRows) {
+      const pn = (row.personal_number || '').trim();
+      const ex = excelMap[pn];
+
+      // Soldier exists in DB but not in Excel → not relevant, skip
+      if (!ex) { skipped++; continue; }
+
+      const db = {
+        first_name:   (row.first_name   || '').trim(),
+        last_name:    (row.last_name    || '').trim(),
+        mobile_phone: (row.mobile_phone || '').trim(),
+      };
+
+      const changedFields: string[] = [];
+      if (ex.first_name !== db.first_name)                         changedFields.push('שם פרטי');
+      if (ex.last_name  !== db.last_name)                          changedFields.push('שם משפחה');
+      if (normPhone(ex.mobile_phone) !== normPhone(db.mobile_phone)) changedFields.push('טלפון נייד');
+
+      if (changedFields.length > 0) {
+        mismatches.push({ personal_number: pn, excel: ex, db, changedFields });
+      } else {
+        matched++;
+      }
+    }
+
+    logger.info('Verify excel details completed', {
+      battalionName,
+      dbTotal: dbRows.length,
+      matched,
+      mismatches: mismatches.length,
+      skipped,
+    });
+
+    res.json({
+      success: true,
+      total:   matched + mismatches.length, // soldiers checked (in both DB and Excel)
+      matched,
+      mismatches,
+    });
+  } catch (error: any) {
+    logger.error('Verify excel details failed', {
+      battalionName: req.body?.battalionName,
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: error.message || 'שגיאה בבדיקת התאמה' });
+  }
+};
