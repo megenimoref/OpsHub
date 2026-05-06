@@ -288,8 +288,25 @@ export async function importSoldiers(
       }
     } else {
       const PROTECTED_FIELDS = new Set([
-        'contact_by', 'contact_date', 'contact_with',
-        'request_status', 'notes', 'other_assistance', 'applications_needed',
+        // תיאום קשר
+        'contact_by', 'contact_date', 'contact_with', 'request_status',
+        // נתונים ופיקוד
+        'data_indicators', 'command_role', 'current_rotation',
+        // סיוע וזכויות
+        'national_insurance', 'other_assistance', 'applications_needed',
+        'welfare_fund', 'aid_fund_submission',
+        // מידע משפחתי ואישי
+        'special_family_status', 'spouse_call_doc',
+        'whatsapp_battalion', 'whatsapp_family',
+        'divorced_assistance', 'birth_assistance',
+        'moving_assistance', 'household_assistance',
+        // טיפול ומעקב
+        'complex_problems', 'resilience_treatment',
+        'followup_1', 'followup_2',
+        // שונות
+        'personal_equipment', 'mobilization_dates', 'route_6', 'professional',
+        // הערות
+        'notes',
       ]);
       const extraSet = new Set(extraColumns);
 
