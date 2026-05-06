@@ -1254,3 +1254,106 @@ export const verifyExcelDetails = async (req: Request, res: Response): Promise<v
     res.status(500).json({ error: error.message || 'שגיאה בבדיקת התאמה' });
   }
 };
+
+// ─── Sync Excel → DB ───────────────────────────────────────────────────────
+// For every soldier that exists in BOTH the DB and the Excel, updates
+// first_name / last_name / mobile_phone in the DB to match the Excel.
+// Soldiers only in Excel (not in DB) are ignored.
+export const syncExcelDetails = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionName = req.body.battalionName?.trim();
+    if (!battalionName) { res.status(400).json({ error: 'חסר שם גדוד' }); return; }
+    if (!req.file)       { res.status(400).json({ error: 'חסר קובץ Excel' }); return; }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer as any);
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) { res.status(400).json({ error: 'הקובץ ריק' }); return; }
+
+    // Parse header row — only the 4 identity fields
+    const KEY_FIELDS = new Set<keyof SoldierRow>(['personal_number', 'first_name', 'last_name', 'mobile_phone']);
+    const headerRow = worksheet.getRow(1);
+    const colMap: Record<number, keyof SoldierRow> = {};
+    headerRow.eachCell((cell, colNumber) => {
+      const header = cell.text?.trim();
+      if (!header) return;
+      const field = COLUMN_MAP[header];
+      if (field && KEY_FIELDS.has(field) && !colMap[colNumber]) colMap[colNumber] = field;
+    });
+
+    // Parse data rows
+    const excelMap: Record<string, { first_name: string; last_name: string; mobile_phone: string }> = {};
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const s: Record<string, string> = {};
+      row.eachCell((cell, colNumber) => {
+        const field = colMap[colNumber];
+        if (field) {
+          const cv = cell.value;
+          s[field] = cv instanceof Date ? '' : (cell.text?.trim() || '');
+        }
+      });
+      if (s.personal_number?.trim()) {
+        const pn = s.personal_number.trim();
+        excelMap[pn] = {
+          first_name:   (s.first_name   || '').trim(),
+          last_name:    (s.last_name    || '').trim(),
+          mobile_phone: (s.mobile_phone || '').trim(),
+        };
+      }
+    });
+
+    if (Object.keys(excelMap).length === 0) {
+      res.status(400).json({ error: 'לא נמצאו מספרים אישיים בקובץ' });
+      return;
+    }
+
+    const dbName = getBattalionDbName(battalionName);
+    const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+    let updated = 0;
+    let unchanged = 0;
+
+    try {
+      const [dbRows] = await conn.execute<mysql.RowDataPacket[]>(
+        `SELECT id, personal_number, first_name, last_name, mobile_phone FROM soldiers`
+      );
+
+      const normPhone = (p: string) => p.replace(/[\s\-]/g, '');
+
+      for (const row of dbRows) {
+        const pn = (row.personal_number || '').trim();
+        const ex = excelMap[pn];
+        if (!ex) continue; // not in Excel → skip
+
+        const dbFirst = (row.first_name   || '').trim();
+        const dbLast  = (row.last_name    || '').trim();
+        const dbPhone = (row.mobile_phone || '').trim();
+
+        const needsUpdate =
+          ex.first_name !== dbFirst ||
+          ex.last_name  !== dbLast  ||
+          normPhone(ex.mobile_phone) !== normPhone(dbPhone);
+
+        if (!needsUpdate) { unchanged++; continue; }
+
+        await conn.execute(
+          `UPDATE soldiers SET first_name = ?, last_name = ?, mobile_phone = ? WHERE id = ?`,
+          [ex.first_name || dbFirst, ex.last_name || dbLast, ex.mobile_phone || dbPhone, row.id]
+        );
+        updated++;
+      }
+    } finally {
+      await conn.end();
+    }
+
+    logger.info('Sync excel details completed', { battalionName, updated, unchanged });
+    res.json({ success: true, updated, unchanged });
+  } catch (error: any) {
+    logger.error('Sync excel details failed', {
+      battalionName: req.body?.battalionName,
+      errorMessage: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: error.message || 'שגיאה בסנכרון פרטים' });
+  }
+};
