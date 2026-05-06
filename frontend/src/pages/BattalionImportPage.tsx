@@ -29,6 +29,21 @@ interface ImportResult {
   crossBattalionDuplicates?: CrossBattalionDuplicate[];
 }
 
+interface VerifyMismatch {
+  personal_number: string;
+  excel: { first_name: string; last_name: string; mobile_phone: string };
+  db:    { first_name: string; last_name: string; mobile_phone: string };
+  changedFields: string[];
+}
+
+interface VerifyResult {
+  success: boolean;
+  total: number;
+  matched: number;
+  mismatches: VerifyMismatch[];
+  notFound: string[];
+}
+
 export const BattalionImportPage: React.FC = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
@@ -44,6 +59,10 @@ export const BattalionImportPage: React.FC = () => {
   const [battalions, setBattalions] = useState<string[]>([]);
   const [battalionsLoading, setBattalionsLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
+
+  const [verifyLoading, setVerifyLoading] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<VerifyResult | null>(null);
+  const [verifyError, setVerifyError] = useState('');
 
   // Delete state — two-step confirmation:
   //   step 1 = warning + first "האם אתה בטוח?"
@@ -143,6 +162,29 @@ export const BattalionImportPage: React.FC = () => {
     setFile(selected);
     setError('');
     setResult(null);
+    setVerifyResult(null);
+    setVerifyError('');
+  };
+
+  const handleVerify = async () => {
+    setVerifyError('');
+    setVerifyResult(null);
+    if (!battalionName) { setVerifyError('יש לבחור גדוד'); return; }
+    if (!file) { setVerifyError('יש לבחור קובץ Excel'); return; }
+    setVerifyLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('battalionName', battalionName);
+      formData.append('file', file);
+      const response = await api.post<VerifyResult>('/battalion/verify-excel', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setVerifyResult(response.data);
+    } catch (err: any) {
+      setVerifyError(err.response?.data?.error || err.message || 'שגיאה בבדיקת ההתאמה');
+    } finally {
+      setVerifyLoading(false);
+    }
   };
 
   const handleSubmit = async (importMode: 'new' | 'existing') => {
@@ -264,6 +306,97 @@ export const BattalionImportPage: React.FC = () => {
             </div>
           )}
 
+          {/* Verify error */}
+          {verifyError && (
+            <div className="bg-red-900/40 border border-red-700 rounded-lg p-4">
+              <p className="font-bold text-red-300 mb-1">שגיאה בבדיקת התאמה:</p>
+              <p className="text-red-300 text-sm">{verifyError}</p>
+            </div>
+          )}
+
+          {/* Verify results */}
+          {verifyResult && (
+            <div className="space-y-3">
+              {/* Summary bar */}
+              <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
+                <p className="text-white font-semibold mb-2">תוצאות בדיקת התאמה — {battalionName}</p>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <span className="text-gray-300">סה"כ בקובץ: <span className="font-bold text-white">{verifyResult.total}</span></span>
+                  <span className="text-green-400">תואמים: <span className="font-bold">{verifyResult.matched}</span></span>
+                  {verifyResult.mismatches.length > 0 && (
+                    <span className="text-amber-400">אי-התאמות: <span className="font-bold">{verifyResult.mismatches.length}</span></span>
+                  )}
+                  {verifyResult.notFound.length > 0 && (
+                    <span className="text-red-400">לא נמצאו ב-DB: <span className="font-bold">{verifyResult.notFound.length}</span></span>
+                  )}
+                </div>
+              </div>
+
+              {/* Perfect match */}
+              {verifyResult.mismatches.length === 0 && verifyResult.notFound.length === 0 && (
+                <div className="bg-green-900/40 border border-green-700 rounded-lg p-4 text-green-300 text-sm font-medium">
+                  ✅ כל הפרטים תואמים בין הקובץ לדאטה בייס
+                </div>
+              )}
+
+              {/* Mismatches table */}
+              {verifyResult.mismatches.length > 0 && (
+                <div className="border border-amber-700/50 rounded-lg overflow-hidden">
+                  <div className="bg-amber-900/30 px-4 py-2 border-b border-amber-700/50">
+                    <p className="text-amber-300 font-semibold text-sm">⚠️ חיילים עם פרטים שונים ({verifyResult.mismatches.length})</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-800 text-gray-400 text-xs">
+                        <tr>
+                          <th className="px-3 py-2 text-right">מ.א.</th>
+                          <th className="px-3 py-2 text-right">שדה</th>
+                          <th className="px-3 py-2 text-right">באקסל</th>
+                          <th className="px-3 py-2 text-right">בדאטה בייס</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {verifyResult.mismatches.map((m, idx) => (
+                          m.changedFields.map((field, fi) => (
+                            <tr
+                              key={`${m.personal_number}-${fi}`}
+                              className={`border-t border-gray-700 ${idx % 2 === 0 ? 'bg-gray-900' : 'bg-gray-800/60'}`}
+                            >
+                              {fi === 0 && (
+                                <td className="px-3 py-2 font-mono text-amber-300 font-semibold align-top" rowSpan={m.changedFields.length}>
+                                  {m.personal_number}
+                                </td>
+                              )}
+                              <td className="px-3 py-2 text-gray-300">{field}</td>
+                              <td className="px-3 py-2 text-blue-300">
+                                {field === 'שם פרטי'    ? m.excel.first_name   :
+                                 field === 'שם משפחה'   ? m.excel.last_name    :
+                                                          m.excel.mobile_phone}
+                              </td>
+                              <td className="px-3 py-2 text-emerald-300">
+                                {field === 'שם פרטי'    ? m.db.first_name   :
+                                 field === 'שם משפחה'   ? m.db.last_name    :
+                                                          m.db.mobile_phone}
+                              </td>
+                            </tr>
+                          ))
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Not found in DB */}
+              {verifyResult.notFound.length > 0 && (
+                <div className="border border-red-700/50 rounded-lg p-3 bg-red-900/20">
+                  <p className="text-red-300 font-semibold text-sm mb-1">🔴 מספרים אישיים שבקובץ אך לא קיימים ב-DB ({verifyResult.notFound.length}):</p>
+                  <p className="text-red-200 text-xs font-mono">{verifyResult.notFound.join(', ')}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Success result */}
           {result && (
             <div className="space-y-2">
@@ -325,6 +458,23 @@ export const BattalionImportPage: React.FC = () => {
               disabled={loading}
             >
               ביטול
+            </button>
+            <button
+              type="button"
+              onClick={handleVerify}
+              disabled={verifyLoading || loading || !file || !battalionName || battalionsLoading}
+              className="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium inline-flex items-center gap-2"
+              title="בדוק אם הפרטים האישיים באקסל תואמים לנתונים בדאטה בייס"
+            >
+              {verifyLoading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+              )}
+              {verifyLoading ? 'בודק...' : 'בדיקת התאמה'}
             </button>
             <button
               type="button"

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
-import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler } from '../controllers/battalionController';
+import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler, verifyExcelDetails } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats, deallocateSoldiers, assignSoldiers } from '../controllers/allocationController';
 import { getSheagatHaariStats } from '../services/sheagatHaariService';
 import { logger } from '../services/logger';
@@ -44,6 +44,7 @@ router.get('/sheagat-haari', authMiddleware, async (req, res) => {
   }
 });
 router.post('/import', authMiddleware, upload.single('file'), importBattalion);
+router.post('/verify-excel', authMiddleware, upload.single('file'), verifyExcelDetails);
 router.post('/allocate', authMiddleware, allocateMiddleware, allocateSoldiers);
 router.post('/deallocate', authMiddleware, allocateMiddleware, deallocateSoldiers);
 router.post('/assign', authMiddleware, allocateMiddleware, assignSoldiers);
