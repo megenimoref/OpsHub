@@ -116,6 +116,8 @@ const COLUMN_MAP: Record<string, keyof SoldierRow> = {
   "מס' אישי": 'personal_number',
   'מס אישי': 'personal_number',
   'מספר.אישי': 'personal_number',
+  'מ.א': 'personal_number',
+  'מ״א': 'personal_number',
   'שם משפחה': 'last_name',
   'שם פרטי': 'first_name',
   'טלפון נייד': 'mobile_phone',
