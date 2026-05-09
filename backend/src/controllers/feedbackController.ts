@@ -17,7 +17,9 @@ export const getFeedbacks = async (req: Request, res: Response): Promise<void> =
 
     // Enrich with user info
     const userIds = [...new Set(feedbacks.map((f) => f.userId))];
-    const users = await User.findAll({ where: { id: userIds }, attributes: ['id', 'firstName', 'lastName', 'email'] });
+    const users = userIds.length > 0
+      ? await User.findAll({ where: { id: userIds }, attributes: ['id', 'firstName', 'lastName', 'email'] })
+      : [];
     const userMap: Record<number, { firstName: string; lastName: string; email: string }> = {};
     for (const u of users) {
       userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
