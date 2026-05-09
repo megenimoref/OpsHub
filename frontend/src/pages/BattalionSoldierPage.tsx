@@ -166,6 +166,7 @@ interface SoldierOption {
   id: number;
   name: string;
   personal_number: string;
+  battalionName?: string; // set when found via global search
 }
 
 interface BattalionSoldierPageProps {
@@ -326,28 +327,36 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
 
   const handleSearchPersonalNumberChange = async (value: string) => {
     setSearchPersonalNumber(value);
-    if (!selectedBattalion || !value.trim()) {
+    if (!value.trim()) {
       setSoldierSuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
     try {
-      const soldier = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
-        params: { personal_number: value.trim() },
-      });
-      if (soldier.data.soldier) {
-        const s = soldier.data.soldier;
-        setSoldierSuggestions([
-          {
-            id: s.id,
-            name: `${s.first_name} ${s.last_name}`,
-            personal_number: s.personal_number,
-          },
-        ]);
-        setShowSuggestions(true);
+      if (selectedBattalion) {
+        // Search within selected battalion
+        const soldier = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
+          params: { personal_number: value.trim() },
+        });
+        if (soldier.data.soldier) {
+          const s = soldier.data.soldier;
+          setSoldierSuggestions([{ id: s.id, name: `${s.first_name} ${s.last_name}`, personal_number: s.personal_number }]);
+          setShowSuggestions(true);
+        } else {
+          setSoldierSuggestions([]);
+        }
       } else {
-        setSoldierSuggestions([]);
+        // No battalion selected — search globally across all battalions
+        const res = await api.get('/battalion/search-global', { params: { personal_number: value.trim() } });
+        if (res.data.soldier) {
+          const s = res.data.soldier;
+          const bn = res.data.battalionName;
+          setSoldierSuggestions([{ id: s.id, name: `${s.first_name} ${s.last_name}`, personal_number: s.personal_number, battalionName: bn }]);
+          setShowSuggestions(true);
+        } else {
+          setSoldierSuggestions([]);
+        }
       }
     } catch {
       setSoldierSuggestions([]);
@@ -362,7 +371,11 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     setSaveSuccess(false);
     setSaveError('');
     try {
-      const res = await api.get(`/battalion/${encodeURIComponent(selectedBattalion)}/soldiers/search`, {
+      const battalion = selectedSoldier.battalionName || selectedBattalion;
+      if (selectedSoldier.battalionName) {
+        setSelectedBattalion(selectedSoldier.battalionName);
+      }
+      const res = await api.get(`/battalion/${encodeURIComponent(battalion)}/soldiers/search`, {
         params: { personal_number: selectedSoldier.personal_number },
       });
       const user = authService.getStoredUser();
@@ -370,10 +383,10 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
         ? `${user.firstName} ${user.lastName}`
         : '';
       const fd = { ...res.data.soldier, contact_date: res.data.soldier.contact_date || TODAY, contact_by: res.data.soldier.contact_by || userName };
-      afterSoldierLoad(selectedBattalion, res.data.soldier, fd);
+      afterSoldierLoad(battalion, res.data.soldier, fd);
       setSearchPersonalNumber(selectedSoldier.personal_number);
       setShowSuggestions(false);
-      fetchChanges(selectedBattalion, res.data.soldier.id);
+      fetchChanges(battalion, res.data.soldier.id);
     } catch (err: any) {
       setSearchError(err.response?.data?.error || 'חייל לא נמצא');
     } finally {
@@ -465,9 +478,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
               value={searchPersonalNumber}
               onChange={(e) => handleSearchPersonalNumberChange(e.target.value)}
               onFocus={() => searchPersonalNumber && showSuggestions && setSoldierSuggestions(soldierSuggestions)}
-              placeholder="הקלד מספר אישי..."
+              placeholder={selectedBattalion ? 'הקלד מספר אישי...' : 'הקלד מספר אישי (יחפש בכל הגדודים)...'}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              disabled={!selectedBattalion}
             />
 
             {/* Autocomplete suggestions */}
@@ -481,6 +493,9 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                   >
                     <div className="font-semibold">{suggestion.name}</div>
                     <div className="text-xs text-gray-400">מספר אישי: {suggestion.personal_number}</div>
+                    {suggestion.battalionName && (
+                      <div className="text-xs text-indigo-400">גדוד: {suggestion.battalionName}</div>
+                    )}
                   </div>
                 ))}
               </div>
