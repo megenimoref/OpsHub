@@ -559,7 +559,7 @@ export const BattalionAllocatePage: React.FC = () => {
                   disabled={deallocating}
                   className="flex-1 px-3 py-2 bg-red-700 hover:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
                 >
-                  {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'הורד (ללא טופל/טופלה)'}
+                  {deallocating ? 'מסיר...' : deallocCount ? `הורד ${deallocCount} חיילים` : 'ללא טופל'}
                 </button>
                 <button
                   onClick={() => handleDeallocate(true)}
@@ -567,7 +567,7 @@ export const BattalionAllocatePage: React.FC = () => {
                   title="מוריד את כל החיילים כולל אלו עם סטטוס טופל/טופלה"
                   className="flex-1 px-3 py-2 bg-red-900 hover:bg-red-950 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm border border-red-600"
                 >
-                  {deallocating ? 'מסיר...' : 'הורד הכל (כולל טופל/טופלה)'}
+                  {deallocating ? 'מסיר...' : 'הורד הכל כולל טופל'}
                 </button>
               </div>
               {deallocMessage && (
