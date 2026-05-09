@@ -457,11 +457,17 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     // Create DB and table if not exists
     await ensureBattalionDatabase(battalionName);
 
+    // Filter out cross-battalion duplicates before importing
+    const crossDuplicatePNs = new Set(crossBattalionDuplicates.map((d) => d.personalNumber));
+    const soldiersToImport = soldiers.filter(
+      (s) => !crossDuplicatePNs.has((s.personal_number as string | undefined)?.trim() || '')
+    );
+
     // Import soldiers (including any new dynamic columns)
     const extraColumns = Object.values(extraColumnIndexMap).filter(
       (v, i, arr) => arr.indexOf(v) === i
     );
-    const insertedCount = await importSoldiers(battalionName, soldiers, extraColumns, isNewImport);
+    const insertedCount = await importSoldiers(battalionName, soldiersToImport, extraColumns, isNewImport);
 
     // Auto-allocate soldiers to users based on contact_by field matching user firstName
     let allocatedCount = 0;
@@ -469,7 +475,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
     try {
       const uniqueContactByNames = [
         ...new Set(
-          soldiers
+          soldiersToImport
             .filter((s) => s.contact_by && s.personal_number)
             .map((s) => (s.contact_by as string).trim())
         ),
@@ -559,7 +565,7 @@ export const importBattalion = async (req: Request, res: Response): Promise<void
       unmatchedContactNames,
     });
 
-    const withoutContactBy = soldiers.filter((s) => !s.contact_by || !(s.contact_by as string).trim()).length;
+    const withoutContactBy = soldiersToImport.filter((s) => !s.contact_by || !(s.contact_by as string).trim()).length;
 
     res.json({
       success: true,
