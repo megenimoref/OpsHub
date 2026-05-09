@@ -370,6 +370,25 @@ export const deallocateSoldiers = async (req: Request, res: Response): Promise<v
           soldier_personal_number: toRemove,
         },
       });
+
+      // Clear contact_by in the battalion DB for soldiers whose contact_by matches this user
+      if (userFullName) {
+        const soldiersToUnassign = toRemove.filter(
+          (pn) => (contactByMap[pn] || '').trim() === userFullName
+        );
+        if (soldiersToUnassign.length > 0) {
+          const conn2 = await mysql.createConnection({ ...dbConfig, database: dbName });
+          try {
+            const placeholders2 = soldiersToUnassign.map(() => '?').join(',');
+            await conn2.execute(
+              `UPDATE soldiers SET contact_by = NULL WHERE personal_number IN (${placeholders2})`,
+              soldiersToUnassign
+            );
+          } finally {
+            await conn2.end();
+          }
+        }
+      }
     }
 
     logger.info('Deallocate soldiers completed', { battalionName, userId, removed: toRemove.length, kept });
