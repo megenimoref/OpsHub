@@ -20,6 +20,8 @@ import backupRoutes from './routes/backup';
 import notificationsRoutes from './routes/notifications';
 import communityRoutes from './routes/community';
 import timetableSsoRoutes from './routes/timetableSso';
+import feedbackRoutes from './routes/feedback';
+import './models/feedback'; // ensure model is synced
 import './models/notification'; // ensure model is synced
 import './models/messageCampaign'; // ensure model is synced
 import './models/communityContact'; // ensure model is synced
@@ -73,6 +75,7 @@ app.use('/backup', backupRoutes);
 app.use('/notifications', notificationsRoutes);
 app.use('/community', communityRoutes);
 app.use('/timetable-sso', timetableSsoRoutes);
+app.use('/feedback', feedbackRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
