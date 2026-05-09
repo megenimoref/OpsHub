@@ -19,8 +19,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // Role-based path restrictions
-  const staffAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/view', '/benefits', '/mailing'];
-  const superAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/allocate', '/battalion/user-soldiers', '/battalion/view', '/mailing'];
+  const staffAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/view', '/benefits', '/mailing', '/feedback', '/field-team'];
+  const superAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/allocate', '/battalion/user-soldiers', '/battalion/view', '/mailing', '/feedback', '/field-team'];
   const managerAllowedPaths = ['/dashboard', '/battalion/soldier', '/battalion/view', '/mailing'];
 
   if (user && user.role === 'staff' && !staffAllowedPaths.includes(location.pathname)) {
