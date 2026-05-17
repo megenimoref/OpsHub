@@ -150,14 +150,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     // @ts-ignore
     const token = jwt.sign(
-      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName, hidePersonalNumber: user.hidePersonalNumber },
+      { userId: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName, hidePersonalNumber: user.hidePersonalNumber, mobilePhone: user.mobilePhone },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
     return res.json({
       token,
-      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, hidePersonalNumber: user.hidePersonalNumber },
+      user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, hidePersonalNumber: user.hidePersonalNumber, phone: user.mobilePhone },
     });
   } catch (error) {
     console.error('OTP verify error:', error);
