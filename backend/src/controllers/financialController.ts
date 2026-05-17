@@ -16,8 +16,7 @@ const isAllowed = (role: string) => role === 'admin' || role === 'accountant';
 // Upload document
 export const uploadDocument = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = (req as any).user;
-    if (!isAllowed(user?.role)) {
+    if (!isAllowed(req.userRole || '')) {
       res.status(403).json({ error: 'אין הרשאה' });
       return;
     }
@@ -40,7 +39,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
       soldierPersonalNumber: soldierPersonalNumber.trim(),
       soldierName: soldierName?.trim() || null,
       battalion: battalion.trim(),
-      uploadedBy: user.id,
+      uploadedBy: req.userId,
     });
 
     res.status(201).json({ success: true, document: doc });
@@ -52,8 +51,7 @@ export const uploadDocument = async (req: Request, res: Response): Promise<void>
 // Get documents (filter by type/soldier/battalion)
 export const getDocuments = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = (req as any).user;
-    if (!isAllowed(user?.role)) {
+    if (!isAllowed(req.userRole || '')) {
       res.status(403).json({ error: 'אין הרשאה' });
       return;
     }
@@ -97,8 +95,7 @@ export const getDocuments = async (req: Request, res: Response): Promise<void> =
 // Download document
 export const downloadDocument = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = (req as any).user;
-    if (!isAllowed(user?.role)) {
+    if (!isAllowed(req.userRole || '')) {
       res.status(403).json({ error: 'אין הרשאה' });
       return;
     }
@@ -124,8 +121,7 @@ export const downloadDocument = async (req: Request, res: Response): Promise<voi
 // Delete document
 export const deleteDocument = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = (req as any).user;
-    if (!isAllowed(user?.role)) {
+    if (!isAllowed(req.userRole || '')) {
       res.status(403).json({ error: 'אין הרשאה' });
       return;
     }
