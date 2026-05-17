@@ -48,21 +48,32 @@ const getStatusColor = (status: string): string => {
 
 const PAGE_SIZE = 20;
 
+const CATEGORY_MATCH: Partial<Record<keyof SoldierRow, Record<string, string[]>>> = {
+  marital_status: {
+    'נשוי': ['נשוי', 'נשואה'],
+    'רווק': ['רווק', 'רווקה'],
+    'גרוש': ['גרוש', 'גרושה'],
+    'אלמן': ['אלמן', 'אלמנה'],
+    'פרוד': ['פרוד', 'פרודה'],
+    'מאורס': ['מאורס', 'מאורסת'],
+    'ידוע בציבור': ['ידוע בציבור', 'ידועה בציבור'],
+  },
+  student_indicator: {
+    'סטודנט': ['סטודנט', 'סטודנטית'],
+    'לא': ['לא'],
+  },
+};
+
 const CATEGORY_FILTERS: { key: keyof SoldierRow; label: string; options: string[] }[] = [
   {
     key: 'marital_status',
     label: 'מצב משפחתי',
-    options: ['נשוי', 'רווק', 'גרוש', 'אלמן', 'פרוד'],
-  },
-  {
-    key: 'children_count',
-    label: 'מספר ילדים',
-    options: ['0', '1', '2', '3', '4', '5+'],
+    options: ['נשוי', 'רווק', 'גרוש', 'אלמן', 'פרוד', 'מאורס', 'ידוע בציבור'],
   },
   {
     key: 'student_indicator',
-    label: 'אינדיקציית סטודנט',
-    options: ['כן', 'לא'],
+    label: 'סטודנט',
+    options: ['סטודנט', 'לא'],
   },
   {
     key: 'employment_status',
@@ -177,7 +188,12 @@ export const ViewBattalionPage: React.FC = () => {
       if (k === 'children_count' && value === '5+') {
         list = list.filter((s) => parseInt(s.children_count || '0', 10) >= 5);
       } else {
-        list = list.filter((s) => (s[k] || '') === value);
+        const matchers = CATEGORY_MATCH[k]?.[value];
+        if (matchers) {
+          list = list.filter((s) => matchers.some((m) => (s[k] || '').includes(m)));
+        } else {
+          list = list.filter((s) => (s[k] || '').includes(value));
+        }
       }
     }
 
