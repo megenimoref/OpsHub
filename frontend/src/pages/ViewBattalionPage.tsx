@@ -55,6 +55,12 @@ const CATEGORY_MATCH: Partial<Record<keyof SoldierRow, Record<string, string[]>>
     'גרוש': ['גרוש', 'גרושה'],
     'אלמן': ['אלמן', 'אלמנה'],
     'פרוד': ['פרוד', 'פרודה'],
+    'מאורס': ['מאורס', 'מאורסת'],
+    'ידוע בציבור': ['ידוע בציבור', 'ידועה בציבור'],
+  },
+  student_indicator: {
+    'סטודנט': ['סטודנט', 'סטודנטית'],
+    'לא': ['לא'],
   },
 };
 
@@ -62,17 +68,12 @@ const CATEGORY_FILTERS: { key: keyof SoldierRow; label: string; options: string[
   {
     key: 'marital_status',
     label: 'מצב משפחתי',
-    options: ['נשוי', 'רווק', 'גרוש', 'אלמן', 'פרוד'],
-  },
-  {
-    key: 'children_count',
-    label: 'מספר ילדים',
-    options: ['0', '1', '2', '3', '4', '5+'],
+    options: ['נשוי', 'רווק', 'גרוש', 'אלמן', 'פרוד', 'מאורס', 'ידוע בציבור'],
   },
   {
     key: 'student_indicator',
-    label: 'אינדיקציית סטודנט',
-    options: ['כן', 'לא'],
+    label: 'סטודנט',
+    options: ['סטודנט', 'לא'],
   },
   {
     key: 'employment_status',
