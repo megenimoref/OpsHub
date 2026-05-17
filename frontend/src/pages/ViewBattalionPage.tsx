@@ -341,62 +341,6 @@ export const ViewBattalionPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Category filters */}
-      {selectedBattalion && !loading && soldiers.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {CATEGORY_FILTERS.map((cat) => {
-            const active = categoryFilters[cat.key];
-            return (
-              <div key={cat.key} className="relative">
-                <button
-                  onClick={() => setOpenCategory(openCategory === cat.key ? null : cat.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                    active
-                      ? 'bg-indigo-700 border-indigo-500 text-white'
-                      : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
-                  }`}
-                >
-                  {cat.label}
-                  {active && <span className="text-xs bg-white/20 px-1.5 py-0.5 rounded-full">{active}</span>}
-                  <svg className={`w-3 h-3 transition-transform ${openCategory === cat.key ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {openCategory === cat.key && (
-                  <div className="absolute top-full mt-1 right-0 bg-gray-800 border border-gray-600 rounded-xl shadow-lg z-20 min-w-[140px] py-1">
-                    <button
-                      onClick={() => { setCategoryFilters((f) => ({ ...f, [cat.key]: undefined })); setOpenCategory(null); setCurrentPage(1); }}
-                      className="w-full text-right px-3 py-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-                    >
-                      הכל
-                    </button>
-                    {cat.options.map((opt) => (
-                      <button
-                        key={opt}
-                        onClick={() => { setCategoryFilters((f) => ({ ...f, [cat.key]: opt })); setOpenCategory(null); setCurrentPage(1); }}
-                        className={`w-full text-right px-3 py-2 text-sm transition-colors ${
-                          active === opt ? 'bg-indigo-700 text-white' : 'text-gray-200 hover:bg-gray-700'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {Object.values(categoryFilters).some(Boolean) && (
-            <button
-              onClick={() => { setCategoryFilters({}); setCurrentPage(1); }}
-              className="px-3 py-1.5 text-xs text-gray-400 hover:text-white border border-gray-700 rounded-lg transition-colors"
-            >
-              ✕ נקה פילטרים
-            </button>
-          )}
-        </div>
-      )}
-
       {/* No battalion selected */}
       {!selectedBattalion && !loading && (
         <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
@@ -481,6 +425,61 @@ export const ViewBattalionPage: React.FC = () => {
                   </button>
                 );
               })}
+            </div>
+
+            {/* Category filters inside the panel */}
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <p className="text-xs text-gray-400 mb-2">סינון לפי קטגוריה</p>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORY_FILTERS.map((cat) => {
+                  const active = categoryFilters[cat.key];
+                  return (
+                    <div key={cat.key} className="relative">
+                      <button
+                        onClick={() => setOpenCategory(openCategory === cat.key ? null : cat.key)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                          active
+                            ? 'bg-indigo-700 border-indigo-500 text-white'
+                            : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-700'
+                        }`}
+                      >
+                        {cat.label}
+                        {active && <span className="bg-white/20 px-1.5 py-0.5 rounded-full">{active}</span>}
+                        <svg className={`w-3 h-3 transition-transform ${openCategory === cat.key ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {openCategory === cat.key && (
+                        <div className="absolute top-full mt-1 right-0 bg-gray-800 border border-gray-600 rounded-xl shadow-lg z-20 min-w-[140px] py-1">
+                          <button
+                            onClick={() => { setCategoryFilters((f) => { const n = { ...f }; delete n[cat.key]; return n; }); setOpenCategory(null); setCurrentPage(1); }}
+                            className="w-full text-right px-3 py-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                          >
+                            הכל
+                          </button>
+                          {cat.options.map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => { setCategoryFilters((f) => ({ ...f, [cat.key]: opt })); setOpenCategory(null); setCurrentPage(1); }}
+                              className={`w-full text-right px-3 py-2 text-sm transition-colors ${active === opt ? 'bg-indigo-700 text-white' : 'text-gray-200 hover:bg-gray-700'}`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {Object.keys(categoryFilters).length > 0 && (
+                  <button
+                    onClick={() => { setCategoryFilters({}); setCurrentPage(1); }}
+                    className="px-3 py-1.5 text-xs text-gray-400 hover:text-white border border-gray-700 rounded-lg transition-colors"
+                  >
+                    ✕ נקה
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
