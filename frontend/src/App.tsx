@@ -24,6 +24,7 @@ import { BackupPage } from './pages/BackupPage';
 import { CommunityPage } from './pages/CommunityPage';
 import { FieldTeamPage } from './pages/FieldTeamPage';
 import { FeedbackPage } from './pages/FeedbackPage';
+import { FinancialPage } from './pages/FinancialPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import { NotificationBell } from './components/NotificationBell';
@@ -320,7 +321,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </svg>
               משוב ושיפורים
             </NavLink>
+
+            <NavLink to="/financial" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              אזור פיננסי
+            </NavLink>
           </>
+        )}
+
+        {/* Accountant — financial only */}
+        {user.role === 'accountant' && (
+          <NavLink to="/financial" onClick={closeMenu}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            אזור פיננסי
+          </NavLink>
         )}
       </nav>
 
@@ -534,6 +554,7 @@ function App() {
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/field-team" element={<ProtectedRoute><FieldTeamPage /></ProtectedRoute>} />
           <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
+          <Route path="/financial" element={<ProtectedRoute><FinancialPage /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         </Routes>
       </Layout>
