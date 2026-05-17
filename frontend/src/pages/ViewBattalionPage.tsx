@@ -397,7 +397,7 @@ export const ViewBattalionPage: React.FC = () => {
 
           <div
             className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              filterOpen ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0'
+              filterOpen ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0'
             }`}
           >
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
