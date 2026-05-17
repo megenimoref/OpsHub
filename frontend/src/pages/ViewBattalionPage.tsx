@@ -10,6 +10,10 @@ interface SoldierRow {
   request_status?: string;
   contact_date?: string;
   contact_by?: string;
+  marital_status?: string;
+  children_count?: string;
+  student_indicator?: string;
+  employment_status?: string;
 }
 
 const STATUS_OPTIONS: { value: string; color: string }[] = [
@@ -44,6 +48,29 @@ const getStatusColor = (status: string): string => {
 
 const PAGE_SIZE = 20;
 
+const CATEGORY_FILTERS: { key: keyof SoldierRow; label: string; options: string[] }[] = [
+  {
+    key: 'marital_status',
+    label: 'מצב משפחתי',
+    options: ['נשוי', 'רווק', 'גרוש', 'אלמן', 'פרוד'],
+  },
+  {
+    key: 'children_count',
+    label: 'מספר ילדים',
+    options: ['0', '1', '2', '3', '4', '5+'],
+  },
+  {
+    key: 'student_indicator',
+    label: 'אינדיקציית סטודנט',
+    options: ['כן', 'לא'],
+  },
+  {
+    key: 'employment_status',
+    label: 'סטטוס תעסוקתי',
+    options: ['שכיר', 'עצמאי', 'מובטל'],
+  },
+];
+
 export const ViewBattalionPage: React.FC = () => {
   const [battalions, setBattalions] = useState<string[]>([]);
   const [loadingBattalions, setLoadingBattalions] = useState(true);
@@ -60,6 +87,8 @@ export const ViewBattalionPage: React.FC = () => {
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [pnSearch, setPnSearch] = useState<string>('');
+  const [categoryFilters, setCategoryFilters] = useState<Partial<Record<keyof SoldierRow, string>>>({});
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
   // Load battalion list once
   useEffect(() => {
@@ -96,6 +125,8 @@ export const ViewBattalionPage: React.FC = () => {
     setDateFrom('');
     setDateTo('');
     setPnSearch('');
+    setCategoryFilters({});
+    setOpenCategory(null);
     fetchSoldiers(selectedBattalion);
   }, [selectedBattalion, fetchSoldiers]);
 
@@ -138,11 +169,23 @@ export const ViewBattalionPage: React.FC = () => {
     // contact_date may include a time component — compare YYYY-MM-DD prefix only.
     if (dateFrom) list = list.filter((s) => s.contact_date && s.contact_date.slice(0, 10) >= dateFrom);
     if (dateTo) list = list.filter((s) => s.contact_date && s.contact_date.slice(0, 10) <= dateTo);
+
+    // Category filters
+    for (const [key, value] of Object.entries(categoryFilters)) {
+      if (!value) continue;
+      const k = key as keyof SoldierRow;
+      if (k === 'children_count' && value === '5+') {
+        list = list.filter((s) => parseInt(s.children_count || '0', 10) >= 5);
+      } else {
+        list = list.filter((s) => (s[k] || '') === value);
+      }
+    }
+
     if (activeFilter === 'all') return list;
     if (activeFilter === 'not_done') return list.filter((s) => s.request_status !== 'טופלה');
     if (activeFilter === 'no_request') return list.filter((s) => !s.request_status?.trim());
     return list.filter((s) => s.request_status === activeFilter);
-  }, [soldiers, activeFilter, dateFrom, dateTo, pnSearch]);
+  }, [soldiers, activeFilter, dateFrom, dateTo, pnSearch, categoryFilters]);
 
   const handleFilterChange = (key: string) => {
     setActiveFilter(key);
@@ -354,7 +397,7 @@ export const ViewBattalionPage: React.FC = () => {
 
           <div
             className={`overflow-hidden transition-all duration-300 ease-in-out ${
-              filterOpen ? 'max-h-96 opacity-100 mt-2' : 'max-h-0 opacity-0'
+              filterOpen ? 'max-h-[600px] opacity-100 mt-2' : 'max-h-0 opacity-0'
             }`}
           >
             <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
@@ -383,7 +426,63 @@ export const ViewBattalionPage: React.FC = () => {
                 );
               })}
             </div>
+
           </div>
+        </div>
+      )}
+
+      {/* Category filters — always visible when battalion is selected */}
+      {selectedBattalion && !loading && soldiers.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-gray-400">סינון קטגוריה:</span>
+          {CATEGORY_FILTERS.map((cat) => {
+            const active = categoryFilters[cat.key];
+            return (
+              <div key={cat.key} className="relative">
+                <button
+                  onClick={() => setOpenCategory(openCategory === cat.key ? null : cat.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                    active
+                      ? 'bg-indigo-700 border-indigo-500 text-white'
+                      : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {cat.label}
+                  {active && <span className="bg-white/20 px-1.5 py-0.5 rounded-full">{active}</span>}
+                  <svg className={`w-3 h-3 transition-transform ${openCategory === cat.key ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {openCategory === cat.key && (
+                  <div className="absolute top-full mt-1 right-0 bg-gray-800 border border-gray-600 rounded-xl shadow-lg z-20 min-w-[140px] py-1">
+                    <button
+                      onClick={() => { setCategoryFilters((f) => { const n = { ...f }; delete n[cat.key]; return n; }); setOpenCategory(null); setCurrentPage(1); }}
+                      className="w-full text-right px-3 py-2 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      הכל
+                    </button>
+                    {cat.options.map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => { setCategoryFilters((f) => ({ ...f, [cat.key]: opt })); setOpenCategory(null); setCurrentPage(1); }}
+                        className={`w-full text-right px-3 py-2 text-sm transition-colors ${active === opt ? 'bg-indigo-700 text-white' : 'text-gray-200 hover:bg-gray-700'}`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {Object.keys(categoryFilters).length > 0 && (
+            <button
+              onClick={() => { setCategoryFilters({}); setCurrentPage(1); }}
+              className="px-3 py-1.5 text-xs text-gray-400 hover:text-white border border-gray-700 rounded-lg transition-colors"
+            >
+              ✕ נקה
+            </button>
+          )}
         </div>
       )}
 
