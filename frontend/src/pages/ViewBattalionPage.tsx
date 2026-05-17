@@ -48,6 +48,16 @@ const getStatusColor = (status: string): string => {
 
 const PAGE_SIZE = 20;
 
+const CATEGORY_MATCH: Partial<Record<keyof SoldierRow, Record<string, string[]>>> = {
+  marital_status: {
+    'נשוי': ['נשוי', 'נשואה'],
+    'רווק': ['רווק', 'רווקה'],
+    'גרוש': ['גרוש', 'גרושה'],
+    'אלמן': ['אלמן', 'אלמנה'],
+    'פרוד': ['פרוד', 'פרודה'],
+  },
+};
+
 const CATEGORY_FILTERS: { key: keyof SoldierRow; label: string; options: string[] }[] = [
   {
     key: 'marital_status',
@@ -177,7 +187,12 @@ export const ViewBattalionPage: React.FC = () => {
       if (k === 'children_count' && value === '5+') {
         list = list.filter((s) => parseInt(s.children_count || '0', 10) >= 5);
       } else {
-        list = list.filter((s) => (s[k] || '') === value);
+        const matchers = CATEGORY_MATCH[k]?.[value];
+        if (matchers) {
+          list = list.filter((s) => matchers.some((m) => (s[k] || '').includes(m)));
+        } else {
+          list = list.filter((s) => (s[k] || '').includes(value));
+        }
       }
     }
 
