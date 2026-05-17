@@ -9,7 +9,7 @@ interface UserRecord {
   firstName?: string;
   lastName?: string;
   mobilePhone?: string | null;
-  role: 'admin' | 'staff' | 'super' | 'manager';
+  role: 'admin' | 'staff' | 'super' | 'manager' | 'accountant';
   hidePersonalNumber?: boolean;
 }
 
@@ -20,7 +20,7 @@ export const UserCreatePage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mobilePhone, setMobilePhone] = useState('');
-  const [role, setRole] = useState<'staff' | 'admin' | 'super' | 'manager'>('staff');
+  const [role, setRole] = useState<'staff' | 'admin' | 'super' | 'manager' | 'accountant'>('staff');
   const [hidePersonalNumber, setHidePersonalNumber] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,6 +78,7 @@ export const UserCreatePage: React.FC = () => {
     staff: 'עובד/ת',
     super: 'סופר',
     manager: 'מנהל/ת',
+    accountant: 'רואה חשבון',
   };
 
   const exportUsersToExcel = () => {
@@ -309,13 +310,14 @@ export const UserCreatePage: React.FC = () => {
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'staff' | 'admin' | 'super' | 'manager')}
+              onChange={(e) => setRole(e.target.value as 'staff' | 'admin' | 'super' | 'manager' | 'accountant')}
               className="w-full px-3 py-2 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-700 text-white"
             >
               <option value="staff">Staff</option>
               <option value="manager">Manager</option>
               <option value="super">Super</option>
               <option value="admin">Admin</option>
+              <option value="accountant">רואה חשבון</option>
             </select>
           </div>
           <div>

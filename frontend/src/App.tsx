@@ -24,6 +24,7 @@ import { BackupPage } from './pages/BackupPage';
 import { CommunityPage } from './pages/CommunityPage';
 import { FieldTeamPage } from './pages/FieldTeamPage';
 import { FeedbackPage } from './pages/FeedbackPage';
+import { FinancialPage } from './pages/FinancialPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import { NotificationBell } from './components/NotificationBell';
@@ -166,6 +167,14 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               צוות שטח
+            </NavLink>
+
+            <NavLink to="/community" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              קהילה נשות המילואים
             </NavLink>
 
             <NavLink to="/feedback" onClick={closeMenu}>
@@ -320,7 +329,26 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </svg>
               משוב ושיפורים
             </NavLink>
+
+            <NavLink to="/financial" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              אזור פיננסי
+            </NavLink>
           </>
+        )}
+
+        {/* Accountant — financial only */}
+        {user.role === 'accountant' && (
+          <NavLink to="/financial" onClick={closeMenu}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            אזור פיננסי
+          </NavLink>
         )}
       </nav>
 
@@ -534,6 +562,7 @@ function App() {
           <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
           <Route path="/field-team" element={<ProtectedRoute><FieldTeamPage /></ProtectedRoute>} />
           <Route path="/feedback" element={<ProtectedRoute><FeedbackPage /></ProtectedRoute>} />
+          <Route path="/financial" element={<ProtectedRoute><FinancialPage /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
         </Routes>
       </Layout>

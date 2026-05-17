@@ -19,9 +19,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // Role-based path restrictions
-  const staffAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/view', '/benefits', '/mailing', '/feedback', '/field-team'];
+  const staffAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/view', '/benefits', '/mailing', '/feedback', '/field-team', '/community'];
   const superAllowedPaths = ['/personal-area', '/battalion/soldier', '/battalion/allocate', '/battalion/user-soldiers', '/battalion/view', '/mailing', '/feedback', '/field-team'];
   const managerAllowedPaths = ['/dashboard', '/battalion/soldier', '/battalion/view', '/mailing'];
+  const accountantAllowedPaths = ['/financial'];
 
   if (user && user.role === 'staff' && !staffAllowedPaths.includes(location.pathname)) {
     return <Navigate to="/personal-area" replace />;
@@ -33,6 +34,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (user && user.role === 'manager' && !managerAllowedPaths.includes(location.pathname)) {
     return <Navigate to="/dashboard" replace />;
+  }
+
+  if (user && user.role === 'accountant' && !accountantAllowedPaths.includes(location.pathname)) {
+    return <Navigate to="/financial" replace />;
   }
 
   return <>{children}</>;

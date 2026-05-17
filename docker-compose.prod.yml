@@ -53,6 +53,7 @@ services:
       # Persist backups on the host so they survive container rebuilds.
       # Without this, every `docker compose up -d --build` wipes /app/backups.
       - ./backups:/app/backups
+      - ./uploads/financial:/app/uploads/financial
 
   drive-uploader:
     build:
