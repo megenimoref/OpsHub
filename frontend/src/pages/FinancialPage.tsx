@@ -2,11 +2,11 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import api from '../services/api';
 
 interface Soldier {
-  id: number;
-  firstName: string;
-  lastName: string;
-  battalion: string;
-  phone?: string;
+  personal_number: string;
+  first_name: string;
+  last_name: string;
+  mobile_phone?: string;
+  battalionName: string;
 }
 
 interface FinancialDoc {
@@ -59,8 +59,8 @@ export const FinancialPage: React.FC = () => {
     searchTimeout.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const { data } = await api.get('/people', { params: { search: searchQuery, limit: 10 } });
-        setSoldierResults(data.data || []);
+        const { data } = await api.get('/battalion/field-team-search', { params: { q: searchQuery } });
+        setSoldierResults((data.results || []).map((r: any) => ({ ...r.soldier, battalionName: r.battalionName })));
         setShowDropdown(true);
       } catch {
         setSoldierResults([]);
@@ -85,7 +85,7 @@ export const FinancialPage: React.FC = () => {
     setLoadingDocs(true);
     try {
       const { data } = await api.get<{ documents: FinancialDoc[] }>('/financial', {
-        params: { type: tab, soldierPersonalNumber: String(soldier.id) },
+        params: { type: tab, soldierPersonalNumber: soldier.personal_number },
       });
       setDocs(data.documents);
     } catch {
@@ -97,7 +97,7 @@ export const FinancialPage: React.FC = () => {
 
   const handleSelectSoldier = (soldier: Soldier) => {
     setSelectedSoldier(soldier);
-    setSearchQuery(`${soldier.firstName} ${soldier.lastName}`);
+    setSearchQuery(`${soldier.first_name} ${soldier.last_name}`);
     setShowDropdown(false);
     setDocs([]);
     setShowUpload(false);
@@ -117,9 +117,9 @@ export const FinancialPage: React.FC = () => {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('type', activeTab);
-      fd.append('soldierPersonalNumber', String(selectedSoldier.id));
-      fd.append('soldierName', `${selectedSoldier.firstName} ${selectedSoldier.lastName}`);
-      fd.append('battalion', selectedSoldier.battalion);
+      fd.append('soldierPersonalNumber', selectedSoldier.personal_number);
+      fd.append('soldierName', `${selectedSoldier.first_name} ${selectedSoldier.last_name}`);
+      fd.append('battalion', selectedSoldier.battalionName);
       await api.post('/financial/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setFile(null);
       if (fileRef.current) fileRef.current.value = '';
@@ -195,12 +195,12 @@ export const FinancialPage: React.FC = () => {
             <div className="absolute top-full mt-1 right-0 left-0 bg-gray-800 border border-gray-600 rounded-xl shadow-xl z-20 py-1 max-h-60 overflow-y-auto">
               {searchResults.map((s) => (
                 <button
-                  key={s.id}
+                  key={s.personal_number}
                   onClick={() => handleSelectSoldier(s)}
                   className="w-full text-right px-4 py-2.5 hover:bg-gray-700 transition-colors flex items-center justify-between"
                 >
-                  <span className="text-white text-sm">{s.firstName} {s.lastName}</span>
-                  <span className="text-gray-400 text-xs">{s.battalion}</span>
+                  <span className="text-white text-sm">{s.first_name} {s.last_name}</span>
+                  <span className="text-gray-400 text-xs">{s.battalionName}</span>
                 </button>
               ))}
             </div>
@@ -215,11 +215,11 @@ export const FinancialPage: React.FC = () => {
         {selectedSoldier && (
           <div className="mt-3 flex items-center gap-3 bg-indigo-900/30 border border-indigo-700/50 rounded-lg px-4 py-3">
             <div className="w-9 h-9 rounded-full bg-indigo-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-              {selectedSoldier.firstName[0]}
+              {selectedSoldier.first_name[0]}
             </div>
             <div>
-              <p className="text-white font-medium text-sm">{selectedSoldier.firstName} {selectedSoldier.lastName}</p>
-              <p className="text-gray-400 text-xs">{selectedSoldier.battalion}</p>
+              <p className="text-white font-medium text-sm">{selectedSoldier.first_name} {selectedSoldier.last_name}</p>
+              <p className="text-gray-400 text-xs">{selectedSoldier.battalionName}</p>
             </div>
             <button
               onClick={() => { setSelectedSoldier(null); setSearchQuery(''); setDocs([]); setShowUpload(false); }}
