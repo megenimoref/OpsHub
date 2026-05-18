@@ -111,6 +111,13 @@ CREATE TABLE IF NOT EXISTS soldiers (
   nonprofit_assistance TEXT,
   fighter TEXT,
   vacation_break TEXT,
+  notes_personal TEXT,
+  notes_family TEXT,
+  notes_employment TEXT,
+  notes_welfare TEXT,
+  notes_reserve TEXT,
+  notes_rights TEXT,
+  notes_general TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -129,6 +136,8 @@ const NEW_SOLDIER_COLUMNS = [
   'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
   'legal_advice', 'nonprofit_assistance',
   'fighter', 'vacation_break',
+  'notes_personal', 'notes_family', 'notes_employment', 'notes_welfare',
+  'notes_reserve', 'notes_rights', 'notes_general',
 ];
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
@@ -259,6 +268,13 @@ export interface SoldierRow {
   nonprofit_assistance?: string;
   fighter?: string;
   vacation_break?: string;
+  notes_personal?: string;
+  notes_family?: string;
+  notes_employment?: string;
+  notes_welfare?: string;
+  notes_reserve?: string;
+  notes_rights?: string;
+  notes_general?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -839,7 +855,9 @@ export async function getSoldiersFromBattalion(battalionName: string): Promise<S
       'study_grants', 'spouse_employment_status', 'income_loss', 'pet', 'resilience_couples',
       'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
       'legal_advice', 'nonprofit_assistance',
-      'fighter', 'vacation_break'];
+      'fighter', 'vacation_break',
+      'notes_personal', 'notes_family', 'notes_employment', 'notes_welfare',
+      'notes_reserve', 'notes_rights', 'notes_general'];
     const cols = [...base, ...optional.filter((c) => existing.has(c))];
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
       `SELECT ${cols.join(', ')} FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`

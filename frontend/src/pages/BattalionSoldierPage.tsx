@@ -62,6 +62,13 @@ interface Soldier {
   fighter: string;
   vacation_break: string;
   vacation_compensation: string;
+  notes_personal: string;
+  notes_family: string;
+  notes_employment: string;
+  notes_welfare: string;
+  notes_reserve: string;
+  notes_rights: string;
+  notes_general: string;
   flight_compensation: string;
   // Reserve duty
   reserve_days_2025: string;
@@ -153,6 +160,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
       { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
       { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
+      { key: 'notes_personal', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -168,6 +176,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'spouse_call_doc', label: 'תיעוד שיחה בת זוג/אמא', multiline: true },
       { key: 'whatsapp_battalion', label: 'WhatsApp גדודי ופלוגתי' },
       { key: 'whatsapp_family', label: 'WhatsApp משפחה גדודי' },
+      { key: 'notes_family', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -182,6 +191,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'private_lessons', label: 'שיעורים פרטיים', multiline: true },
       { key: 'study_grants', label: 'מענקים / החזר שכר לימוד', multiline: true },
       { key: 'income_loss', label: 'אובדן הכנסה', multiline: true },
+      { key: 'notes_employment', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -203,6 +213,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'fighter', label: 'פייטר', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'vacation_break', label: 'שובר חופשה', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'vacation_compensation', label: 'פיצוי חופשות', options: ['פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
+      { key: 'notes_welfare', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -215,6 +226,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
       { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
       { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -226,6 +238,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'national_insurance', label: 'ביטוח לאומי', selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
       { key: 'income_tax', label: 'מס הכנסה', multiline: true },
       { key: 'legal_advice', label: 'ייעוץ משפטי', multiline: true },
+      { key: 'notes_rights', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -267,6 +280,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'platoon', label: 'מחלקה' },
       { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
       { key: 'professional', label: 'איש מקצוע' },
+      { key: 'notes_general', label: 'פירוט / הערות', multiline: true },
     ],
   },
 ];
