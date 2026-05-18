@@ -696,14 +696,23 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
             </div>
             <textarea value={whatsappMessage} onChange={(e) => setWhatsappMessage(e.target.value)} placeholder="כתוב את ההודעה כאן..." rows={4}
               className="w-full bg-gray-800 border border-gray-600 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 resize-none mb-3" />
-            {user?.phone && <p className="text-xs text-gray-500 mb-3">יתווסף אוטומטית: <span className="text-gray-400">לפרטים נוספים או לעזרה נא לפנות למספר {user.phone}</span></p>}
+            {user?.phone && (
+              <p className="text-xs text-gray-500 mb-3">
+                יתווסף אוטומטית: <span className="text-gray-400">
+                  לפרטים נוספים או לעזרה נא לפנות למספר {user.phone}
+                  {(user.firstName || user.lastName) && ` ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()}
+                  {' '}מרכז מגינים על העורף
+                </span>
+              </p>
+            )}
             {whatsappResult === 'success' && <div className="mb-3 p-2 bg-green-900/40 border border-green-700 rounded-lg text-sm text-green-300">✅ ההודעה נשלחה בהצלחה</div>}
             {whatsappResult === 'error' && <div className="mb-3 p-2 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300">❌ שגיאה בשליחה — בדוק שה-Green API מוגדר</div>}
             <div className="flex gap-2 justify-end">
               <button onClick={() => { setWhatsappOpen(false); setWhatsappMessage(''); setWhatsappResult(null); }} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">ביטול</button>
               <button disabled={!soldier.mobile_phone || !whatsappMessage.trim() || whatsappSending}
                 onClick={async () => {
-                  const suffix = user?.phone ? `\n\nלפרטים נוספים או לעזרה נא לפנות למספר ${user.phone}` : '';
+                  const userName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+                  const suffix = user?.phone ? `\n\nלפרטים נוספים או לעזרה נא לפנות למספר ${user.phone}${userName ? ` ${userName}` : ''} מרכז מגינים על העורף` : '';
                   const full = whatsappMessage.trim() + suffix;
                   const phone = soldier.mobile_phone.replace(/\D/g, '').replace(/^0/, '972');
                   setWhatsappSending(true);
