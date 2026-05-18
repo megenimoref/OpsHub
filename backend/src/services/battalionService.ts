@@ -624,11 +624,11 @@ export async function getAssistanceStats(battalionFilter?: string): Promise<Assi
     try {
       const [rows] = await c.execute<mysql.RowDataPacket[]>(
         `SELECT
-          SUM(CASE WHEN national_insurance IS NOT NULL AND TRIM(national_insurance) != '' AND TRIM(national_insurance) NOT IN (?, ?) THEN 1 ELSE 0 END) AS ni,
+          SUM(CASE WHEN TRIM(national_insurance) = 'נדרש' OR TRIM(national_insurance) LIKE 'נדרש - %' THEN 1 ELSE 0 END) AS ni,
           SUM(CASE WHEN welfare_fund IS NOT NULL AND TRIM(welfare_fund) != '' AND TRIM(welfare_fund) NOT IN (?, ?) THEN 1 ELSE 0 END) AS wf,
           SUM(CASE WHEN other_assistance IS NOT NULL AND TRIM(other_assistance) != '' AND TRIM(other_assistance) NOT IN (?, ?) THEN 1 ELSE 0 END) AS oa
         FROM soldiers`,
-        ['לא', 'אין', 'לא', 'אין', 'לא', 'אין']
+        ['לא', 'אין', 'לא', 'אין']
       );
       const row = rows[0];
       results.push({
