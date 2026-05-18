@@ -182,7 +182,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'spouse_student', label: 'האם בת הזוג סטודנטית', yesNo: true },
       { key: 'private_lessons', label: 'שיעורים פרטיים', multiline: true },
       { key: 'study_grants', label: 'מענקים / החזר שכר לימוד', multiline: true },
-      { key: 'spouse_employment_status', label: 'סטטוס תעסוקתי של בת הזוג', selectWithDetail: { options: ['עצמאי', 'שכירה', 'מובטלת', 'לא רלוונטי', 'אחר'], detailOn: ['אחר'] } },
       { key: 'income_loss', label: 'אובדן הכנסה', multiline: true },
     ],
   },
