@@ -3,6 +3,7 @@ import api from '../services/api';
 
 // ── Duplicates types ──────────────────────────────────────────────────────────
 interface DuplicateBattalionEntry {
+  personal_number: string;
   battalionName: string;
   last_updated?: string;
 }
@@ -100,7 +101,10 @@ export const BackupPage: React.FC = () => {
     if (!dupDeleteModal) return;
     setDupDeleteModal({ ...dupDeleteModal, deleting: true });
     try {
-      await api.delete(`/battalion/${encodeURIComponent(dupDeleteModal.selectedBattalion)}/soldiers/${encodeURIComponent(dupDeleteModal.soldier.personal_number)}`);
+      // Use the personal_number stored per-battalion entry (phone duplicates can have different personal numbers)
+      const entry = dupDeleteModal.soldier.battalions.find((b) => b.battalionName === dupDeleteModal.selectedBattalion);
+      const pnToDelete = entry?.personal_number || dupDeleteModal.soldier.personal_number;
+      await api.delete(`/battalion/${encodeURIComponent(dupDeleteModal.selectedBattalion)}/soldiers/${encodeURIComponent(pnToDelete)}`);
       setDupData((prev) => {
         if (!prev) return prev;
         const filter = (list: DuplicateSoldier[]) =>
@@ -138,7 +142,10 @@ export const BackupPage: React.FC = () => {
     // Only delete soldiers that actually appear in the selected battalion AND at least one other battalion
     const toDelete = dups
       .filter((d) => d.battalions.some((e) => e.battalionName === bulkSelectedBattalion) && d.battalions.length > 1)
-      .map((d) => ({ battalionName: bulkSelectedBattalion, personal_number: d.personal_number }));
+      .map((d) => {
+        const entry = d.battalions.find((e) => e.battalionName === bulkSelectedBattalion);
+        return { battalionName: bulkSelectedBattalion, personal_number: entry?.personal_number || d.personal_number };
+      });
     if (toDelete.length === 0) { setBulkModal(false); return; }
     setBulkModal(false);
     setBulkDeleting(true);

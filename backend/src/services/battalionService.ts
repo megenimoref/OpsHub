@@ -1023,6 +1023,7 @@ export async function getSoldierChanges(
 
 export interface DuplicateBattalionEntry {
   battalionName: string;
+  personal_number: string;
   last_updated?: string;
 }
 
@@ -1088,6 +1089,7 @@ export async function findDuplicateSoldiers(): Promise<{ byPersonalNumber: Dupli
         ...entries[0].soldier,
         battalions: entries.map((e) => ({
           battalionName: e.battalionName,
+          personal_number: String(e.soldier.personal_number || '').trim(),
           last_updated: e.soldier.last_updated || undefined,
         })),
       }));
