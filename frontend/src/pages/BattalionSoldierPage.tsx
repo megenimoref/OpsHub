@@ -162,8 +162,6 @@ const SECTIONS: SectionDef[] = [
     fields: [
       { key: 'has_children', label: 'ילדים', yesNo: true },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן', placeholder: 'לדוגמה: 3, 4, 5' },
-      { key: 'summer_camp', label: 'קייטנות', multiline: true },
-      { key: 'birth_grant', label: 'מענק לידה', multiline: true },
       { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', multiline: true },
       { key: 'divorced_assistance', label: 'גרוש/פרוד — עזרה', multiline: true, showIf: (fd) => isDivorced(fd.marital_status || '') },
       { key: 'special_family_status', label: 'סטטוס מיוחד משפחתי' },
@@ -193,10 +191,12 @@ const SECTIONS: SectionDef[] = [
     color: 'border-yellow-500',
     fields: [
       { key: 'welfare_fund', label: 'קרן הסיוע', yesNo: true },
+      { key: 'summer_camp', label: 'קייטנות', yesNo: true },
+      { key: 'household_assistance', label: 'בייביסיטר', yesNo: true },
+      { key: 'birth_grant', label: 'מענק לידה', yesNo: true },
       { key: 'pet', label: 'כלב / בעל חיים', selectWithDetail: { options: ['יש', 'אין'], detailOn: ['יש'] } },
       { key: 'route_6', label: 'כביש 6', yesNo: true },
       { key: 'resilience_couples', label: 'חוסן רגשי זוגי / עמית', yesNo: true },
-      { key: 'household_assistance', label: 'בייביסיטר', yesNo: true },
       { key: 'repairs', label: 'תיקונים', yesNo: true },
       { key: 'moving_assistance', label: 'מעבר דירה', yesNo: true },
       { key: 'personal_equipment', label: 'ציוד אישי', yesNo: true },
