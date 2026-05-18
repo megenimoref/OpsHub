@@ -252,8 +252,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
       { key: 'contact_with', label: 'מול מי נוצר קשר', selectWithDetail: { options: ['החייל', 'קרוב'], detailOn: ['קרוב'] } },
       { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
-      { key: 'followup_1', label: 'מעקב 1', multiline: true },
-      { key: 'followup_2', label: 'מעקב 2', multiline: true },
     ],
   },
   {
