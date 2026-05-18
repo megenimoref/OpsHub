@@ -226,6 +226,8 @@ const SECTIONS: SectionDef[] = [
       { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
       { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
       { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'platoon', label: 'מחלקה' },
+      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
       { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
   },
@@ -268,19 +270,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
       { key: 'followup_1', label: 'מעקב 1', multiline: true, archived: true },
       { key: 'followup_2', label: 'מעקב 2', multiline: true, archived: true },
-    ],
-  },
-  {
-    key: 'general',
-    title: 'כללי',
-    emoji: '📌',
-    color: 'border-gray-500',
-    fields: [
-      { key: 'age', label: 'גיל' },
-      { key: 'platoon', label: 'מחלקה' },
-      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'professional', label: 'איש מקצוע' },
-      { key: 'notes_general', label: 'פירוט / הערות', multiline: true },
     ],
   },
 ];
