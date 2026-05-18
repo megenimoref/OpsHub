@@ -1,13 +1,21 @@
 /**
  * backfill_welfare_keywords.ts
  *
- * Scans every soldier in every battalion DB.
- * For each free-text / notes field, searches for keywords and
- * auto-populates the matching structured field with 'נדרש'
- * (only when the structured field is currently empty).
+ * Pass 1 — Dropdown fields:
+ *   Scans all free-text / notes fields per soldier.
+ *   Finds keywords → sets the matching structured dropdown field to 'נדרש'
+ *   (only when the field is currently empty).
  *
- * Run:  npx ts-node src/migrations/backfill_welfare_keywords.ts
- *       or: DRY_RUN=1 npx ts-node src/migrations/backfill_welfare_keywords.ts
+ * Pass 2 — Text routing:
+ *   Takes content from generic/old text fields (notes, data_indicators,
+ *   other_assistance, applications_needed, aid_fund_submission, notes_general)
+ *   and appends each line to the most relevant section notes field
+ *   (notes_welfare, notes_rights, notes_employment, notes_family, notes_reserve, notes_personal).
+ *   Lines that don't match any section stay in notes_general (or notes).
+ *
+ * Run:
+ *   npx ts-node src/migrations/backfill_welfare_keywords.ts
+ *   DRY_RUN=1 npx ts-node src/migrations/backfill_welfare_keywords.ts
  */
 
 import mysql from 'mysql2/promise';
@@ -23,9 +31,7 @@ const dbConfig = {
   password: process.env.DB_PASSWORD || '1qaz!QAZ',
 };
 
-// ─── Keyword → target field mapping ───────────────────────────────────────────
-// Each rule: if ANY keyword found in text fields → set target field to targetValue
-// Only applied when the target field is currently empty / null.
+// ─── Pass 1: Keyword → dropdown field ────────────────────────────────────────
 
 interface Rule {
   keywords: string[];
@@ -33,58 +39,27 @@ interface Rule {
   targetValue: string;
 }
 
-const RULES: Rule[] = [
-  // קרן הסיוע — general
+const DROPDOWN_RULES: Rule[] = [
   { keywords: ['קרן הסיוע', 'קרן סיוע'], field: 'welfare_fund', targetValue: 'נדרש' },
-
-  // כביש 6
   { keywords: ['כביש 6', 'כביש6', 'כביש-6'], field: 'route_6', targetValue: 'נדרש' },
-
-  // ייעוץ משפטי / עורך דין
   { keywords: ['עורך דין', 'עו"ד', "עו''ד", 'ייעוץ משפטי', 'עורך-דין'], field: 'legal_advice', targetValue: 'נדרש' },
-
-  // ביטוח לאומי
   { keywords: ['ביטוח לאומי', 'ב"ל', "ב''ל", 'בטוח לאומי'], field: 'national_insurance', targetValue: 'נדרש' },
-
-  // מס הכנסה / רואה חשבון
   { keywords: ['מס הכנסה', 'רואה חשבון', 'ר"ח', "ר''ח", 'רו"ח'], field: 'income_tax', targetValue: 'נדרש' },
-
-  // קייטנות
   { keywords: ['קייטנה', 'קייטנות', 'קיטנה'], field: 'summer_camp', targetValue: 'נדרש' },
-
-  // בייביסיטר
   { keywords: ['בייביסיטר', 'בייבי סיטר', 'בייבי-סיטר', 'babysitter', 'baby sitter'], field: 'household_assistance', targetValue: 'נדרש' },
-
-  // מענק לידה / לידה
   { keywords: ['מענק לידה', 'לידה'], field: 'birth_grant', targetValue: 'נדרש' },
-
-  // תיקונים
   { keywords: ['תיקונים', 'תיקון בית', 'שיפוץ'], field: 'repairs', targetValue: 'נדרש' },
-
-  // מעבר דירה
   { keywords: ['מעבר דירה', 'העברת דירה', 'מעבר-דירה'], field: 'moving_assistance', targetValue: 'נדרש' },
-
-  // ציוד אישי
   { keywords: ['ציוד אישי', 'ציוד קרבי'], field: 'personal_equipment', targetValue: 'נדרש' },
-
-  // פייטר
   { keywords: ['פייטר'], field: 'fighter', targetValue: 'נדרש' },
-
-  // שובר חופשה
   { keywords: ['שובר חופשה', 'שובר נופש'], field: 'vacation_break', targetValue: 'נדרש' },
-
-  // פיצוי חופשות
   { keywords: ['פיצוי חופשות', 'פיצוי חופשה'], field: 'vacation_compensation', targetValue: 'פיצוי חופשות' },
-
-  // חוסן זוגי
   { keywords: ['חוסן זוגי', 'חוסן רגשי', 'חוסן עמית'], field: 'resilience_couples', targetValue: 'נדרש' },
-
-  // סיוע מעמותות
   { keywords: ['עמותה', 'עמותות', 'ארגון התנדבות'], field: 'nonprofit_assistance', targetValue: 'נדרש' },
 ];
 
-// Free-text fields to scan for keywords
-const TEXT_FIELDS_TO_SCAN = [
+// All text fields to scan for Pass 1
+const ALL_TEXT_FIELDS = [
   'notes_personal', 'notes_family', 'notes_employment', 'notes_welfare',
   'notes_reserve', 'notes_rights', 'notes_general', 'notes',
   'data_indicators', 'other_assistance', 'applications_needed',
@@ -92,15 +67,91 @@ const TEXT_FIELDS_TO_SCAN = [
   'income_tax', 'legal_advice', 'nonprofit_assistance',
 ];
 
+// ─── Pass 2: Route free text to section notes ─────────────────────────────────
+
+// Source fields whose content we redistribute (old/generic fields)
+const SOURCE_TEXT_FIELDS = [
+  'notes', 'data_indicators', 'other_assistance',
+  'applications_needed', 'aid_fund_submission', 'notes_general',
+];
+
+// Section keyword clusters — ordered from most specific to least
+interface SectionRoute {
+  notesField: string;       // destination notes field
+  keywords: string[];
+}
+
+const SECTION_ROUTES: SectionRoute[] = [
+  {
+    notesField: 'notes_welfare',
+    keywords: [
+      'קרן הסיוע', 'קרן סיוע', 'כביש 6', 'כביש-6', 'קייטנה', 'קייטנות',
+      'בייביסיטר', 'בייבי סיטר', 'מענק לידה', 'תיקונים', 'שיפוץ',
+      'מעבר דירה', 'ציוד אישי', 'פייטר', 'שובר חופשה', 'פיצוי חופשות',
+      'חוסן זוגי', 'חוסן רגשי', 'חוסן עמית', 'עמותה', 'עמותות',
+    ],
+  },
+  {
+    notesField: 'notes_rights',
+    keywords: [
+      'ביטוח לאומי', 'ב"ל', "ב''ל", 'בטוח לאומי',
+      'מס הכנסה', 'רואה חשבון', 'רו"ח', 'ר"ח',
+      'עורך דין', 'עו"ד', "עו''ד", 'ייעוץ משפטי', 'ייעוץ משפטי',
+    ],
+  },
+  {
+    notesField: 'notes_employment',
+    keywords: [
+      'עבודה', 'תעסוקה', 'שכיר', 'עצמאי', 'מובטל', 'פיטורים',
+      'לימודים', 'סטודנט', 'שכר לימוד', 'אובדן הכנסה', 'הכנסה',
+      'מעסיק', 'משכורת', 'שכר', 'מלגה', 'מענק',
+    ],
+  },
+  {
+    notesField: 'notes_family',
+    keywords: [
+      'ילדים', 'ילד', 'ילדה', 'בת זוג', 'אישה', 'גרוש', 'גרושה',
+      'לידה', 'הריון', 'משפחה', 'הורים', 'אמא', 'אבא',
+      'whatsapp', 'ווצאפ', 'קבוצה',
+    ],
+  },
+  {
+    notesField: 'notes_reserve',
+    keywords: [
+      'מילואים', 'גדוד', 'פלוגה', 'מחלקה', 'סבב', 'גיוס',
+      'שחרור', 'צבא', 'פיקוד', 'קצין', 'מפקד',
+    ],
+  },
+  {
+    notesField: 'notes_personal',
+    keywords: [
+      'טלפון', 'כתובת', 'מגורים', 'עיר', 'אימייל', 'פרטים אישיים',
+    ],
+  },
+];
+
 function containsKeyword(text: string, keywords: string[]): boolean {
   const lower = text.toLowerCase();
   return keywords.some((kw) => lower.includes(kw.toLowerCase()));
 }
 
+function routeLine(line: string): string | null {
+  for (const route of SECTION_ROUTES) {
+    if (containsKeyword(line, route.keywords)) return route.notesField;
+  }
+  return null; // stays in source / general
+}
+
+function appendText(existing: string, addition: string): string {
+  const ex = (existing || '').trim();
+  const add = addition.trim();
+  if (!add) return ex;
+  return ex ? `${ex}\n${add}` : add;
+}
+
 async function processBattalion(conn: mysql.Connection, dbName: string): Promise<void> {
   await conn.query(`USE \`${dbName}\``);
 
-  // Get all columns in soldiers table
   const [colRows] = await conn.query<mysql.RowDataPacket[]>(
     `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
     [dbName]
@@ -112,23 +163,57 @@ async function processBattalion(conn: mysql.Connection, dbName: string): Promise
   let updated = 0;
 
   for (const soldier of soldiers) {
-    // Build combined text from all scannable fields
-    const combinedText = TEXT_FIELDS_TO_SCAN
+    const updates: Record<string, string> = {};
+
+    // ── Pass 1: dropdown fields ──────────────────────────────────────────────
+    const combinedText = ALL_TEXT_FIELDS
       .filter((f) => existingCols.has(f))
       .map((f) => (soldier[f] as string) || '')
       .join(' ');
 
-    if (!combinedText.trim()) continue;
-
-    const updates: Record<string, string> = {};
-
-    for (const rule of RULES) {
+    for (const rule of DROPDOWN_RULES) {
       if (!existingCols.has(rule.field)) continue;
-      const currentValue = (soldier[rule.field] as string) || '';
-      if (currentValue.trim()) continue; // already filled — skip
-
+      const current = (soldier[rule.field] as string) || '';
+      if (current.trim()) continue;
       if (containsKeyword(combinedText, rule.keywords)) {
         updates[rule.field] = rule.targetValue;
+      }
+    }
+
+    // ── Pass 2: route text content to section notes ──────────────────────────
+    // Collect all text from source fields
+    const sourceLines: string[] = [];
+    for (const sf of SOURCE_TEXT_FIELDS) {
+      if (!existingCols.has(sf)) continue;
+      const val = ((soldier[sf] as string) || '').trim();
+      if (!val) continue;
+      // Split by newlines and punctuation to get individual chunks
+      val.split(/[\n\r]+/).forEach((line) => {
+        const l = line.trim();
+        if (l) sourceLines.push(l);
+      });
+    }
+
+    // Accumulate routed text per destination notes field
+    const routed: Record<string, string[]> = {};
+    const unrouted: string[] = [];
+
+    for (const line of sourceLines) {
+      const dest = routeLine(line);
+      if (dest && existingCols.has(dest)) {
+        if (!routed[dest]) routed[dest] = [];
+        routed[dest].push(line);
+      } else {
+        unrouted.push(line);
+      }
+    }
+
+    // Apply routed text — append to existing section notes (avoid duplicates)
+    for (const [destField, lines] of Object.entries(routed)) {
+      const existing = (soldier[destField] as string) || '';
+      const toAdd = lines.filter((l) => !existing.includes(l)).join('\n');
+      if (toAdd) {
+        updates[destField] = appendText(updates[destField] ?? existing, toAdd);
       }
     }
 
@@ -137,8 +222,9 @@ async function processBattalion(conn: mysql.Connection, dbName: string): Promise
     const setClauses = Object.keys(updates).map((f) => `\`${f}\` = ?`).join(', ');
     const values = [...Object.values(updates), soldier.id];
 
-    const soldierLabel = `${soldier.first_name || ''} ${soldier.last_name || ''} (${soldier.personal_number || soldier.id})`.trim();
-    console.log(`  ✔ ${soldierLabel}:`, updates);
+    const soldierLabel =
+      `${soldier.first_name || ''} ${soldier.last_name || ''} (${soldier.personal_number || soldier.id})`.trim();
+    console.log(`  ✔ ${soldierLabel}:`, Object.keys(updates));
 
     if (!DRY_RUN) {
       await conn.query(`UPDATE soldiers SET ${setClauses} WHERE id = ?`, values);
@@ -150,7 +236,7 @@ async function processBattalion(conn: mysql.Connection, dbName: string): Promise
 }
 
 async function main() {
-  console.log(`\n🔍 Welfare keyword backfill${DRY_RUN ? ' [DRY RUN — no writes]' : ''}\n`);
+  console.log(`\n🔍 Welfare keyword backfill + text routing${DRY_RUN ? ' [DRY RUN — no writes]' : ''}\n`);
 
   const conn = await mysql.createConnection(dbConfig);
 
