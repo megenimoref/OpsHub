@@ -117,6 +117,7 @@ interface FieldDef {
   userSelect?: boolean;
   selectWithDetail?: { options: string[]; detailOn: string[] };
   yesNo?: boolean; // renders כן/לא select
+  placeholder?: string;
   showIf?: (fd: Partial<Soldier>) => boolean;
 }
 
@@ -158,7 +159,7 @@ const SECTIONS: SectionDef[] = [
     color: 'border-orange-500',
     fields: [
       { key: 'has_children', label: 'ילדים', yesNo: true },
-      { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן' },
+      { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן', placeholder: 'לדוגמה: 3, 4, 5' },
       { key: 'summer_camp', label: 'קייטנות', multiline: true },
       { key: 'household_assistance', label: 'בייביסיטר', multiline: true },
       { key: 'birth_grant', label: 'מענק לידה', multiline: true },
@@ -513,7 +514,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const showDivorcedReminder = isDivorced(maritalVal);
 
   const renderField = (field: FieldDef) => {
-    const { key, label, required, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, showIf } = field;
+    const { key, label, required, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, showIf } = field;
     if (showIf && !showIf(formData as Partial<Soldier>)) return null;
     const fieldChanges = changes.filter((c) => c.field_name === key);
     const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
@@ -573,8 +574,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           <textarea value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} rows={3} disabled={readOnly}
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none disabled:opacity-60 disabled:cursor-not-allowed" />
         ) : (
-          <input type="text" value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly}
-            className={`w-full px-3 py-2 bg-gray-700 border ${hasError ? 'border-red-500' : 'border-gray-600'} text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed`} />
+          <input type="text" value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly} placeholder={placeholder}
+            className={`w-full px-3 py-2 bg-gray-700 border ${hasError ? 'border-red-500' : 'border-gray-600'} text-white placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed`} />
         )}
         {hasError && <p className="mt-1 text-xs text-red-400">{validationErrors[key]}</p>}
         {fieldChanges.length > 0 && (
