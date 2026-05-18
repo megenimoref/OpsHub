@@ -238,6 +238,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'aid_fund_submission', label: 'מה החייל הגיש לקרן הסיוע', multiline: true },
       { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
       { key: 'applications_needed', label: 'בקשות להגשה', multiline: true },
+      { key: 'notes', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -252,7 +253,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
       { key: 'contact_with', label: 'מול מי נוצר קשר', selectWithDetail: { options: ['החייל', 'קרוב'], detailOn: ['קרוב'] } },
       { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
-      { key: 'notes', label: 'פירוט/הערות', multiline: true },
       { key: 'followup_1', label: 'מעקב 1', multiline: true },
       { key: 'followup_2', label: 'מעקב 2', multiline: true },
     ],
