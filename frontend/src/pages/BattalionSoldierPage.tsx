@@ -146,6 +146,8 @@ const SECTIONS: SectionDef[] = [
       { key: 'first_name', label: 'שם פרטי' },
       { key: 'mobile_phone', label: 'טלפון נייד' },
       { key: 'marital_status', label: 'מצב משפחתי', required: true, options: MARITAL_OPTIONS },
+      { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
+      { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
       { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
     ],
   },
@@ -155,8 +157,6 @@ const SECTIONS: SectionDef[] = [
     emoji: '👨‍👩‍👧',
     color: 'border-orange-500',
     fields: [
-      { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
-      { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
       { key: 'has_children', label: 'ילדים', yesNo: true },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן' },
       { key: 'summer_camp', label: 'קייטנות', multiline: true },
