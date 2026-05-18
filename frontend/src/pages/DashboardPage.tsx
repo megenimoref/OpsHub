@@ -33,6 +33,20 @@ interface AssistanceStat {
   nationalInsurance: number;
   welfareFund: number;
   otherAssistance: number;
+  route6: number;
+  moving: number;
+  babysitter: number;
+  summer: number;
+  birth: number;
+  equipment: number;
+  fighter: number;
+  vacationBreak: number;
+  vacationComp: number;
+  resilience: number;
+  repairs: number;
+  legal: number;
+  tax: number;
+  nonprofit: number;
 }
 
 interface AssistanceSoldier {
@@ -240,7 +254,20 @@ export const DashboardPage: React.FC = () => {
     name: s.battalion,
     'ביטוח לאומי': s.nationalInsurance,
     'קרן סיוע': s.welfareFund,
-    'סיוע אחר': s.otherAssistance,
+    'כביש 6': s.route6,
+    'מעבר דירה': s.moving,
+    'בייביסיטר': s.babysitter,
+    'קייטנות': s.summer,
+    'מענק לידה': s.birth,
+    'ציוד אישי': s.equipment,
+    'פייטר': s.fighter,
+    'שובר חופשה': s.vacationBreak,
+    'פיצוי חופשות': s.vacationComp,
+    'חוסן זוגי': s.resilience,
+    'תיקונים': s.repairs,
+    'ייעוץ משפטי': s.legal,
+    'מס הכנסה': s.tax,
+    'סיוע עמותות': s.nonprofit,
   }));
 
   // All unique statuses across all battalions (top 6 most common overall)
@@ -322,9 +349,24 @@ export const DashboardPage: React.FC = () => {
     (acc, s) => ({
       'ביטוח לאומי': acc['ביטוח לאומי'] + s.nationalInsurance,
       'קרן סיוע': acc['קרן סיוע'] + s.welfareFund,
-      'סיוע אחר': acc['סיוע אחר'] + s.otherAssistance,
+      'כביש 6': acc['כביש 6'] + s.route6,
+      'מעבר דירה': acc['מעבר דירה'] + s.moving,
+      'בייביסיטר': acc['בייביסיטר'] + s.babysitter,
+      'קייטנות': acc['קייטנות'] + s.summer,
+      'מענק לידה': acc['מענק לידה'] + s.birth,
+      'ציוד אישי': acc['ציוד אישי'] + s.equipment,
+      'פייטר': acc['פייטר'] + s.fighter,
+      'שובר חופשה': acc['שובר חופשה'] + s.vacationBreak,
+      'פיצוי חופשות': acc['פיצוי חופשות'] + s.vacationComp,
+      'חוסן זוגי': acc['חוסן זוגי'] + s.resilience,
+      'תיקונים': acc['תיקונים'] + s.repairs,
+      'ייעוץ משפטי': acc['ייעוץ משפטי'] + s.legal,
+      'מס הכנסה': acc['מס הכנסה'] + s.tax,
+      'סיוע עמותות': acc['סיוע עמותות'] + s.nonprofit,
     }),
-    { 'ביטוח לאומי': 0, 'קרן סיוע': 0, 'סיוע אחר': 0 }
+    { 'ביטוח לאומי': 0, 'קרן סיוע': 0, 'כביש 6': 0, 'מעבר דירה': 0, 'בייביסיטר': 0,
+      'קייטנות': 0, 'מענק לידה': 0, 'ציוד אישי': 0, 'פייטר': 0, 'שובר חופשה': 0,
+      'פיצוי חופשות': 0, 'חוסן זוגי': 0, 'תיקונים': 0, 'ייעוץ משפטי': 0, 'מס הכנסה': 0, 'סיוע עמותות': 0 }
   );
   const globalAssistancePie = (Object.entries(globalAssistanceTotals) as [string, number][])
     .filter(([, v]) => v > 0)
@@ -803,30 +845,54 @@ export const DashboardPage: React.FC = () => {
                   <thead>
                     <tr className="border-b border-gray-700 text-gray-400 text-xs">
                       <th className="py-2 px-3">גדוד</th>
-                      <th className="py-2 px-3">סה"כ חיילים</th>
-                      <th className="py-2 px-3">נוצר קשר</th>
-                      <th className="py-2 px-3">% כיסוי</th>
-                      <th className="py-2 px-3">ביטוח לאומי</th>
-                      <th className="py-2 px-3">קרן סיוע</th>
-                      <th className="py-2 px-3">סיוע אחר</th>
+                      <th className="py-2 px-3">סה"כ</th>
+                      <th className="py-2 px-3">קשר</th>
+                      <th className="py-2 px-3">%</th>
+                      <th className="py-2 px-3">ב"ל</th>
+                      <th className="py-2 px-3">קרן</th>
+                      <th className="py-2 px-3">כביש 6</th>
+                      <th className="py-2 px-3">מעבר</th>
+                      <th className="py-2 px-3">בייבי</th>
+                      <th className="py-2 px-3">קייטנה</th>
+                      <th className="py-2 px-3">לידה</th>
+                      <th className="py-2 px-3">ציוד</th>
+                      <th className="py-2 px-3">פייטר</th>
+                      <th className="py-2 px-3">חופשה</th>
+                      <th className="py-2 px-3">חוסן</th>
+                      <th className="py-2 px-3">תיקון</th>
+                      <th className="py-2 px-3">משפטי</th>
+                      <th className="py-2 px-3">מס</th>
                     </tr>
                   </thead>
                   <tbody>
                     {battalionPieStats.map((stat) => {
-                      const assistance = assistanceStats.find((a) => a.battalion === stat.battalion);
+                      const a = assistanceStats.find((x) => x.battalion === stat.battalion);
                       const coveragePct = stat.totalSoldiers > 0
                         ? Math.round((stat.contactedSoldiers / stat.totalSoldiers) * 100)
                         : 0;
                       const coverageColor = coveragePct >= 80 ? 'text-green-400' : coveragePct >= 50 ? 'text-yellow-400' : 'text-red-400';
+                      const cell = (v?: number, color = 'text-gray-300') =>
+                        <td className={`py-2.5 px-3 ${color}`}>{v ?? '—'}</td>;
                       return (
                         <tr key={stat.battalion} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
-                          <td className="py-2.5 px-3 font-semibold text-white">גדוד {stat.battalion}</td>
+                          <td className="py-2.5 px-3 font-semibold text-white">{stat.battalion}</td>
                           <td className="py-2.5 px-3 text-gray-300">{stat.totalSoldiers}</td>
                           <td className="py-2.5 px-3 text-green-400">{stat.contactedSoldiers}</td>
                           <td className={`py-2.5 px-3 font-bold ${coverageColor}`}>{coveragePct}%</td>
-                          <td className="py-2.5 px-3 text-blue-400">{assistance?.nationalInsurance ?? '—'}</td>
-                          <td className="py-2.5 px-3 text-amber-400">{assistance?.welfareFund ?? '—'}</td>
-                          <td className="py-2.5 px-3 text-purple-400">{assistance?.otherAssistance ?? '—'}</td>
+                          {cell(a?.nationalInsurance, 'text-blue-400')}
+                          {cell(a?.welfareFund, 'text-amber-400')}
+                          {cell(a?.route6, 'text-cyan-400')}
+                          {cell(a?.moving, 'text-orange-400')}
+                          {cell(a?.babysitter, 'text-pink-400')}
+                          {cell(a?.summer, 'text-yellow-400')}
+                          {cell(a?.birth, 'text-rose-400')}
+                          {cell(a?.equipment, 'text-indigo-400')}
+                          {cell(a?.fighter, 'text-red-400')}
+                          {cell(a?.vacationBreak, 'text-teal-400')}
+                          {cell(a?.resilience, 'text-purple-400')}
+                          {cell(a?.repairs, 'text-lime-400')}
+                          {cell(a?.legal, 'text-violet-400')}
+                          {cell(a?.tax, 'text-sky-400')}
                         </tr>
                       );
                     })}
@@ -1071,12 +1137,23 @@ export const DashboardPage: React.FC = () => {
               <h2 className="text-lg font-semibold text-white mb-4">נדרש סיוע לפי גדוד</h2>
               <div className="space-y-5">
                 {assistanceStats.map((stat) => {
-                  const maxVal = Math.max(stat.nationalInsurance, stat.welfareFund, stat.otherAssistance, 1);
                   const bars = [
-                    { key: 'national_insurance', label: 'ביטוח לאומי', count: stat.nationalInsurance, color: 'bg-blue-500', hoverColor: 'hover:bg-blue-400' },
-                    { key: 'welfare_fund', label: 'קרן סיוע', count: stat.welfareFund, color: 'bg-amber-500', hoverColor: 'hover:bg-amber-400' },
-                    { key: 'other_assistance', label: 'סיוע אחר', count: stat.otherAssistance, color: 'bg-purple-500', hoverColor: 'hover:bg-purple-400' },
-                  ];
+                    { key: 'national_insurance', label: 'ביטוח לאומי',  count: stat.nationalInsurance, color: 'bg-blue-500',    hoverColor: 'hover:bg-blue-400' },
+                    { key: 'welfare_fund',       label: 'קרן סיוע',      count: stat.welfareFund,       color: 'bg-amber-500',   hoverColor: 'hover:bg-amber-400' },
+                    { key: 'route_6',            label: 'כביש 6',         count: stat.route6,            color: 'bg-cyan-500',    hoverColor: 'hover:bg-cyan-400' },
+                    { key: 'moving_assistance',  label: 'מעבר דירה',      count: stat.moving,            color: 'bg-orange-500',  hoverColor: 'hover:bg-orange-400' },
+                    { key: 'household_assistance', label: 'בייביסיטר',   count: stat.babysitter,        color: 'bg-pink-500',    hoverColor: 'hover:bg-pink-400' },
+                    { key: 'summer_camp',        label: 'קייטנות',        count: stat.summer,            color: 'bg-yellow-500',  hoverColor: 'hover:bg-yellow-400' },
+                    { key: 'birth_grant',        label: 'מענק לידה',      count: stat.birth,             color: 'bg-rose-500',    hoverColor: 'hover:bg-rose-400' },
+                    { key: 'personal_equipment', label: 'ציוד אישי',      count: stat.equipment,         color: 'bg-indigo-500',  hoverColor: 'hover:bg-indigo-400' },
+                    { key: 'fighter',            label: 'פייטר',          count: stat.fighter,           color: 'bg-red-500',     hoverColor: 'hover:bg-red-400' },
+                    { key: 'vacation_break',     label: 'שובר חופשה',     count: stat.vacationBreak,     color: 'bg-teal-500',    hoverColor: 'hover:bg-teal-400' },
+                    { key: 'resilience_couples', label: 'חוסן זוגי',      count: stat.resilience,        color: 'bg-purple-500',  hoverColor: 'hover:bg-purple-400' },
+                    { key: 'repairs',            label: 'תיקונים',        count: stat.repairs,           color: 'bg-lime-500',    hoverColor: 'hover:bg-lime-400' },
+                    { key: 'legal_advice',       label: 'ייעוץ משפטי',    count: stat.legal,             color: 'bg-violet-500',  hoverColor: 'hover:bg-violet-400' },
+                    { key: 'income_tax',         label: 'מס הכנסה',       count: stat.tax,               color: 'bg-sky-500',     hoverColor: 'hover:bg-sky-400' },
+                  ].filter((b) => b.count > 0);
+                  const maxVal = Math.max(...bars.map((b) => b.count), 1);
 
                   return (
                     <div key={stat.battalion} className="bg-gray-900 rounded-xl border border-gray-700 p-5">

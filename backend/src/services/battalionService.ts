@@ -598,6 +598,20 @@ export interface AssistanceStat {
   nationalInsurance: number;
   welfareFund: number;
   otherAssistance: number;
+  route6: number;
+  moving: number;
+  babysitter: number;
+  summer: number;
+  birth: number;
+  equipment: number;
+  fighter: number;
+  vacationBreak: number;
+  vacationComp: number;
+  resilience: number;
+  repairs: number;
+  legal: number;
+  tax: number;
+  nonprofit: number;
 }
 
 export async function getAssistanceStats(battalionFilter?: string): Promise<AssistanceStat[]> {
@@ -617,25 +631,76 @@ export async function getAssistanceStats(battalionFilter?: string): Promise<Assi
     }
   }
 
+  // All welfare/assistance fields with their counting logic
+  const ASSISTANCE_FIELDS: { key: string; alias: string; mode: 'nadresh' | 'nonempty' }[] = [
+    { key: 'national_insurance', alias: 'ni',          mode: 'nadresh' },
+    { key: 'welfare_fund',       alias: 'wf',          mode: 'nadresh' },
+    { key: 'route_6',            alias: 'route6',      mode: 'nadresh' },
+    { key: 'moving_assistance',  alias: 'moving',      mode: 'nadresh' },
+    { key: 'household_assistance', alias: 'babysitter', mode: 'nadresh' },
+    { key: 'summer_camp',        alias: 'summer',      mode: 'nadresh' },
+    { key: 'birth_grant',        alias: 'birth',       mode: 'nadresh' },
+    { key: 'personal_equipment', alias: 'equipment',   mode: 'nadresh' },
+    { key: 'fighter',            alias: 'fighter',     mode: 'nadresh' },
+    { key: 'vacation_break',     alias: 'vacbreak',    mode: 'nadresh' },
+    { key: 'vacation_compensation', alias: 'vaccomp',  mode: 'nonempty' },
+    { key: 'resilience_couples', alias: 'resilience',  mode: 'nadresh' },
+    { key: 'repairs',            alias: 'repairs',     mode: 'nadresh' },
+    { key: 'legal_advice',       alias: 'legal',       mode: 'nadresh' },
+    { key: 'income_tax',         alias: 'tax',         mode: 'nadresh' },
+    { key: 'nonprofit_assistance', alias: 'nonprofit', mode: 'nadresh' },
+    { key: 'other_assistance',   alias: 'oa',          mode: 'nonempty' },
+  ];
+
   const results: AssistanceStat[] = [];
 
   for (const dbName of dbNames) {
     const c = await mysql.createConnection({ ...dbConfig, database: dbName });
     try {
-      const [rows] = await c.execute<mysql.RowDataPacket[]>(
-        `SELECT
-          SUM(CASE WHEN TRIM(national_insurance) = 'נדרש' OR TRIM(national_insurance) LIKE 'נדרש - %' THEN 1 ELSE 0 END) AS ni,
-          SUM(CASE WHEN welfare_fund IS NOT NULL AND TRIM(welfare_fund) != '' AND TRIM(welfare_fund) NOT IN (?, ?) THEN 1 ELSE 0 END) AS wf,
-          SUM(CASE WHEN other_assistance IS NOT NULL AND TRIM(other_assistance) != '' AND TRIM(other_assistance) NOT IN (?, ?) THEN 1 ELSE 0 END) AS oa
-        FROM soldiers`,
-        ['לא', 'אין', 'לא', 'אין']
+      // Get existing columns for this DB
+      const [colRows] = await c.execute<mysql.RowDataPacket[]>(
+        `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+        [dbName]
       );
+      const existingCols = new Set(colRows.map((r) => r.COLUMN_NAME as string));
+
+      // Build SELECT clauses only for existing columns
+      const selectParts = ASSISTANCE_FIELDS
+        .filter((f) => existingCols.has(f.key))
+        .map((f) => {
+          if (f.mode === 'nadresh') {
+            return `SUM(CASE WHEN TRIM(\`${f.key}\`) = 'נדרש' OR TRIM(\`${f.key}\`) LIKE 'נדרש - %' THEN 1 ELSE 0 END) AS ${f.alias}`;
+          } else {
+            return `SUM(CASE WHEN \`${f.key}\` IS NOT NULL AND TRIM(\`${f.key}\`) != '' AND TRIM(\`${f.key}\`) NOT IN ('לא','אין','לא נדרש') THEN 1 ELSE 0 END) AS ${f.alias}`;
+          }
+        });
+
+      if (selectParts.length === 0) {
+        results.push({ battalion: dbName.replace(/^battalion_/, ''), nationalInsurance: 0, welfareFund: 0, otherAssistance: 0, route6: 0, moving: 0, babysitter: 0, summer: 0, birth: 0, equipment: 0, fighter: 0, vacationBreak: 0, vacationComp: 0, resilience: 0, repairs: 0, legal: 0, tax: 0, nonprofit: 0 });
+        continue;
+      }
+
+      const [rows] = await c.execute<mysql.RowDataPacket[]>(`SELECT ${selectParts.join(', ')} FROM soldiers`);
       const row = rows[0];
       results.push({
         battalion: dbName.replace(/^battalion_/, ''),
-        nationalInsurance: Number(row.ni) || 0,
-        welfareFund: Number(row.wf) || 0,
-        otherAssistance: Number(row.oa) || 0,
+        nationalInsurance: Number(row.ni)         || 0,
+        welfareFund:       Number(row.wf)         || 0,
+        otherAssistance:   Number(row.oa)         || 0,
+        route6:            Number(row.route6)     || 0,
+        moving:            Number(row.moving)     || 0,
+        babysitter:        Number(row.babysitter) || 0,
+        summer:            Number(row.summer)     || 0,
+        birth:             Number(row.birth)      || 0,
+        equipment:         Number(row.equipment)  || 0,
+        fighter:           Number(row.fighter)    || 0,
+        vacationBreak:     Number(row.vacbreak)   || 0,
+        vacationComp:      Number(row.vaccomp)    || 0,
+        resilience:        Number(row.resilience) || 0,
+        repairs:           Number(row.repairs)    || 0,
+        legal:             Number(row.legal)      || 0,
+        tax:               Number(row.tax)        || 0,
+        nonprofit:         Number(row.nonprofit)  || 0,
       });
     } finally {
       await c.end();
