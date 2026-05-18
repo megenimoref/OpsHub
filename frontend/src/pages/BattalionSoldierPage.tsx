@@ -155,8 +155,8 @@ const SECTIONS: SectionDef[] = [
     emoji: '👨‍👩‍👧',
     color: 'border-orange-500',
     fields: [
-      { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || '') },
-      { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || '') },
+      { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
+      { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
       { key: 'has_children', label: 'ילדים', yesNo: true },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן' },
       { key: 'summer_camp', label: 'קייטנות', multiline: true },
