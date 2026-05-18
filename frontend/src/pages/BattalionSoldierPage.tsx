@@ -163,7 +163,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'has_children', label: 'ילדים', yesNo: true },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן', placeholder: 'לדוגמה: 3, 4, 5' },
       { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', multiline: true },
-      { key: 'divorced_assistance', label: 'גרוש/פרוד — עזרה', multiline: true, showIf: (fd) => isDivorced(fd.marital_status || '') },
       { key: 'special_family_status', label: 'סטטוס מיוחד משפחתי' },
       { key: 'spouse_call_doc', label: 'תיעוד שיחה בת זוג/אמא', multiline: true },
       { key: 'whatsapp_battalion', label: 'WhatsApp גדודי ופלוגתי' },
