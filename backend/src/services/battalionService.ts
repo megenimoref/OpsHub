@@ -93,6 +93,22 @@ CREATE TABLE IF NOT EXISTS soldiers (
   mobilization_dates TEXT,
   route_6 TEXT,
   professional TEXT,
+  has_children TEXT,
+  summer_camp TEXT,
+  birth_grant TEXT,
+  spouse_student TEXT,
+  private_lessons TEXT,
+  study_grants TEXT,
+  spouse_employment_status TEXT,
+  income_loss TEXT,
+  pet TEXT,
+  resilience_couples TEXT,
+  repairs TEXT,
+  vacation_compensation TEXT,
+  flight_compensation TEXT,
+  income_tax TEXT,
+  legal_advice TEXT,
+  nonprofit_assistance TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -106,6 +122,10 @@ const NEW_SOLDIER_COLUMNS = [
   'household_assistance', 'complex_problems', 'resilience_treatment',
   'followup_1', 'followup_2', 'personal_equipment', 'aid_fund_submission', 'mobilization_dates',
   'route_6', 'professional',
+  'has_children', 'summer_camp', 'birth_grant', 'spouse_student', 'private_lessons',
+  'study_grants', 'spouse_employment_status', 'income_loss', 'pet', 'resilience_couples',
+  'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
+  'legal_advice', 'nonprofit_assistance',
 ];
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
@@ -218,6 +238,22 @@ export interface SoldierRow {
   mobilization_dates?: string;
   route_6?: string;
   professional?: string;
+  has_children?: string;
+  summer_camp?: string;
+  birth_grant?: string;
+  spouse_student?: string;
+  private_lessons?: string;
+  study_grants?: string;
+  spouse_employment_status?: string;
+  income_loss?: string;
+  pet?: string;
+  resilience_couples?: string;
+  repairs?: string;
+  vacation_compensation?: string;
+  flight_compensation?: string;
+  income_tax?: string;
+  legal_advice?: string;
+  nonprofit_assistance?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -793,7 +829,11 @@ export async function getSoldiersFromBattalion(battalionName: string): Promise<S
     );
     const existing = new Set(colRows.map((r) => String(r.COLUMN_NAME)));
     const base = ['personal_number', 'first_name', 'last_name', 'mobile_phone'];
-    const optional = ['platoon', 'request_status', 'contact_date', 'contact_by', 'marital_status', 'student_indicator', 'employment_status'];
+    const optional = ['platoon', 'request_status', 'contact_date', 'contact_by', 'marital_status', 'student_indicator', 'employment_status',
+      'has_children', 'summer_camp', 'birth_grant', 'spouse_student', 'private_lessons',
+      'study_grants', 'spouse_employment_status', 'income_loss', 'pet', 'resilience_couples',
+      'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
+      'legal_advice', 'nonprofit_assistance'];
     const cols = [...base, ...optional.filter((c) => existing.has(c))];
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
       `SELECT ${cols.join(', ')} FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`
