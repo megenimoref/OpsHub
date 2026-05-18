@@ -152,14 +152,15 @@ const SECTIONS: SectionDef[] = [
     color: 'border-indigo-500',
     defaultOpen: true,
     fields: [
-      { key: 'personal_number', label: 'מספר אישי' },
-      { key: 'last_name', label: 'שם משפחה' },
-      { key: 'first_name', label: 'שם פרטי' },
-      { key: 'mobile_phone', label: 'טלפון נייד' },
+      { key: 'personal_number', label: 'מספר אישי', required: true },
+      { key: 'last_name', label: 'שם משפחה', required: true },
+      { key: 'first_name', label: 'שם פרטי', required: true },
+      { key: 'mobile_phone', label: 'טלפון נייד', required: true },
       { key: 'marital_status', label: 'מצב משפחתי', required: true, options: MARITAL_OPTIONS },
       { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
       { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || ''), selectWithDetail: { options: ['כן', 'לא'], detailOn: ['כן'] } },
-      { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
+      { key: 'children_count', label: 'מספר ילדים', required: true, options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
+      { key: 'special_family_status', label: 'סטטוס מיוחד משפחתי', required: true },
       { key: 'notes_personal', label: 'פירוט / הערות', multiline: true },
     ],
   },
@@ -171,8 +172,6 @@ const SECTIONS: SectionDef[] = [
     fields: [
       { key: 'has_children', label: 'ילדים', yesNo: true },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן', placeholder: 'לדוגמה: 3, 4, 5' },
-      { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', multiline: true },
-      { key: 'special_family_status', label: 'סטטוס מיוחד משפחתי' },
       { key: 'spouse_call_doc', label: 'תיעוד שיחה בת זוג/אמא', multiline: true },
       { key: 'whatsapp_battalion', label: 'WhatsApp גדודי ופלוגתי' },
       { key: 'whatsapp_family', label: 'WhatsApp משפחה גדודי' },
@@ -185,12 +184,12 @@ const SECTIONS: SectionDef[] = [
     emoji: '💼',
     color: 'border-blue-500',
     fields: [
-      { key: 'employment_status', label: 'סטטוס תעסוקתי של החייל', selectWithDetail: { options: ['עצמאי', 'שכיר', 'מובטל', 'אחר'], detailOn: ['אחר'] } },
-      { key: 'student_indicator', label: 'סטודנט', yesNo: true },
-      { key: 'spouse_student', label: 'האם בת הזוג סטודנטית', yesNo: true },
-      { key: 'private_lessons', label: 'שיעורים פרטיים', multiline: true },
-      { key: 'study_grants', label: 'מענקים / החזר שכר לימוד', multiline: true },
-      { key: 'income_loss', label: 'אובדן הכנסה', multiline: true },
+      { key: 'employment_status', label: 'סטטוס תעסוקתי של החייל', required: true, selectWithDetail: { options: ['עצמאי', 'שכיר', 'מובטל', 'אחר'], detailOn: ['אחר'] } },
+      { key: 'student_indicator', label: 'סטודנט', required: true, yesNo: true },
+      { key: 'spouse_student', label: 'האם בת הזוג סטודנטית', required: true, yesNo: true },
+      { key: 'private_lessons', label: 'שיעורים פרטיים', required: true, multiline: true },
+      { key: 'study_grants', label: 'מענקים / החזר שכר לימוד', required: true, multiline: true },
+      { key: 'income_loss', label: 'אובדן הכנסה', required: true, multiline: true },
       { key: 'notes_employment', label: 'פירוט / הערות', multiline: true },
     ],
   },
@@ -200,19 +199,20 @@ const SECTIONS: SectionDef[] = [
     emoji: '🤝',
     color: 'border-yellow-500',
     fields: [
-      { key: 'welfare_fund', label: 'קרן הסיוע', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'summer_camp', label: 'קייטנות', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'household_assistance', label: 'בייביסיטר', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'birth_grant', label: 'מענק לידה', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'pet', label: 'כלב / בעל חיים', selectWithDetail: { options: ['יש', 'אין'], detailOn: ['יש'] } },
-      { key: 'route_6', label: 'כביש 6', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'resilience_couples', label: 'חוסן רגשי זוגי / עמית', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'repairs', label: 'תיקונים', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'moving_assistance', label: 'מעבר דירה', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'personal_equipment', label: 'ציוד אישי', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'fighter', label: 'פייטר', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'vacation_break', label: 'שובר חופשה', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'vacation_compensation', label: 'פיצוי חופשות', options: ['פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
+      { key: 'welfare_fund', label: 'קרן הסיוע', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'summer_camp', label: 'קייטנות', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'household_assistance', label: 'בייביסיטר', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'birth_grant', label: 'מענק לידה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', required: true, multiline: true },
+      { key: 'pet', label: 'כלב / בעל חיים', required: true, selectWithDetail: { options: ['יש', 'אין'], detailOn: ['יש'] } },
+      { key: 'route_6', label: 'כביש 6', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'resilience_couples', label: 'חוסן רגשי זוגי / עמית', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'repairs', label: 'תיקונים', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'moving_assistance', label: 'מעבר דירה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'personal_equipment', label: 'ציוד אישי', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'fighter', label: 'פייטר', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'vacation_break', label: 'שובר חופשה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'vacation_compensation', label: 'פיצוי חופשות', required: true, options: ['פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
       { key: 'notes_welfare', label: 'פירוט / הערות', multiline: true },
     ],
   },
@@ -226,6 +226,8 @@ const SECTIONS: SectionDef[] = [
       { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
       { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
       { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'platoon', label: 'מחלקה' },
+      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
       { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
   },
@@ -235,9 +237,9 @@ const SECTIONS: SectionDef[] = [
     emoji: '⚖️',
     color: 'border-red-500',
     fields: [
-      { key: 'national_insurance', label: 'ביטוח לאומי', selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
-      { key: 'income_tax', label: 'מס הכנסה', multiline: true },
-      { key: 'legal_advice', label: 'ייעוץ משפטי', multiline: true },
+      { key: 'national_insurance', label: 'ביטוח לאומי', required: true, selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
+      { key: 'income_tax', label: 'מס הכנסה', required: true, multiline: true },
+      { key: 'legal_advice', label: 'ייעוץ משפטי', required: true, multiline: true },
       { key: 'notes_rights', label: 'פירוט / הערות', multiline: true },
     ],
   },
@@ -268,19 +270,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
       { key: 'followup_1', label: 'מעקב 1', multiline: true, archived: true },
       { key: 'followup_2', label: 'מעקב 2', multiline: true, archived: true },
-    ],
-  },
-  {
-    key: 'general',
-    title: 'כללי',
-    emoji: '📌',
-    color: 'border-gray-500',
-    fields: [
-      { key: 'age', label: 'גיל' },
-      { key: 'platoon', label: 'מחלקה' },
-      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'professional', label: 'איש מקצוע' },
-      { key: 'notes_general', label: 'פירוט / הערות', multiline: true },
     ],
   },
 ];
@@ -696,14 +685,23 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
             </div>
             <textarea value={whatsappMessage} onChange={(e) => setWhatsappMessage(e.target.value)} placeholder="כתוב את ההודעה כאן..." rows={4}
               className="w-full bg-gray-800 border border-gray-600 text-white placeholder-gray-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-green-500 resize-none mb-3" />
-            {user?.phone && <p className="text-xs text-gray-500 mb-3">יתווסף אוטומטית: <span className="text-gray-400">לפרטים נוספים או לעזרה נא לפנות למספר {user.phone}</span></p>}
+            {user?.phone && (
+              <p className="text-xs text-gray-500 mb-3">
+                יתווסף אוטומטית: <span className="text-gray-400">
+                  לפרטים נוספים או לעזרה נא לפנות למספר {user.phone}
+                  {(user.firstName || user.lastName) && ` ${user.firstName ?? ''} ${user.lastName ?? ''}`.trim()}
+                  {' '}מרכז מגינים על העורף
+                </span>
+              </p>
+            )}
             {whatsappResult === 'success' && <div className="mb-3 p-2 bg-green-900/40 border border-green-700 rounded-lg text-sm text-green-300">✅ ההודעה נשלחה בהצלחה</div>}
             {whatsappResult === 'error' && <div className="mb-3 p-2 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300">❌ שגיאה בשליחה — בדוק שה-Green API מוגדר</div>}
             <div className="flex gap-2 justify-end">
               <button onClick={() => { setWhatsappOpen(false); setWhatsappMessage(''); setWhatsappResult(null); }} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">ביטול</button>
               <button disabled={!soldier.mobile_phone || !whatsappMessage.trim() || whatsappSending}
                 onClick={async () => {
-                  const suffix = user?.phone ? `\n\nלפרטים נוספים או לעזרה נא לפנות למספר ${user.phone}` : '';
+                  const userName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim();
+                  const suffix = user?.phone ? `\n\nלפרטים נוספים או לעזרה נא לפנות למספר ${user.phone}${userName ? ` ${userName}` : ''} מרכז מגינים על העורף` : '';
                   const full = whatsappMessage.trim() + suffix;
                   const phone = soldier.mobile_phone.replace(/\D/g, '').replace(/^0/, '972');
                   setWhatsappSending(true);
