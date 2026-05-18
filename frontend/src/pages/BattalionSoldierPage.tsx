@@ -135,17 +135,29 @@ const isDivorced = (v: string) => v === 'גרוש/גרושה';
 
 const SECTIONS: SectionDef[] = [
   {
-    key: 'family',
-    title: 'מצב משפחתי',
-    emoji: '👨‍👩‍👧',
-    color: 'border-orange-500',
+    key: 'personal',
+    title: 'פרטים אישיים',
+    emoji: '🪪',
+    color: 'border-indigo-500',
     defaultOpen: true,
     fields: [
+      { key: 'personal_number', label: 'מספר אישי' },
+      { key: 'last_name', label: 'שם משפחה' },
+      { key: 'first_name', label: 'שם פרטי' },
+      { key: 'mobile_phone', label: 'טלפון נייד' },
       { key: 'marital_status', label: 'מצב משפחתי', required: true, options: MARITAL_OPTIONS },
+      { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
+    ],
+  },
+  {
+    key: 'family',
+    title: 'משפחה',
+    emoji: '👨‍👩‍👧',
+    color: 'border-orange-500',
+    fields: [
       { key: 'spouse', label: 'שם בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || '') },
       { key: 'spouse_phone', label: 'טלפון בן/בת זוג', showIf: (fd) => isMarried(fd.marital_status || '') },
       { key: 'has_children', label: 'ילדים', yesNo: true },
-      { key: 'children_count', label: 'מספר ילדים', options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'], showIf: (fd) => fd.has_children === 'כן' },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן' },
       { key: 'summer_camp', label: 'קייטנות', multiline: true },
       { key: 'household_assistance', label: 'בייביסיטר', multiline: true },
@@ -247,10 +259,9 @@ const SECTIONS: SectionDef[] = [
   {
     key: 'general',
     title: 'כללי',
-    emoji: '🪪',
+    emoji: '📌',
     color: 'border-gray-500',
     fields: [
-      { key: 'personal_number', label: 'מספר אישי' },
       { key: 'age', label: 'גיל' },
       { key: 'platoon', label: 'מחלקה' },
       { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
@@ -734,7 +745,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
 
             {/* Sections */}
             <div className="space-y-3">
-              {SECTIONS.filter((sec) => !(hidePN && sec.key === 'general')).map((section) => {
+              {SECTIONS.map((section) => {
                 const isOpen = openSections.has(section.key);
                 const sectionFields = section.fields.filter((f) => !(hidePN && f.key === 'personal_number') && (!f.showIf || f.showIf(formData as Partial<Soldier>)));
                 const filledCount = sectionFields.filter((f) => !!(formData[f.key] as string || '').trim()).length;
