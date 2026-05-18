@@ -120,6 +120,7 @@ interface FieldDef {
   selectWithDetail?: { options: string[]; detailOn: string[] };
   yesNo?: boolean; // renders כן/לא select
   placeholder?: string;
+  archived?: boolean; // show grayed out, not editable
   showIf?: (fd: Partial<Soldier>) => boolean;
 }
 
@@ -252,6 +253,8 @@ const SECTIONS: SectionDef[] = [
       { key: 'contact_date', label: 'תאריך קשר', datePicker: true },
       { key: 'contact_with', label: 'מול מי נוצר קשר', selectWithDetail: { options: ['החייל', 'קרוב'], detailOn: ['קרוב'] } },
       { key: 'data_indicators', label: 'אינדיקציות מהנתונים', multiline: true },
+      { key: 'followup_1', label: 'מעקב 1', multiline: true, archived: true },
+      { key: 'followup_2', label: 'מעקב 2', multiline: true, archived: true },
     ],
   },
   {
@@ -511,11 +514,29 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const showDivorcedReminder = isDivorced(maritalVal);
 
   const renderField = (field: FieldDef) => {
-    const { key, label, required, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, showIf } = field;
+    const { key, label, required, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
     if (showIf && !showIf(formData as Partial<Soldier>)) return null;
     const fieldChanges = changes.filter((c) => c.field_name === key);
     const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
     const hasError = !!validationErrors[key];
+    const isDisabled = readOnly || !!archived;
+
+    // Archived field — show value grayed out, not editable
+    if (archived) {
+      const val = (formData[key] as string) || '';
+      if (!val) return null; // hide archived fields with no data at all
+      return (
+        <div key={key} className={multiline ? 'sm:col-span-2' : ''}>
+          <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+            {label}
+            <span className="text-xs text-gray-600 italic">(ארכיון)</span>
+          </label>
+          <div className={`w-full px-3 py-2 bg-gray-800/40 border border-gray-700/40 text-gray-500 rounded-lg text-sm ${multiline ? 'min-h-[72px] whitespace-pre-wrap' : ''}`}>
+            {val}
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div key={key} className={multiline ? 'sm:col-span-2' : ''}>
@@ -525,24 +546,24 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
         {statusSelect ? (
           <div className="relative">
             <span className="absolute top-1/2 -translate-y-1/2 right-3 w-3 h-3 rounded-full" style={{ backgroundColor: getStatusColor((formData[key] as string) || '') }} />
-            <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly}
+            <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={isDisabled}
               className={`w-full px-3 pr-8 py-2 bg-gray-700 border ${hasError ? 'border-red-500' : 'border-gray-600'} text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed`}>
               <option value="">-- בחר סטטוס --</option>
               {STATUS_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
         ) : userSelect ? (
-          <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly}
+          <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={isDisabled}
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed">
             <option value="">-- בחר משתמש --</option>
             {(() => { const cur = (formData[key] as string) || ''; const all = systemUsers.map((u) => `${u.firstName} ${u.lastName}`.trim()); return cur && !all.includes(cur) ? <option key="_imported" value={cur}>{cur}</option> : null; })()}
             {systemUsers.map((u) => { const fn = `${u.firstName} ${u.lastName}`.trim(); return <option key={u.id} value={fn}>{fn}</option>; })}
           </select>
         ) : datePicker ? (
-          <input type="date" value={(formData[key] as string) || TODAY} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly}
+          <input type="date" value={(formData[key] as string) || TODAY} onChange={(e) => handleChange(key, e.target.value)} disabled={isDisabled}
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed" />
         ) : yesNo ? (
-          <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly}
+          <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={isDisabled}
             className={`w-full px-3 py-2 bg-gray-700 border ${hasError ? 'border-red-500' : 'border-gray-600'} text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed`}>
             <option value="">-- בחר --</option>
             <option value="כן">כן</option>
@@ -550,28 +571,28 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           </select>
         ) : selectWithDetail && parsed ? (
           <div className="space-y-2">
-            <select value={parsed.selected} onChange={(e) => { const s = e.target.value; handleChange(key, buildSelectWithDetail(s, selectWithDetail.detailOn.includes(s) ? parsed.detail : '')); }} disabled={readOnly}
+            <select value={parsed.selected} onChange={(e) => { const s = e.target.value; handleChange(key, buildSelectWithDetail(s, selectWithDetail.detailOn.includes(s) ? parsed.detail : '')); }} disabled={isDisabled}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed">
               <option value="">-- בחר --</option>
               {selectWithDetail.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
             </select>
             {parsed.selected && selectWithDetail.detailOn.includes(parsed.selected) && (
-              <input type="text" value={parsed.detail} onChange={(e) => handleChange(key, buildSelectWithDetail(parsed.selected, e.target.value))} placeholder="פרט..." disabled={readOnly}
+              <input type="text" value={parsed.detail} onChange={(e) => handleChange(key, buildSelectWithDetail(parsed.selected, e.target.value))} placeholder="פרט..." disabled={isDisabled}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed" />
             )}
           </div>
         ) : options ? (
-          <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly}
+          <select value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={isDisabled}
             className={`w-full px-3 py-2 bg-gray-700 border ${hasError ? 'border-red-500' : 'border-gray-600'} text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed`}>
             <option value="">-- בחר --</option>
             {(() => { const cur = (formData[key] as string) || ''; return cur && !options.includes(cur) ? <option key="_imported" value={cur}>{cur}</option> : null; })()}
             {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
           </select>
         ) : multiline ? (
-          <textarea value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} rows={3} disabled={readOnly}
+          <textarea value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} rows={3} disabled={isDisabled}
             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none disabled:opacity-60 disabled:cursor-not-allowed" />
         ) : (
-          <input type="text" value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={readOnly} placeholder={placeholder}
+          <input type="text" value={(formData[key] as string) || ''} onChange={(e) => handleChange(key, e.target.value)} disabled={isDisabled} placeholder={placeholder}
             className={`w-full px-3 py-2 bg-gray-700 border ${hasError ? 'border-red-500' : 'border-gray-600'} text-white placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm disabled:opacity-60 disabled:cursor-not-allowed`} />
         )}
         {hasError && <p className="mt-1 text-xs text-red-400">{validationErrors[key]}</p>}
