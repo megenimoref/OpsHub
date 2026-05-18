@@ -218,14 +218,22 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
-    key: 'rights',
-    title: 'זכויות וסיוע',
+    key: 'professional_advice',
+    title: 'ייעוץ מקצועי',
     emoji: '⚖️',
     color: 'border-red-500',
     fields: [
       { key: 'national_insurance', label: 'ביטוח לאומי', selectWithDetail: { options: ['לא נדרש', 'נדרש', 'אחר'], detailOn: ['נדרש', 'אחר'] } },
       { key: 'income_tax', label: 'מס הכנסה', multiline: true },
       { key: 'legal_advice', label: 'ייעוץ משפטי', multiline: true },
+    ],
+  },
+  {
+    key: 'other',
+    title: 'אחר',
+    emoji: '📎',
+    color: 'border-gray-400',
+    fields: [
       { key: 'nonprofit_assistance', label: 'סיוע מעמותות', multiline: true },
       { key: 'aid_fund_submission', label: 'מה החייל הגיש לקרן הסיוע', multiline: true },
       { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
