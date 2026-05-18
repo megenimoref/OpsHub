@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { Request, Response } from 'express';
-import { sendBulkWhatsApp } from '../services/whatsappService';
+import { sendBulkWhatsApp, sendWhatsAppMessage } from '../services/whatsappService';
 import { logger } from '../services/logger';
 import MessageCampaign from '../models/messageCampaign';
 
@@ -48,6 +48,29 @@ router.post('/send-bulk', async (req: Request, res: Response): Promise<void> => 
   } catch (error: any) {
     logger.error('WhatsApp bulk send error', { errorMessage: error.message, stack: error.stack });
     res.status(500).json({ error: error.message || 'שגיאה בשליחת הודעות WhatsApp' });
+  }
+});
+
+router.post('/send', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phone, message } = req.body;
+    if (!phone || !message?.trim()) {
+      res.status(400).json({ error: 'phone and message are required' });
+      return;
+    }
+    if (!process.env.GREEN_API_ID_INSTANCE || !process.env.GREEN_API_TOKEN) {
+      res.status(500).json({ error: 'WhatsApp API not configured' });
+      return;
+    }
+    const result = await sendWhatsAppMessage(phone, message.trim());
+    if (result.success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: result.error || 'שגיאה בשליחה' });
+    }
+  } catch (error: any) {
+    logger.error('WhatsApp send error', { errorMessage: error.message });
+    res.status(500).json({ error: error.message || 'שגיאה בשליחה' });
   }
 });
 
