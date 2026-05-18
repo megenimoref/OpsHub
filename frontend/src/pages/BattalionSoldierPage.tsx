@@ -49,7 +49,8 @@ interface Soldier {
   employment_status: string;
   spouse_employment_status: string;
   income_loss: string;
-  // Misc needs
+  // Welfare fund / needs
+  welfare_fund: string;
   pet: string;
   route_6: string;
   resilience_couples: string;
@@ -58,19 +59,20 @@ interface Soldier {
   moving_assistance: string;
   personal_equipment: string;
   complex_problems: string;
+  fighter: string;
+  vacation_break: string;
+  vacation_compensation: string;
+  flight_compensation: string;
   // Reserve duty
   reserve_days_2025: string;
   reserve_days_2026: string;
   mobilization_dates: string;
   current_rotation: string;
-  vacation_compensation: string;
-  flight_compensation: string;
   // Rights
   national_insurance: string;
   income_tax: string;
   legal_advice: string;
   nonprofit_assistance: string;
-  welfare_fund: string;
   aid_fund_submission: string;
   other_assistance: string;
   applications_needed: string;
@@ -161,7 +163,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'has_children', label: 'ילדים', yesNo: true },
       { key: 'children_ages', label: 'גילאי ילדים', showIf: (fd) => fd.has_children === 'כן', placeholder: 'לדוגמה: 3, 4, 5' },
       { key: 'summer_camp', label: 'קייטנות', multiline: true },
-      { key: 'household_assistance', label: 'בייביסיטר', multiline: true },
       { key: 'birth_grant', label: 'מענק לידה', multiline: true },
       { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', multiline: true },
       { key: 'divorced_assistance', label: 'גרוש/פרוד — עזרה', multiline: true, showIf: (fd) => isDivorced(fd.marital_status || '') },
@@ -186,19 +187,22 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
-    key: 'needs',
-    title: 'צרכים שוטפים',
-    emoji: '🏠',
+    key: 'welfare',
+    title: 'קרן הסיוע',
+    emoji: '🤝',
     color: 'border-yellow-500',
     fields: [
+      { key: 'welfare_fund', label: 'קרן הסיוע', yesNo: true },
       { key: 'pet', label: 'כלב / בעל חיים', selectWithDetail: { options: ['יש', 'אין'], detailOn: ['יש'] } },
-      { key: 'route_6', label: 'כביש 6' },
-      { key: 'resilience_couples', label: 'חוסן רגשי זוגי / עמית', multiline: true },
-      { key: 'resilience_treatment', label: 'חוסן — טיפולים רגשיים', multiline: true },
-      { key: 'repairs', label: 'תיקונים', multiline: true },
-      { key: 'moving_assistance', label: 'מעבר דירה', multiline: true },
-      { key: 'personal_equipment', label: 'ציוד אישי', multiline: true },
-      { key: 'complex_problems', label: 'בעיות מורכבות', multiline: true },
+      { key: 'route_6', label: 'כביש 6', yesNo: true },
+      { key: 'resilience_couples', label: 'חוסן רגשי זוגי / עמית', yesNo: true },
+      { key: 'household_assistance', label: 'בייביסיטר', yesNo: true },
+      { key: 'repairs', label: 'תיקונים', yesNo: true },
+      { key: 'moving_assistance', label: 'מעבר דירה', yesNo: true },
+      { key: 'personal_equipment', label: 'ציוד אישי', yesNo: true },
+      { key: 'fighter', label: 'פייטר', yesNo: true },
+      { key: 'vacation_break', label: 'שובר חופשה', yesNo: true },
+      { key: 'vacation_compensation', label: 'פיצוי חופשות', options: ['פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
     ],
   },
   {
@@ -211,8 +215,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
       { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
       { key: 'current_rotation', label: 'סבב נוכחי' },
-      { key: 'vacation_compensation', label: 'פיצוי חופשות', multiline: true },
-      { key: 'flight_compensation', label: 'פיצוי טיסה / מרכז חייהם בחו"ל', multiline: true },
     ],
   },
   {
@@ -225,7 +227,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'income_tax', label: 'מס הכנסה', multiline: true },
       { key: 'legal_advice', label: 'ייעוץ משפטי', multiline: true },
       { key: 'nonprofit_assistance', label: 'סיוע מעמותות', multiline: true },
-      { key: 'welfare_fund', label: 'קרן סיוע', multiline: true },
       { key: 'aid_fund_submission', label: 'מה החייל הגיש לקרן הסיוע', multiline: true },
       { key: 'other_assistance', label: 'סיוע אחר', multiline: true },
       { key: 'applications_needed', label: 'בקשות להגשה', multiline: true },

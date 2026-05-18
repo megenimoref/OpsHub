@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS soldiers (
   income_tax TEXT,
   legal_advice TEXT,
   nonprofit_assistance TEXT,
+  fighter TEXT,
+  vacation_break TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -126,6 +128,7 @@ const NEW_SOLDIER_COLUMNS = [
   'study_grants', 'spouse_employment_status', 'income_loss', 'pet', 'resilience_couples',
   'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
   'legal_advice', 'nonprofit_assistance',
+  'fighter', 'vacation_break',
 ];
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
@@ -254,6 +257,8 @@ export interface SoldierRow {
   income_tax?: string;
   legal_advice?: string;
   nonprofit_assistance?: string;
+  fighter?: string;
+  vacation_break?: string;
 }
 
 export type SoldierRowWithExtras = SoldierRow & { [key: string]: string | undefined };
@@ -833,7 +838,8 @@ export async function getSoldiersFromBattalion(battalionName: string): Promise<S
       'has_children', 'summer_camp', 'birth_grant', 'spouse_student', 'private_lessons',
       'study_grants', 'spouse_employment_status', 'income_loss', 'pet', 'resilience_couples',
       'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
-      'legal_advice', 'nonprofit_assistance'];
+      'legal_advice', 'nonprofit_assistance',
+      'fighter', 'vacation_break'];
     const cols = [...base, ...optional.filter((c) => existing.has(c))];
     const [rows] = await conn.execute<mysql.RowDataPacket[]>(
       `SELECT ${cols.join(', ')} FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != ''`
