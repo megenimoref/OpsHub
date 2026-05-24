@@ -675,7 +675,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     try {
       await api.post('/calls/save', {
         soldierPersonalNumber: soldier.personal_number,
-        battalionName: battalionName,
+        battalionName: selectedBattalion,
         summary: callSummaryText.trim(),
         audioFilename: callFile?.name || '',
       });
