@@ -22,6 +22,8 @@ import communityRoutes from './routes/community';
 import timetableSsoRoutes from './routes/timetableSso';
 import feedbackRoutes from './routes/feedback';
 import financialRoutes from './routes/financial';
+import callsRoutes from './routes/calls';
+import { ensureCallSummariesTable, ensureAllUsersFolders } from './controllers/callsController';
 import './models/feedback'; // ensure model is synced
 import './models/financialDocument'; // ensure model is synced
 import './models/notification'; // ensure model is synced
@@ -79,6 +81,7 @@ app.use('/community', communityRoutes);
 app.use('/timetable-sso', timetableSsoRoutes);
 app.use('/feedback', feedbackRoutes);
 app.use('/financial', financialRoutes);
+app.use('/calls', callsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -149,6 +152,10 @@ async function start() {
 
     // Start backup scheduler
     await startScheduler();
+
+    // Ensure call_summaries table + user call folders exist
+    await ensureCallSummariesTable();
+    await ensureAllUsersFolders({} as any, { json: () => {} } as any);
   } catch (error) {
     console.error('Server startup failed:', error);
     process.exit(1);
