@@ -82,45 +82,65 @@ export async function transcribeAndSummarize(req: Request, res: Response): Promi
     return;
   }
 
-  try {
-    // Step 1: Upload file to Transkriptor
-    const formData = new FormData();
-    formData.append('file', fs.createReadStream(filePath));
+  const AUTH_HEADER = { 'Authorization': `Bearer ${TRANSKRIPTOR_TOKEN}`, 'Accept': 'application/json' };
 
-    const uploadRes = await axios.post(
-      'https://api.transkriptor.com/v1/transcriptions',
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          'Authorization': `Bearer ${TRANSKRIPTOR_TOKEN}`,
-        },
-        timeout: 60000,
-      }
+  try {
+    // Step 1: Get a pre-signed upload URL
+    const getUrlRes = await axios.post(
+      'https://api.tor.app/developer/transcription/local_file/get_upload_url',
+      { file_name: path.basename(filePath) },
+      { headers: { ...AUTH_HEADER, 'Content-Type': 'application/json' }, timeout: 30000 }
     );
 
-    const transcriptionId = uploadRes.data?.id || uploadRes.data?.transcription_id;
+    const uploadUrl: string = getUrlRes.data?.upload_url;
+    const publicUrl: string = getUrlRes.data?.public_url || getUrlRes.data?.url;
 
-    if (!transcriptionId) {
-      res.status(500).json({ error: 'לא התקבל מזהה תמלול', raw: uploadRes.data });
+    if (!uploadUrl) {
+      res.status(500).json({ error: 'לא התקבל URL להעלאה', raw: getUrlRes.data });
       return;
     }
 
-    // Step 2: Poll for completion
+    // Step 2: PUT the file to the pre-signed URL (no auth header needed for S3)
+    const fileBuffer = fs.readFileSync(filePath);
+    await axios.put(uploadUrl, fileBuffer, {
+      headers: { 'Content-Type': 'audio/mpeg' },
+      timeout: 120000,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    });
+
+    // Step 3: Initiate transcription
+    const initiateRes = await axios.post(
+      'https://api.tor.app/developer/transcription/local_file/initiate_transcription',
+      { url: publicUrl, language: 'he-IL', service: 'Standard' },
+      { headers: { ...AUTH_HEADER, 'Content-Type': 'application/json' }, timeout: 30000 }
+    );
+
+    const orderId: string = initiateRes.data?.order_id || initiateRes.data?.id;
+
+    if (!orderId) {
+      res.status(500).json({ error: 'לא התקבל מזהה תמלול', raw: initiateRes.data });
+      return;
+    }
+
+    // Step 4: Poll for completion
     let transcript = '';
     let attempts = 0;
-    while (attempts < 30) {
-      await new Promise((r) => setTimeout(r, 3000));
-      const statusRes = await axios.get(
-        `https://api.transkriptor.com/v1/transcriptions/${transcriptionId}`,
-        { headers: { 'Authorization': `Bearer ${TRANSKRIPTOR_TOKEN}` } }
+    while (attempts < 40) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const contentRes = await axios.get(
+        `https://api.tor.app/developer/files/${orderId}/content`,
+        { headers: AUTH_HEADER }
       );
-      const status = statusRes.data?.status;
-      if (status === 'completed' || status === 'done') {
-        transcript = statusRes.data?.text || statusRes.data?.transcript || '';
+      const status = contentRes.data?.status;
+      if (status === 'Completed') {
+        // Build transcript from content array
+        const segments: any[] = contentRes.data?.content || [];
+        transcript = segments.map((s: any) => s.text || '').join(' ').trim();
+        if (!transcript) transcript = contentRes.data?.text || '';
         break;
       }
-      if (status === 'failed' || status === 'error') {
+      if (status === 'Failed' || status === 'Error') {
         res.status(500).json({ error: 'התמלול נכשל' });
         return;
       }
@@ -132,23 +152,25 @@ export async function transcribeAndSummarize(req: Request, res: Response): Promi
       return;
     }
 
-    // Step 3: Request summary
+    // Step 5: Get summary
     let summary = transcript;
     try {
-      const summaryRes = await axios.post(
-        `https://api.transkriptor.com/v1/transcriptions/${transcriptionId}/summary`,
-        {},
-        { headers: { 'Authorization': `Bearer ${TRANSKRIPTOR_TOKEN}` } }
+      const summaryRes = await axios.get(
+        `https://api.tor.app/developer/transcription/summary`,
+        { headers: AUTH_HEADER, params: { order_id: orderId } }
       );
-      summary = summaryRes.data?.summary || transcript;
+      // summary_url is a presigned S3 URL — fetch its content
+      const summaryUrl = summaryRes.data?.summary_url;
+      if (summaryUrl) {
+        const summaryContent = await axios.get(summaryUrl);
+        summary = summaryContent.data?.summary || summaryContent.data?.text || transcript;
+      }
     } catch {
-      // If summary endpoint doesn't exist, return the raw transcript
       summary = transcript;
     }
 
-    res.json({ transcript, summary, transcriptionId });
+    res.json({ transcript, summary, transcriptionId: orderId });
   } catch (err: any) {
-    // If Transkriptor API details are wrong, return clear error
     const status = err?.response?.status;
     const data = err?.response?.data;
     res.status(500).json({
