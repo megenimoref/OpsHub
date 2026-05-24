@@ -336,6 +336,9 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const [callSaving, setCallSaving] = useState(false);
   const [callError, setCallError] = useState<string | null>(null);
   const [callSuccess, setCallSuccess] = useState(false);
+  const [callProgressStep, setCallProgressStep] = useState('');
+  const [callElapsed, setCallElapsed] = useState(0);
+  const callElapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const callFileRef = useRef<HTMLInputElement>(null);
   const [changes, setChanges] = useState<SoldierChange[]>([]);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
@@ -652,19 +655,35 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     }
   };
 
+  const startElapsedTimer = () => {
+    setCallElapsed(0);
+    if (callElapsedRef.current) clearInterval(callElapsedRef.current);
+    callElapsedRef.current = setInterval(() => setCallElapsed(e => e + 1), 1000);
+  };
+  const stopElapsedTimer = () => {
+    if (callElapsedRef.current) { clearInterval(callElapsedRef.current); callElapsedRef.current = null; }
+  };
+
   const handleTranscribe = async () => {
     if (!callFile) return;
     setCallError(null);
+    setCallProgressStep('מעלה קובץ לשרת...');
+    startElapsedTimer();
     const filename = await handleCallFileUpload();
-    if (!filename) return;
+    if (!filename) { stopElapsedTimer(); setCallProgressStep(''); return; }
     setCallTranscribing(true);
+    setCallProgressStep('שולח ל-Transkriptor לתמלול...');
     try {
-      const { data } = await api.post('/calls/transcribe', { filename });
+      const { data } = await api.post('/calls/transcribe', { filename }, { timeout: 300000 });
+      setCallProgressStep('מסכם עם GPT...');
       setCallSummaryText(data.summary || data.transcript || '');
     } catch (err: any) {
-      setCallError(err?.response?.data?.error || 'שגיאה בתמלול — בדוק את הגדרות Transkriptor');
+      setCallError(err?.response?.data?.error || 'שגיאה בתמלול');
     } finally {
       setCallTranscribing(false);
+      stopElapsedTimer();
+      setCallProgressStep('');
+      setCallElapsed(0);
     }
   };
 
@@ -773,9 +792,19 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                 </button>
               </div>
               {(callUploading || callTranscribing) && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-indigo-400">
-                  <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                  {callUploading ? 'מעלה קובץ...' : 'מתמלל ומסכם — זה יכול לקחת כמה רגעים...'}
+                <div className="mt-3 p-3 bg-indigo-950/50 border border-indigo-800/50 rounded-lg">
+                  <div className="flex items-center gap-2 text-xs text-indigo-300 mb-2">
+                    <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <span>{callProgressStep || 'מעבד...'}</span>
+                    <span className="mr-auto text-indigo-500 tabular-nums">{callElapsed}s</span>
+                  </div>
+                  <div className="w-full bg-indigo-900/50 rounded-full h-1">
+                    <div
+                      className="bg-indigo-500 h-1 rounded-full transition-all duration-1000"
+                      style={{ width: callUploading ? '25%' : callProgressStep.includes('GPT') ? '90%' : `${Math.min(25 + callElapsed * 1.5, 85)}%` }}
+                    />
+                  </div>
+                  <p className="text-indigo-500 text-xs mt-1.5">תמלול שיחה ארוכה יכול לקחת 1-3 דקות</p>
                 </div>
               )}
             </div>

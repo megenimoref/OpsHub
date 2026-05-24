@@ -152,18 +152,34 @@ export async function transcribeAndSummarize(req: Request, res: Response): Promi
       return;
     }
 
-    // Step 5: Get summary
+    // Step 5: Summarize via OpenAI GPT
     let summary = transcript;
     try {
-      const summaryRes = await axios.get(
-        `https://api.tor.app/developer/transcription/summary`,
-        { headers: AUTH_HEADER, params: { order_id: orderId } }
-      );
-      // summary_url is a presigned S3 URL — fetch its content
-      const summaryUrl = summaryRes.data?.summary_url;
-      if (summaryUrl) {
-        const summaryContent = await axios.get(summaryUrl);
-        summary = summaryContent.data?.summary || summaryContent.data?.text || transcript;
+      const openaiKey = process.env.OPENAI_API_KEY;
+      if (openaiKey && transcript.length > 0) {
+        const gptRes = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'אתה עוזר לצוות רווחה צבאי. סכם שיחות עם חיילים בעברית בצורה ברורה ותמציתית. כלול: נושאי השיחה העיקריים, מצב החייל, פעולות נדרשות אם יש, והמלצות המשך. כתוב בנקודות.',
+              },
+              {
+                role: 'user',
+                content: `סכם את השיחה הבאה:\n\n${transcript}`,
+              },
+            ],
+            max_tokens: 500,
+            temperature: 0.3,
+          },
+          {
+            headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
+            timeout: 30000,
+          }
+        );
+        summary = gptRes.data?.choices?.[0]?.message?.content || transcript;
       }
     } catch {
       summary = transcript;
