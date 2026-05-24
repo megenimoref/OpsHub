@@ -4,7 +4,6 @@ import path from 'path';
 import fs from 'fs';
 import { authMiddleware } from '../middleware/auth';
 import {
-  ensureUserCallFolder,
   ensureAllUsersFolders,
   uploadCallFile,
   transcribeAndSummarize,

@@ -5,7 +5,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import sequelize from '../config/database';
 import { QueryTypes } from 'sequelize';
-import { User } from '../models/User';
+import { User } from '../models/user';
 
 const CALLS_BASE_DIR = path.join(__dirname, '../../uploads/calls');
 const TRANSKRIPTOR_TOKEN = 'a80167078ae74e80d0f9f35fe8e9e583b117455fafe1d9cc3e07d922a4a4e5d0613501ba89bc722ae7a181e3e83b301780fedebf03a4238c58e0d85ecfe62526';
