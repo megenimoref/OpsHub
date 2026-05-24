@@ -326,6 +326,17 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [whatsappSending, setWhatsappSending] = useState(false);
   const [whatsappResult, setWhatsappResult] = useState<'success' | 'error' | null>(null);
+
+  // Call summary
+  const [callSummaryOpen, setCallSummaryOpen] = useState(false);
+  const [callSummaryText, setCallSummaryText] = useState('');
+  const [callFile, setCallFile] = useState<File | null>(null);
+  const [callUploading, setCallUploading] = useState(false);
+  const [callTranscribing, setCallTranscribing] = useState(false);
+  const [callSaving, setCallSaving] = useState(false);
+  const [callError, setCallError] = useState<string | null>(null);
+  const [callSuccess, setCallSuccess] = useState(false);
+  const callFileRef = useRef<HTMLInputElement>(null);
   const [changes, setChanges] = useState<SoldierChange[]>([]);
   const [systemUsers, setSystemUsers] = useState<SystemUser[]>([]);
   const [pendingDraft, setPendingDraft] = useState<{ data: Partial<Soldier>; savedAt: string } | null>(null);
@@ -623,6 +634,64 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     );
   };
 
+  // ── Call summary handlers ────────────────────────────────────────────────
+  const handleCallFileUpload = async () => {
+    if (!callFile) return;
+    setCallUploading(true);
+    setCallError(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', callFile);
+      const { data } = await api.post('/calls/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      return data.filename as string;
+    } catch {
+      setCallError('שגיאה בהעלאת הקובץ');
+      return null;
+    } finally {
+      setCallUploading(false);
+    }
+  };
+
+  const handleTranscribe = async () => {
+    if (!callFile) return;
+    setCallError(null);
+    const filename = await handleCallFileUpload();
+    if (!filename) return;
+    setCallTranscribing(true);
+    try {
+      const { data } = await api.post('/calls/transcribe', { filename });
+      setCallSummaryText(data.summary || data.transcript || '');
+    } catch (err: any) {
+      setCallError(err?.response?.data?.error || 'שגיאה בתמלול — בדוק את הגדרות Transkriptor');
+    } finally {
+      setCallTranscribing(false);
+    }
+  };
+
+  const handleSaveCallSummary = async () => {
+    if (!soldier || !callSummaryText.trim()) return;
+    setCallSaving(true);
+    setCallError(null);
+    try {
+      await api.post('/calls/save', {
+        soldierPersonalNumber: soldier.personal_number,
+        battalionName: selectedBattalion,
+        summary: callSummaryText.trim(),
+        audioFilename: callFile?.name || '',
+      });
+      setCallSuccess(true);
+      setCallSummaryOpen(false);
+      setCallSummaryText('');
+      setCallFile(null);
+      if (callFileRef.current) callFileRef.current.value = '';
+      setTimeout(() => setCallSuccess(false), 3000);
+    } catch {
+      setCallError('שגיאה בשמירת הסיכום');
+    } finally {
+      setCallSaving(false);
+    }
+  };
+
   return (
     <div className={embedded ? 'w-full' : 'p-6 max-w-4xl mx-auto'} dir="rtl">
       {!embedded && (
@@ -664,6 +733,80 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
             </div>
           </div>
           {searchError && <div className="mt-3 p-3 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300">{searchError}</div>}
+        </div>
+      )}
+
+      {/* Call Summary modal */}
+      {callSummaryOpen && soldier && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setCallSummaryOpen(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-9 h-9 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm">סכם שיחה</h3>
+                <p className="text-gray-400 text-xs">{soldier.first_name} {soldier.last_name}</p>
+              </div>
+              <button onClick={() => setCallSummaryOpen(false)} className="mr-auto text-gray-500 hover:text-white transition-colors">✕</button>
+            </div>
+
+            {/* File upload */}
+            <div className="mb-4">
+              <label className="block text-gray-400 text-xs mb-1.5">העלה הקלטת שיחה (MP3, WAV, M4A...)</label>
+              <div className="flex gap-2">
+                <input
+                  ref={callFileRef}
+                  type="file"
+                  accept=".mp3,.mp4,.wav,.m4a,.ogg,.webm,.aac,.flac"
+                  onChange={(e) => setCallFile(e.target.files?.[0] || null)}
+                  className="flex-1 bg-gray-800 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm file:mr-3 file:bg-indigo-700 file:text-white file:border-0 file:rounded file:px-2 file:py-1 file:text-xs"
+                />
+                <button
+                  onClick={handleTranscribe}
+                  disabled={!callFile || callUploading || callTranscribing}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+                >
+                  {callUploading ? 'מעלה...' : callTranscribing ? 'מתמלל...' : '✨ תמלל וסכם'}
+                </button>
+              </div>
+              {(callUploading || callTranscribing) && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-indigo-400">
+                  <div className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                  {callUploading ? 'מעלה קובץ...' : 'מתמלל ומסכם — זה יכול לקחת כמה רגעים...'}
+                </div>
+              )}
+            </div>
+
+            {/* Summary text area */}
+            <div className="mb-4">
+              <label className="block text-gray-400 text-xs mb-1.5">סיכום השיחה <span className="text-gray-600">(ניתן לערוך)</span></label>
+              <textarea
+                value={callSummaryText}
+                onChange={(e) => setCallSummaryText(e.target.value)}
+                placeholder="כתוב או הדבק כאן את סיכום השיחה..."
+                rows={8}
+                className="w-full bg-gray-800 border border-gray-600 text-white placeholder-gray-500 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 resize-y"
+              />
+            </div>
+
+            {callError && <div className="mb-3 p-2 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300">{callError}</div>}
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setCallSummaryOpen(false)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">
+                ביטול
+              </button>
+              <button
+                onClick={handleSaveCallSummary}
+                disabled={!callSummaryText.trim() || callSaving}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {callSaving ? 'שומר...' : '💾 שמור סיכום'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -740,6 +883,13 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                   {soldier.platoon && <p className="text-xs text-gray-500 mt-0.5">מחלקה {soldier.platoon}</p>}
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => { setCallSummaryOpen(true); setCallError(null); setCallSuccess(false); }} title="סכם שיחה"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    סכם שיחה
+                  </button>
                   <button onClick={() => { setWhatsappMessage(''); setWhatsappOpen(true); }} title="שלח WhatsApp"
                     className="flex items-center gap-1.5 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -782,6 +932,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
               )}
               {saveSuccess && <div className="mt-3 p-3 bg-green-900/40 border border-green-700 rounded-lg text-sm text-green-300">הנתונים נשמרו בהצלחה</div>}
               {saveError && <div className="mt-3 p-3 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300">{saveError}</div>}
+              {callSuccess && <div className="mt-3 p-3 bg-indigo-900/40 border border-indigo-700 rounded-lg text-sm text-indigo-300">✅ סיכום השיחה נשמר בהצלחה</div>}
               {Object.keys(validationErrors).length > 0 && (
                 <div className="mt-3 p-3 bg-red-900/40 border border-red-600 rounded-lg text-sm text-red-300">
                   יש למלא את כל שדות החובה המסומנים ב-<span className="text-red-400 font-bold">*</span> לפני השמירה.
