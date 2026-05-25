@@ -3,6 +3,7 @@ import api from '../services/api';
 import { authService } from '../services/authService';
 
 interface SoldierBasic {
+  id: number;
   personal_number: string;
   first_name: string;
   last_name: string;
@@ -64,6 +65,7 @@ export const PersonalAreaPage: React.FC = () => {
     try { return JSON.parse(localStorage.getItem('recent_personal_numbers') || '[]'); } catch { return []; }
   });
   const [showRecent, setShowRecent] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   const fetchSoldiers = useCallback(async (isRefresh = false) => {
     try {
@@ -96,6 +98,20 @@ export const PersonalAreaPage: React.FC = () => {
     window.addEventListener('storage', handleStorageUpdate);
     return () => window.removeEventListener('storage', handleStorageUpdate);
   }, []);
+
+  const handleStatusChange = async (soldier: SoldierBasic, newStatus: string) => {
+    const key = `${soldier.battalion_name}:${soldier.personal_number}`;
+    setUpdatingStatus(key);
+    try {
+      await api.put(`/battalion/${encodeURIComponent(soldier.battalion_name)}/soldiers/${soldier.id}`, { request_status: newStatus });
+      setSoldiers((prev) => prev.map((s) => s.personal_number === soldier.personal_number && s.battalion_name === soldier.battalion_name ? { ...s, request_status: newStatus } : s));
+      localStorage.setItem('soldier_status_update', JSON.stringify({ personalNumber: soldier.personal_number, status: newStatus, ts: Date.now() }));
+    } catch {
+      // silently ignore
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
 
   const saveRecentPersonalNumber = (pn: string) => {
     setRecentPersonalNumbers((prev) => {
@@ -476,16 +492,21 @@ export const PersonalAreaPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 text-gray-300">{soldier.battalion_name}</td>
                         <td className="px-4 py-3">
-                          {soldier.request_status ? (
-                            <span
-                              className="px-3 py-1 rounded-full text-white text-xs font-semibold"
-                              style={{ backgroundColor: getStatusColor(soldier.request_status) }}
-                            >
-                              {soldier.request_status}
-                            </span>
-                          ) : (
-                            <span className="text-gray-500 text-xs">-</span>
-                          )}
+                          <select
+                            value={soldier.request_status || ''}
+                            disabled={updatingStatus === `${soldier.battalion_name}:${soldier.personal_number}`}
+                            onChange={(e) => handleStatusChange(soldier, e.target.value)}
+                            className="text-xs font-semibold rounded-full px-2 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            style={{
+                              backgroundColor: getStatusColor(soldier.request_status),
+                              color: soldier.request_status ? 'white' : '#6b7280',
+                            }}
+                          >
+                            <option value="">-- סטטוס --</option>
+                            {STATUS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>{opt.value}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-4 py-3 text-gray-400 text-sm whitespace-nowrap">
                           {soldier.contact_date
