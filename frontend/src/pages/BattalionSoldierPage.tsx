@@ -146,22 +146,6 @@ const isDivorced = (v: string) => v === 'גרוש/גרושה';
 
 const SECTIONS: SectionDef[] = [
   {
-    key: 'reserve',
-    title: 'מילואים',
-    emoji: '🪖',
-    color: 'border-green-500',
-    defaultOpen: true,
-    fields: [
-      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
-      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
-      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
-      { key: 'current_rotation', label: 'סבב נוכחי' },
-      { key: 'platoon', label: 'מחלקה' },
-      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
-    ],
-  },
-  {
     key: 'personal',
     title: 'פרטים אישיים',
     emoji: '🪪',
@@ -177,6 +161,22 @@ const SECTIONS: SectionDef[] = [
       { key: 'children_count', label: 'מספר ילדים', required: true, options: ['0','1','2','3','4','5','6','7','8','9','10','11','12'] },
       { key: 'special_family_status', label: 'סטטוס מיוחד משפחתי', required: true },
       { key: 'notes_personal', label: 'פירוט / הערות', multiline: true },
+    ],
+  },
+  {
+    key: 'reserve',
+    title: 'מילואים',
+    emoji: '🪖',
+    color: 'border-green-500',
+    defaultOpen: true,
+    fields: [
+      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
+      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
+      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
+      { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'platoon', label: 'מחלקה' },
+      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
+      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
