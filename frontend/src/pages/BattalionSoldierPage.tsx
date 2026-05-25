@@ -481,10 +481,14 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     } finally { setSearching(false); }
   };
 
+  const isUnavailable = (formData.request_status || '') === 'חייל לא זמין';
+
   const validate = (): boolean => {
     const errors: Partial<Record<keyof Soldier, string>> = {};
-    // Required fields
-    if (!formData.marital_status) errors.marital_status = 'שדה חובה';
+    // Required fields — skip all if soldier is unavailable
+    if (!isUnavailable) {
+      if (!formData.marital_status) errors.marital_status = 'שדה חובה';
+    }
     if (!formData.request_status) errors.request_status = 'שדה חובה';
     setValidationErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -533,7 +537,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const showDivorcedReminder = isDivorced(maritalVal);
 
   const renderField = (field: FieldDef) => {
-    const { key, label, required, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
+    const { key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
+    const required = field.required && !isUnavailable;
     if (showIf && !showIf(formData as Partial<Soldier>)) return null;
     const fieldChanges = changes.filter((c) => c.field_name === key);
     const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
