@@ -146,11 +146,26 @@ const isDivorced = (v: string) => v === 'גרוש/גרושה';
 
 const SECTIONS: SectionDef[] = [
   {
+    key: 'reserve',
+    title: 'מילואים',
+    emoji: '🪖',
+    color: 'border-green-500',
+    defaultOpen: true,
+    fields: [
+      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
+      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
+      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
+      { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'platoon', label: 'מחלקה' },
+      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
+      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
+    ],
+  },
+  {
     key: 'personal',
     title: 'פרטים אישיים',
     emoji: '🪪',
     color: 'border-indigo-500',
-    defaultOpen: true,
     fields: [
       { key: 'personal_number', label: 'מספר אישי', required: true },
       { key: 'last_name', label: 'שם משפחה', required: true },
@@ -214,21 +229,6 @@ const SECTIONS: SectionDef[] = [
       { key: 'vacation_break', label: 'שובר חופשה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'vacation_compensation', label: 'פיצוי חופשות', required: true, options: ['פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
       { key: 'notes_welfare', label: 'פירוט / הערות', multiline: true },
-    ],
-  },
-  {
-    key: 'reserve',
-    title: 'מילואים',
-    emoji: '🪖',
-    color: 'border-green-500',
-    fields: [
-      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
-      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
-      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
-      { key: 'current_rotation', label: 'סבב נוכחי' },
-      { key: 'platoon', label: 'מחלקה' },
-      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -481,10 +481,14 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
     } finally { setSearching(false); }
   };
 
+  const isUnavailable = (formData.request_status || '') === 'חייל לא זמין';
+
   const validate = (): boolean => {
     const errors: Partial<Record<keyof Soldier, string>> = {};
-    // Required fields
-    if (!formData.marital_status) errors.marital_status = 'שדה חובה';
+    // Required fields — skip all if soldier is unavailable
+    if (!isUnavailable) {
+      if (!formData.marital_status) errors.marital_status = 'שדה חובה';
+    }
     if (!formData.request_status) errors.request_status = 'שדה חובה';
     setValidationErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -533,7 +537,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const showDivorcedReminder = isDivorced(maritalVal);
 
   const renderField = (field: FieldDef) => {
-    const { key, label, required, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
+    const { key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
+    const required = field.required && !isUnavailable;
     if (showIf && !showIf(formData as Partial<Soldier>)) return null;
     const fieldChanges = changes.filter((c) => c.field_name === key);
     const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
