@@ -132,6 +132,7 @@ interface SoldierAllocationRow extends mysql.RowDataPacket {
 }
 
 interface SoldierData {
+  id: number;
   personal_number: string;
   first_name: string;
   last_name: string;
@@ -160,11 +161,12 @@ async function getSoldiersByAllocation(userId: number): Promise<SoldierData[]> {
     try {
       const placeholders = personalNumbers.map(() => '?').join(',');
       const [rows] = await conn.execute<SoldierAllocationRow[]>(
-        `SELECT personal_number, first_name, last_name, request_status, contact_date, mobile_phone FROM soldiers WHERE personal_number IN (${placeholders})`,
+        `SELECT id, personal_number, first_name, last_name, request_status, contact_date, mobile_phone FROM soldiers WHERE personal_number IN (${placeholders})`,
         personalNumbers
       );
       for (const row of rows) {
         results.push({
+          id: (row as any).id,
           personal_number: row.personal_number,
           first_name: row.first_name || '',
           last_name: row.last_name || '',
@@ -192,13 +194,14 @@ async function getSoldiersByContactBy(contactName: string): Promise<SoldierData[
         const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
         try {
           const [rows] = await conn.execute<SoldierAllocationRow[]>(
-            `SELECT personal_number, first_name, last_name, request_status, contact_date, mobile_phone
+            `SELECT id, personal_number, first_name, last_name, request_status, contact_date, mobile_phone
              FROM soldiers
              WHERE contact_by = ? AND personal_number IS NOT NULL AND personal_number != ''`,
             [contactName]
           );
           for (const row of rows) {
             results.push({
+              id: (row as any).id,
               personal_number: row.personal_number,
               first_name: row.first_name || '',
               last_name: row.last_name || '',
