@@ -141,7 +141,7 @@ interface SectionDef {
 }
 
 const MARITAL_OPTIONS = ['נשוי/נשואה', 'רווק/רווקה', 'אלמן/אלמנה', 'גרוש/גרושה', 'בזוגיות', 'אחר'];
-const isMarried = (v: string) => v === 'נשוי/נשואה' || v === 'בזוגיות';
+const isMarried = (v: string) => v === 'נשוי/נשואה' || v === 'בזוגיות' || v === 'נשוי' || v === 'נשואה';
 const isDivorced = (v: string) => v === 'גרוש/גרושה';
 
 const SECTIONS: SectionDef[] = [
@@ -201,9 +201,9 @@ const SECTIONS: SectionDef[] = [
     fields: [
       { key: 'employment_status', label: 'סטטוס תעסוקתי של החייל', required: true, selectWithDetail: { options: ['עצמאי', 'שכיר', 'מובטל', 'אחר'], detailOn: ['אחר'] } },
       { key: 'student_indicator', label: 'סטודנט', required: true, yesNo: true },
-      { key: 'spouse_student', label: 'האם בת הזוג סטודנטית', required: true, yesNo: true },
-      { key: 'private_lessons', label: 'שיעורים פרטיים', required: true, multiline: true },
-      { key: 'study_grants', label: 'מענקים / החזר שכר לימוד', required: true, multiline: true },
+      { key: 'spouse_student', label: 'האם בת הזוג סטודנטית', required: true, showIf: (fd) => fd.student_indicator === 'כן', yesNo: true },
+      { key: 'private_lessons', label: 'שיעורים פרטיים', required: true, showIf: (fd) => fd.student_indicator === 'כן', multiline: true },
+      { key: 'study_grants', label: 'מענקים / החזר שכר לימוד', required: true, showIf: (fd) => fd.student_indicator === 'כן', multiline: true },
       { key: 'income_loss', label: 'אובדן הכנסה', required: true, multiline: true },
       { key: 'notes_employment', label: 'פירוט / הערות', multiline: true },
     ],
@@ -215,8 +215,8 @@ const SECTIONS: SectionDef[] = [
     color: 'border-yellow-500',
     fields: [
       { key: 'welfare_fund', label: 'קרן הסיוע', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'summer_camp', label: 'קייטנות', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'household_assistance', label: 'בייביסיטר', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'summer_camp', label: 'קייטנות', required: true, showIf: (fd) => !!fd.children_count && fd.children_count !== '0', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'household_assistance', label: 'בייביסיטר', required: true, showIf: (fd) => !!fd.children_count && fd.children_count !== '0', options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'birth_grant', label: 'מענק לידה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'birth_assistance', label: 'לידה (לפני/אחרי/צריכים)', required: true, multiline: true },
       { key: 'pet', label: 'כלב / בעל חיים', required: true, selectWithDetail: { options: ['יש', 'אין'], detailOn: ['יש'] } },
