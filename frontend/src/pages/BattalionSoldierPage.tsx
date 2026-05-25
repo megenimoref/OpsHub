@@ -227,7 +227,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'personal_equipment', label: 'ציוד אישי', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'fighter', label: 'פייטר', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'vacation_break', label: 'שובר חופשה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'vacation_compensation', label: 'פיצוי חופשות', required: true, options: ['פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
+      { key: 'vacation_compensation', label: 'פיצוי חופשות', required: true, options: ['לא נדרש', 'פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
       { key: 'notes_welfare', label: 'פירוט / הערות', multiline: true },
     ],
   },
