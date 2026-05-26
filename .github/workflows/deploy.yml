@@ -27,3 +27,4 @@ jobs:
 
       - name: Run deploy script
         run: bash $HOME/crm/OpsHub/devops/deploy.sh
+
