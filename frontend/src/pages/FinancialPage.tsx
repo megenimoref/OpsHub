@@ -449,14 +449,6 @@ export const FinancialPage: React.FC = () => {
                   <button onClick={() => handleDeleteDoc(d.id)} className="mr-3 px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors flex-shrink-0">מחק</button>
                 </div>
               ))}
-              {payslipDocs.length >= 3 && step === 'upload' && (
-                <button
-                  onClick={() => setStep('calc')}
-                  className="w-full mt-2 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  המשך לחישוב ←
-                </button>
-              )}
             </div>
           ) : (
             <p className="text-gray-500 text-sm text-center py-3">אין תלושים עדיין — העלה לפחות 3</p>
@@ -533,6 +525,16 @@ export const FinancialPage: React.FC = () => {
             <p className="text-gray-500 text-sm text-center py-3">אין תלושים אחרי מילואים עדיין</p>
           )}
         </div>
+      )}
+
+      {/* ── המשך לחישוב — מופיע אחרי שני סקשני התלושים ── */}
+      {step === 'upload' && payslipDocs.length >= 3 && (
+        <button
+          onClick={() => setStep('calc')}
+          className="w-full mb-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium transition-colors"
+        >
+          המשך לחישוב ←
+        </button>
       )}
 
       {/* ── STEP 3: חישוב ── */}
