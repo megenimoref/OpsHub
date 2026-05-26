@@ -96,6 +96,9 @@ interface Soldier {
   platoon: string;
   command_role: string;
   professional: string;
+  // Discharge
+  discharged: string;
+  discharge_date: string;
 }
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -146,26 +149,11 @@ const isDivorced = (v: string) => v === 'גרוש/גרושה';
 
 const SECTIONS: SectionDef[] = [
   {
-    key: 'reserve',
-    title: 'מילואים',
-    emoji: '🪖',
-    color: 'border-green-500',
-    defaultOpen: true,
-    fields: [
-      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
-      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
-      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
-      { key: 'current_rotation', label: 'סבב נוכחי' },
-      { key: 'platoon', label: 'מחלקה' },
-      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
-    ],
-  },
-  {
     key: 'personal',
     title: 'פרטים אישיים',
     emoji: '🪪',
     color: 'border-indigo-500',
+    defaultOpen: true,
     fields: [
       { key: 'personal_number', label: 'מספר אישי', required: true },
       { key: 'last_name', label: 'שם משפחה', required: true },
@@ -191,6 +179,23 @@ const SECTIONS: SectionDef[] = [
       { key: 'whatsapp_battalion', label: 'WhatsApp גדודי ופלוגתי' },
       { key: 'whatsapp_family', label: 'WhatsApp משפחה גדודי' },
       { key: 'notes_family', label: 'פירוט / הערות', multiline: true },
+    ],
+  },
+  {
+    key: 'reserve',
+    title: 'מילואים',
+    emoji: '🪖',
+    color: 'border-green-500',
+    fields: [
+      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
+      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
+      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
+      { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'platoon', label: 'מחלקה' },
+      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
+      { key: 'discharged', label: 'יצא לפטור', yesNo: true },
+      { key: 'discharge_date', label: 'תאריך פטור', datePicker: true, showIf: (fd) => fd.discharged === 'כן' },
+      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
   },
   {
@@ -225,8 +230,8 @@ const SECTIONS: SectionDef[] = [
       { key: 'repairs', label: 'תיקונים', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'moving_assistance', label: 'מעבר דירה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
       { key: 'personal_equipment', label: 'ציוד אישי', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'fighter', label: 'פייטר', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
-      { key: 'vacation_break', label: 'שובר חופשה', required: true, options: ['נדרש', 'לא נדרש', 'הגיש כבר'] },
+      { key: 'fighter', label: 'פייטר', required: true, options: ['קיבל', 'לא קיבל'] },
+      { key: 'vacation_break', label: 'שובר חופשה', required: true, options: ['קיבל', 'לא קיבל'] },
       { key: 'vacation_compensation', label: 'פיצוי חופשות', required: true, options: ['לא נדרש', 'פיצוי חופשות', 'מרכז חייהם בחו"ל'] },
       { key: 'notes_welfare', label: 'פירוט / הערות', multiline: true },
     ],
