@@ -1,18 +1,17 @@
 import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import OpenAI from 'openai';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
+import Anthropic from '@anthropic-ai/sdk';
 import FinancialDocument from '../models/financialDocument';
 import User from '../models/user';
 
 // Lazy-init so missing API key doesn't crash the server on startup
-const getOpenAI = () => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured on this server');
-  return new OpenAI({ apiKey });
+const getAnthropic = () => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not configured on this server');
+  return new Anthropic({ apiKey });
 };
+
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/financial');
 
@@ -152,7 +151,37 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
   }
 };
 
-// Analyze payslips with GPT-4o
+// Helper: build Anthropic content blocks for a payslip file
+const buildSlipBlocks = (
+  fileBuffer: Buffer,
+  ext: string,
+  label: string,
+): Anthropic.ContentBlockParam[] => {
+  const blocks: Anthropic.ContentBlockParam[] = [{ type: 'text', text: label }];
+  if (ext === '.pdf') {
+    blocks.push({
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: fileBuffer.toString('base64'),
+      },
+    } as Anthropic.ContentBlockParam);
+  } else {
+    const mediaType = (ext === '.png' ? 'image/png' : 'image/jpeg') as 'image/png' | 'image/jpeg';
+    blocks.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: mediaType,
+        data: fileBuffer.toString('base64'),
+      },
+    } as Anthropic.ContentBlockParam);
+  }
+  return blocks;
+};
+
+// Analyze payslips with Claude
 export const analyzePayslips = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!isAllowed(req.userRole || '')) {
@@ -172,44 +201,35 @@ export const analyzePayslips = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Build GPT content parts
-    const contentParts: OpenAI.Chat.ChatCompletionContentPart[] = [];
+    const contentBlocks: Anthropic.ContentBlockParam[] = [];
 
-    // System prompt
-    contentParts.push({
+    contentBlocks.push({
       type: 'text',
-      text: `אתה מומחה לתגמולי מילואים בישראל. קיבלת ${docs.length} תלושי שכר של חייל מילואים. נתח אותם לפי הסעיפים הבאים וספק דוח מפורט בעברית:
-
----
+      text: `אתה מומחה לתגמולי מילואים בישראל. קיבלת ${docs.length} תלושי שכר של חייל מילואים (לפני תקופת המילואים). נתח אותם לפי הסעיפים הבאים וספק דוח מפורט בעברית:
 
 ## 1. חישוב תגמולי מילואים
-חפש בתלושים את השורה "שכר חייב בביטוח לאומי" או "ברוטו לביטוח לאומי".
-- חבר את הסכומים מ-3 החודשים שלפני המילואים
+חפש בכל תלוש את שורת "שכ.ב.לאומי" / "שכר חייב בביטוח לאומי" / "ברוטו לביטוח לאומי".
+- חבר את הסכומים מ-3 החודשים → סה"כ
 - חלק ב-90 → שכר יומי ממוצע
 - הצג את החישוב המפורט
-- אם יודעים את מספר ימי המילואים — הכפל ותציג את סכום התגמול המשוער
-- ⚠️ שים לב: חודשים עם מחלה ממושכת לפני המילואים יכולים להקטין את הממוצע
+- ⚠️ חודשים עם מחלה ממושכת לפני המילואים יכולים להקטין את הממוצע
 
 ## 2. בדיקת ימי חופשה
 - האם ירדו ימי חופשה בתקופת המילואים?
-- האם יש סעיף "ניצול חופשה" בתאריכים החופפים לצו המילואים?
+- האם יש סעיף "ניצול חופשה" בתאריכים החופפים לצו?
 - האם יתרת החופשה קטנה שלא כדין?
-- ✅ חופשה בתשלום לפני המילואים נחשבת כחלק מהשכר הרגיל ומותרת
 
 ## 3. בדיקת ימי מחלה
-- האם סומנו ימי מחלה בזמן שהחייל היה במילואים?
+- האם סומנו ימי מחלה בזמן המילואים?
 - האם נוכה תשלום בגלל מחלה בתקופת הצו?
-- כמה ימי מחלה נוצלו בכל תלוש? מה היתרה?
+- כמה ימי מחלה נוצלו? מה היתרה?
 
 ## 4. הצלבת נתונים
-השווה בין הנתונים בתלושים:
 - האם הימים מסומנים כ"מילואים" בלבד ואין כפילות עם חופשה/מחלה?
-- האם מספר ימי המילואים בתלוש תואם לצפוי?
 
-## 5. מקרים חריגים וסיכום
-- זהה חריגים: חל"ת, מחלה ממושכת, חודש חריג בשכר
-- אם יש חשד לטעות בחישוב — המלץ לפנות למוסד לביטוח לאומי לבדיקה מיוחדת
-- סיכום ממצאים + המלצות מעשיות לפעולה
+## 5. סיכום והמלצות
+- חריגים: חל"ת, מחלה ממושכת, חודש חריג
+- המלצות מעשיות לפעולה
 
 אם מידע מסוים לא מופיע בתלוש — ציין זאת במפורש.`,
     });
@@ -218,60 +238,28 @@ export const analyzePayslips = async (req: Request, res: Response): Promise<void
     for (const doc of docs) {
       const filePath = path.join(UPLOADS_DIR, doc.fileName);
       if (!fs.existsSync(filePath)) continue;
-
       slipIndex++;
       const ext = path.extname(doc.fileName).toLowerCase();
       const fileBuffer = fs.readFileSync(filePath);
-
-      if (ext === '.pdf') {
-        try {
-          const pdfData = await pdfParse(fileBuffer);
-          const text = pdfData.text?.trim();
-          if (text && text.length > 80) {
-            // Text-based PDF — send as extracted text
-            contentParts.push({
-              type: 'text',
-              text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (טקסט מ-PDF) ---\n${text}`,
-            });
-          } else {
-            // Scanned/image-based PDF — send via vision
-            const base64 = fileBuffer.toString('base64');
-            contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (PDF סרוק) ---` });
-            contentParts.push({
-              type: 'image_url',
-              image_url: { url: `data:application/pdf;base64,${base64}`, detail: 'high' },
-            } as OpenAI.Chat.ChatCompletionContentPart);
-          }
-        } catch {
-          contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (שגיאה בקריאת PDF) ---` });
-        }
-      } else {
-        // Image file — send as base64 vision
-        const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
-        const base64 = fileBuffer.toString('base64');
-        contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} ---` });
-        contentParts.push({
-          type: 'image_url',
-          image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' },
-        });
-      }
+      const blocks = buildSlipBlocks(fileBuffer, ext, `\n--- תלוש ${slipIndex}: ${doc.originalName} ---`);
+      contentBlocks.push(...blocks);
     }
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: contentParts }],
+    const message = await getAnthropic().messages.create({
+      model: 'claude-opus-4-5',
       max_tokens: 2500,
+      messages: [{ role: 'user', content: contentBlocks }],
     });
 
-    const analysis = completion.choices[0]?.message?.content || 'לא התקבלה תגובה מ-GPT';
+    const analysis = (message.content[0] as Anthropic.TextBlock)?.text || 'לא התקבלה תגובה';
     res.json({ analysis, slipsAnalyzed: docs.length });
   } catch (err: any) {
-    console.error('GPT payslip analysis error:', err);
-    res.status(500).json({ error: 'שגיאה בניתוח GPT: ' + (err.message || 'שגיאה לא ידועה') });
+    console.error('Claude payslip analysis error:', err);
+    res.status(500).json({ error: 'שגיאה בניתוח: ' + (err.message || 'שגיאה לא ידועה') });
   }
 };
 
-// Focused reserve compensation calculator
+// Reserve compensation calculator — powered by Claude with native PDF support
 export const calculateReserve = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!isAllowed(req.userRole || '')) {
@@ -295,90 +283,58 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const contentParts: OpenAI.Chat.ChatCompletionContentPart[] = [];
+    const contentBlocks: Anthropic.ContentBlockParam[] = [];
 
-    contentParts.push({
+    contentBlocks.push({
       type: 'text',
-      text: `אתה מחשב תגמולי מילואים מתוך תלושי שכר ישראליים (לפני תקופת המילואים).
+      text: `אתה מחשב תגמולי מילואים מתוך תלושי שכר ישראליים (תלושים מהחודשים לפני המילואים).
 
-משימתך: מצא בכל תלוש את הסכום הברוטו לביטוח לאומי. חפש את אחד מהשמות הבאים (לפי סדר עדיפות):
-1. "שכר חייב בביטוח לאומי"
-2. "ברוטו לביטוח לאומי"
-3. "ברוטו לב.ל" / "ברוטו לבל"
-4. "סה"כ ברוטו" / "ברוטו כולל"
-5. "שכר ברוטו"
-6. "הכנסה חייבת"
-7. אם אף אחד לא נמצא — קח את הסכום הכולל הגבוה ביותר בתלוש
+משימתך: מצא בכל תלוש את הסכום בשורת "שכ.ב.לאומי" (שכר חייב בביטוח לאומי).
+חפש לפי סדר עדיפות:
+1. "שכ.ב.לאומי" (קיצור נפוץ בתלושים)
+2. "שכר חייב בביטוח לאומי"
+3. "ברוטו לביטוח לאומי" / "ברוטו לב.ל"
+4. "סה"כ ברוטו" / "ברוטו כולל" / "שכר ברוטו"
+5. "הכנסה חייבת"
+אם לא נמצא אף שדה — קח את הסכום הגבוה ביותר בתלוש.
 
-זהה גם את חודש התלוש (לדוגמה: "ינואר 2025").
+זהה גם את חודש התלוש (לדוגמה: "מרץ 2025").
 
-החזר תשובה ב-JSON בלבד, ללא טקסט נוסף, בפורמט הבא:
+החזר JSON בלבד, ללא טקסט נוסף:
 {
   "months": [
-    { "label": "חודש/שנה", "amount": 12345 },
-    { "label": "חודש/שנה", "amount": 12345 },
-    { "label": "חודש/שנה", "amount": 12345 }
+    { "label": "חודש שנה", "amount": 12345 },
+    { "label": "חודש שנה", "amount": 12345 },
+    { "label": "חודש שנה", "amount": 12345 }
   ],
-  "notes": "הערות קצרות אם יש"
+  "notes": "הערות אם יש"
 }
 
-חשוב: numbers only (ללא פסיקים, ללא ₪). JSON תקני בלבד — ללא markdown, ללא \`\`\`json.`,
+חשוב: amount הוא מספר בלבד (ללא פסיקים, ללא ₪). JSON תקני בלבד.`,
     });
 
     let slipIndex = 0;
     for (const doc of docs) {
       const filePath = path.join(UPLOADS_DIR, doc.fileName);
       if (!fs.existsSync(filePath)) continue;
-
       slipIndex++;
       const ext = path.extname(doc.fileName).toLowerCase();
       const fileBuffer = fs.readFileSync(filePath);
-
-      if (ext === '.pdf') {
-        try {
-          const pdfData = await pdfParse(fileBuffer);
-          const text = pdfData.text?.trim();
-          if (text && text.length > 80) {
-            // Text-based PDF
-            contentParts.push({
-              type: 'text',
-              text: `\n--- תלוש ${slipIndex}: ${doc.originalName} ---\n${text}`,
-            });
-          } else {
-            // Scanned PDF — send via vision
-            const base64 = fileBuffer.toString('base64');
-            contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (PDF סרוק) ---` });
-            contentParts.push({
-              type: 'image_url',
-              image_url: { url: `data:application/pdf;base64,${base64}`, detail: 'high' },
-            } as OpenAI.Chat.ChatCompletionContentPart);
-          }
-        } catch {
-          contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (שגיאה בקריאה) ---` });
-        }
-      } else {
-        const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
-        const base64 = fileBuffer.toString('base64');
-        contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} ---` });
-        contentParts.push({
-          type: 'image_url',
-          image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' },
-        });
-      }
+      const blocks = buildSlipBlocks(fileBuffer, ext, `\n--- תלוש ${slipIndex}: ${doc.originalName} ---`);
+      contentBlocks.push(...blocks);
     }
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{ role: 'user', content: contentParts }],
+    const message = await getAnthropic().messages.create({
+      model: 'claude-opus-4-5',
       max_tokens: 800,
+      messages: [{ role: 'user', content: contentBlocks }],
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() || '{}';
+    const raw = (message.content[0] as Anthropic.TextBlock)?.text?.trim() || '{}';
     let parsed: { months?: { label: string; amount: number }[]; notes?: string } = {};
     try {
       parsed = JSON.parse(raw);
     } catch {
-      // If GPT didn't return valid JSON, try to extract it
       const match = raw.match(/\{[\s\S]*\}/);
       if (match) {
         try { parsed = JSON.parse(match[0]); } catch { /* ignore */ }
@@ -389,8 +345,6 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
       label: m.label || 'חודש',
       amount: Number(m.amount) || 0,
     }));
-
-    // Pad to 3 months if needed
     while (months.length < 3) months.push({ label: `תלוש ${months.length + 1}`, amount: 0 });
 
     const total = months.reduce((sum, m) => sum + m.amount, 0);
