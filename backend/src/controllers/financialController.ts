@@ -1,8 +1,12 @@
 import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import OpenAI from 'openai';
+import pdfParse from 'pdf-parse';
 import FinancialDocument from '../models/financialDocument';
 import User from '../models/user';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/financial');
 
@@ -139,5 +143,99 @@ export const deleteDocument = async (req: Request, res: Response): Promise<void>
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: 'שגיאה במחיקת המסמך' });
+  }
+};
+
+// Analyze payslips with GPT-4o
+export const analyzePayslips = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!isAllowed(req.userRole || '')) {
+      res.status(403).json({ error: 'אין הרשאה' });
+      return;
+    }
+
+    const { documentIds } = req.body as { documentIds: number[] };
+    if (!Array.isArray(documentIds) || documentIds.length === 0) {
+      res.status(400).json({ error: 'לא סופקו מסמכים לניתוח' });
+      return;
+    }
+
+    const docs = await FinancialDocument.findAll({ where: { id: documentIds, type: 'payslip' } });
+    if (docs.length < 3) {
+      res.status(400).json({ error: `נמצאו רק ${docs.length} תלושי שכר — נדרשים לפחות 3 לניתוח` });
+      return;
+    }
+
+    // Build GPT content parts
+    const contentParts: OpenAI.Chat.ChatCompletionContentPart[] = [];
+
+    // System prompt
+    contentParts.push({
+      type: 'text',
+      text: `אתה מנתח תלושי שכר של חייל מילואים בישראל. בדוק את ${docs.length} התלושים הבאים וספק דוח מפורט בעברית עם הכותרות הבאות:
+
+## 1. ימי חופשה
+כמה ימי חופשה הצטברו, כמה נוצלו, מה היתרה (בכל תלוש ובסיכום).
+
+## 2. ימי מחלה
+כמה ימי מחלה הצטברו, כמה נוצלו, מה היתרה.
+
+## 3. ניכוי ימי מחלה
+האם ישנם ניכויים של ימי מחלה מהשכר? האם הם תקינים לפי החוק? ציין אם יש משהו חשוד.
+
+## 4. סיכום והמלצות
+ממצאים מרכזיים והמלצות לפעולה.
+
+אם מידע חסר בתלוש — ציין זאת בבירור.`,
+    });
+
+    let slipIndex = 0;
+    for (const doc of docs) {
+      const filePath = path.join(UPLOADS_DIR, doc.fileName);
+      if (!fs.existsSync(filePath)) continue;
+
+      slipIndex++;
+      const ext = path.extname(doc.fileName).toLowerCase();
+      const fileBuffer = fs.readFileSync(filePath);
+
+      if (ext === '.pdf') {
+        // Extract text from PDF
+        try {
+          const pdfData = await pdfParse(fileBuffer);
+          const text = pdfData.text?.trim();
+          if (text) {
+            contentParts.push({
+              type: 'text',
+              text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (טקסט מ-PDF) ---\n${text}`,
+            });
+          } else {
+            contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (PDF ריק/סרוק — לא ניתן לחלץ טקסט) ---` });
+          }
+        } catch {
+          contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (שגיאה בקריאת PDF) ---` });
+        }
+      } else {
+        // Image file — send as base64 vision
+        const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+        const base64 = fileBuffer.toString('base64');
+        contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} ---` });
+        contentParts.push({
+          type: 'image_url',
+          image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' },
+        });
+      }
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: contentParts }],
+      max_tokens: 2500,
+    });
+
+    const analysis = completion.choices[0]?.message?.content || 'לא התקבלה תגובה מ-GPT';
+    res.json({ analysis, slipsAnalyzed: docs.length });
+  } catch (err: any) {
+    console.error('GPT payslip analysis error:', err);
+    res.status(500).json({ error: 'שגיאה בניתוח GPT: ' + (err.message || 'שגיאה לא ידועה') });
   }
 };

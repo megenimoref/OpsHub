@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { uploadDocument, getDocuments, downloadDocument, deleteDocument } from '../controllers/financialController';
+import { uploadDocument, getDocuments, downloadDocument, deleteDocument, analyzePayslips } from '../controllers/financialController';
 import { authMiddleware } from '../middleware/auth';
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/financial');
@@ -33,6 +33,7 @@ router.use(authMiddleware);
 
 router.get('/', getDocuments);
 router.post('/upload', upload.single('file'), uploadDocument);
+router.post('/analyze', analyzePayslips);
 router.get('/:id/download', downloadDocument);
 router.delete('/:id', deleteDocument);
 
