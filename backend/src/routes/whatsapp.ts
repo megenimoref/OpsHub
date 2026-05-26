@@ -103,4 +103,27 @@ router.get('/count', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// Batch counts for multiple soldiers at once
+router.get('/counts', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { personalNumbers } = req.query;
+    if (!personalNumbers || typeof personalNumbers !== 'string') { res.json({ counts: {} }); return; }
+    const pnList = personalNumbers.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 500);
+    if (pnList.length === 0) { res.json({ counts: {} }); return; }
+    const rows = await WhatsAppLog.findAll({
+      where: { soldierPersonalNumber: pnList },
+      attributes: ['soldierPersonalNumber'],
+      raw: true,
+    });
+    const counts: Record<string, number> = {};
+    for (const row of rows as any[]) {
+      const pn = row.soldierPersonalNumber;
+      counts[pn] = (counts[pn] || 0) + 1;
+    }
+    res.json({ counts });
+  } catch {
+    res.json({ counts: {} });
+  }
+});
+
 export default router;
