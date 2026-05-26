@@ -7,7 +7,12 @@ const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: str
 import FinancialDocument from '../models/financialDocument';
 import User from '../models/user';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-init so missing API key doesn't crash the server on startup
+const getOpenAI = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not configured on this server');
+  return new OpenAI({ apiKey });
+};
 
 const UPLOADS_DIR = path.join(__dirname, '../../uploads/financial');
 
@@ -246,7 +251,7 @@ export const analyzePayslips = async (req: Request, res: Response): Promise<void
       }
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: contentParts }],
       max_tokens: 2500,
@@ -337,7 +342,7 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
       }
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: contentParts }],
       max_tokens: 800,
