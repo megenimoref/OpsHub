@@ -23,12 +23,16 @@ import timetableSsoRoutes from './routes/timetableSso';
 import feedbackRoutes from './routes/feedback';
 import financialRoutes from './routes/financial';
 import callsRoutes from './routes/calls';
+import distributionListRouter from './routes/distributionList';
 import { ensureCallSummariesTable, ensureAllUsersFolders } from './controllers/callsController';
 import './models/feedback'; // ensure model is synced
 import './models/financialDocument'; // ensure model is synced
 import './models/notification'; // ensure model is synced
 import './models/messageCampaign'; // ensure model is synced
 import './models/communityContact'; // ensure model is synced
+import './models/financialCalculation'; // ensure model is synced
+import './models/whatsappLog'; // ensure model is synced
+import './models/distributionList'; // ensure model is synced
 import { startScheduler } from './services/backupService';
 import { ensureBattalionDatabase } from './services/battalionService';
 import { logger } from './services/logger';
@@ -82,6 +86,7 @@ app.use('/timetable-sso', timetableSsoRoutes);
 app.use('/feedback', feedbackRoutes);
 app.use('/financial', financialRoutes);
 app.use('/calls', callsRoutes);
+app.use('/api/distribution-list', distributionListRouter);
 
 // Health check
 app.get('/health', (req, res) => {

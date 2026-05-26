@@ -4,6 +4,7 @@ import fs from 'fs';
 import Anthropic from '@anthropic-ai/sdk';
 import FinancialDocument from '../models/financialDocument';
 import User from '../models/user';
+import FinancialCalculation from '../models/financialCalculation';
 
 // Lazy-init so missing API key doesn't crash the server on startup
 const getAnthropic = () => {
@@ -351,6 +352,23 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
     const dailyAverage = total / 90;
     const estimatedCompensation = Math.round(dailyAverage * reserveDays);
 
+    // Save calculation history
+    try {
+      const user = await User.findByPk(req.userId, { attributes: ['firstName', 'lastName'] });
+      const callerName = user ? `${user.firstName} ${user.lastName}` : `משתמש ${req.userId}`;
+      await FinancialCalculation.create({
+        soldierPersonalNumber: docs[0].soldierPersonalNumber,
+        soldierName: docs[0].soldierName || null,
+        battalion: docs[0].battalion,
+        reserveDays,
+        estimatedCompensation,
+        dailyAverage: Math.round(dailyAverage * 100) / 100,
+        monthsJson: JSON.stringify(months),
+        notes: parsed.notes || null,
+        calculatedByName: callerName,
+      });
+    } catch (e) { /* non-fatal */ }
+
     res.json({
       months,
       total,
@@ -363,5 +381,22 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
   } catch (err: any) {
     console.error('Reserve calculation error:', err);
     res.status(500).json({ error: 'שגיאה בחישוב: ' + (err.message || 'שגיאה לא ידועה') });
+  }
+};
+
+export const getCalculationHistory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!isAllowed(req.userRole || '')) { res.status(403).json({ error: 'אין הרשאה' }); return; }
+    const { soldierPersonalNumber } = req.query;
+    const where: any = {};
+    if (soldierPersonalNumber) where.soldierPersonalNumber = soldierPersonalNumber;
+    const rows = await FinancialCalculation.findAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      limit: 50,
+    });
+    res.json({ history: rows });
+  } catch (err: any) {
+    res.status(500).json({ error: 'שגיאה בטעינת ההיסטוריה' });
   }
 };

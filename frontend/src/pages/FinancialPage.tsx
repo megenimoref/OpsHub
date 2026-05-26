@@ -30,6 +30,20 @@ interface CalcResult {
   rawText: string;
 }
 
+interface CalcHistory {
+  id: number;
+  soldierPersonalNumber: string;
+  soldierName: string | null;
+  battalion: string;
+  reserveDays: number;
+  estimatedCompensation: number;
+  dailyAverage: number;
+  monthsJson: string;
+  notes: string | null;
+  calculatedByName: string;
+  createdAt: string;
+}
+
 export const FinancialPage: React.FC = () => {
   // Step tracking
   const [step, setStep] = useState<'select' | 'upload' | 'calc' | 'result'>('select');
@@ -56,6 +70,9 @@ export const FinancialPage: React.FC = () => {
   const [calculating, setCalculating] = useState(false);
   const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
   const [calcError, setCalcError] = useState<string | null>(null);
+
+  // History
+  const [history, setHistory] = useState<CalcHistory[]>([]);
 
   // Feedback
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +109,19 @@ export const FinancialPage: React.FC = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // Load calculation history on mount
+  useEffect(() => {
+    api.get<{ history: CalcHistory[] }>('/financial/history')
+      .then(({ data }) => setHistory(data.history))
+      .catch(() => {});
+  }, []);
+
+  const reloadHistory = () => {
+    api.get<{ history: CalcHistory[] }>('/financial/history')
+      .then(({ data }) => setHistory(data.history))
+      .catch(() => {});
+  };
 
   const loadDocs = async (soldier: Soldier) => {
     setLoadingDocs(true);
@@ -188,6 +218,7 @@ export const FinancialPage: React.FC = () => {
       });
       setCalcResult(data);
       setStep('result');
+      reloadHistory();
     } catch (err: any) {
       setCalcError(err.response?.data?.error || 'שגיאה בחישוב');
     } finally {
@@ -468,6 +499,41 @@ export const FinancialPage: React.FC = () => {
           >
             ✓ סיים וחזור לתחילה
           </button>
+        </div>
+      )}
+
+      {/* ── HISTORY ── */}
+      {history.length > 0 && (
+        <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 mt-4">
+          <h2 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
+            <span>📋</span> היסטוריית חישובים ({history.length})
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" dir="rtl">
+              <thead>
+                <tr className="text-gray-400 text-xs border-b border-gray-700">
+                  <th className="text-right py-2 pr-2">חייל</th>
+                  <th className="text-right py-2">גדוד</th>
+                  <th className="text-right py-2">ימי מילואים</th>
+                  <th className="text-right py-2">תגמול משוער</th>
+                  <th className="text-right py-2">חישב</th>
+                  <th className="text-right py-2">תאריך</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                    <td className="py-2 pr-2 text-white font-medium">{h.soldierName || h.soldierPersonalNumber}</td>
+                    <td className="py-2 text-gray-400 text-xs">{h.battalion}</td>
+                    <td className="py-2 text-gray-300">{h.reserveDays} ימים</td>
+                    <td className="py-2 text-emerald-400 font-semibold">₪{h.estimatedCompensation.toLocaleString('he-IL')}</td>
+                    <td className="py-2 text-gray-400 text-xs">{h.calculatedByName}</td>
+                    <td className="py-2 text-gray-500 text-xs">{new Date(h.createdAt).toLocaleDateString('he-IL')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
