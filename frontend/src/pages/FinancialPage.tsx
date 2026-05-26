@@ -320,7 +320,7 @@ export const FinancialPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    קבצים (PDF / תמונה) — ניתן לבחור כמה ביחד *
+                    קבצים (PDF / תמונה) — תלושים <span className="text-indigo-400">לפני המילואים</span>, ניתן לבחור כמה ביחד *
                   </label>
                   <input
                     ref={fileRef}
@@ -426,7 +426,7 @@ export const FinancialPage: React.FC = () => {
             <h2 className="text-white font-semibold text-sm">שלב 3 — חישוב תגמולי מילואים</h2>
           </div>
           <p className="text-gray-500 text-xs mb-4">
-            סורק את התלושים ומחפש "שכר חייב בביטוח לאומי" / "ברוטו לביטוח לאומי" — מחשב ממוצע 3 חודשים ÷ 90 × ימי מילואים
+            העלה 3 תלושי שכר <span className="text-gray-400 font-medium">לפני המילואים</span> — GPT מוצא את שכר הברוטו, מחשב ממוצע 3 חודשים ÷ 90 × ימי מילואים
           </p>
 
           {payslipDocs.length < 3 ? (

@@ -224,17 +224,23 @@ export const analyzePayslips = async (req: Request, res: Response): Promise<void
       const fileBuffer = fs.readFileSync(filePath);
 
       if (ext === '.pdf') {
-        // Extract text from PDF
         try {
           const pdfData = await pdfParse(fileBuffer);
           const text = pdfData.text?.trim();
-          if (text) {
+          if (text && text.length > 80) {
+            // Text-based PDF — send as extracted text
             contentParts.push({
               type: 'text',
               text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (טקסט מ-PDF) ---\n${text}`,
             });
           } else {
-            contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (PDF ריק/סרוק — לא ניתן לחלץ טקסט) ---` });
+            // Scanned/image-based PDF — send via vision
+            const base64 = fileBuffer.toString('base64');
+            contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (PDF סרוק) ---` });
+            contentParts.push({
+              type: 'image_url',
+              image_url: { url: `data:application/pdf;base64,${base64}`, detail: 'high' },
+            } as OpenAI.Chat.ChatCompletionContentPart);
           }
         } catch {
           contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (שגיאה בקריאת PDF) ---` });
@@ -293,22 +299,30 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
 
     contentParts.push({
       type: 'text',
-      text: `אתה מחשב תגמולי מילואים מתוך תלושי שכר ישראליים.
+      text: `אתה מחשב תגמולי מילואים מתוך תלושי שכר ישראליים (לפני תקופת המילואים).
 
-משימתך: מצא בכל תלוש את הסכום בשורה "שכר חייב בביטוח לאומי" או "ברוטו לביטוח לאומי" (אחד משני השמות האלה).
+משימתך: מצא בכל תלוש את הסכום הברוטו לביטוח לאומי. חפש את אחד מהשמות הבאים (לפי סדר עדיפות):
+1. "שכר חייב בביטוח לאומי"
+2. "ברוטו לביטוח לאומי"
+3. "ברוטו לב.ל" / "ברוטו לבל"
+4. "סה"כ ברוטו" / "ברוטו כולל"
+5. "שכר ברוטו"
+6. "הכנסה חייבת"
+7. אם אף אחד לא נמצא — קח את הסכום הכולל הגבוה ביותר בתלוש
+
+זהה גם את חודש התלוש (לדוגמה: "ינואר 2025").
 
 החזר תשובה ב-JSON בלבד, ללא טקסט נוסף, בפורמט הבא:
 {
   "months": [
-    { "label": "שם החודש/תלוש", "amount": 12345 },
-    { "label": "שם החודש/תלוש", "amount": 12345 },
-    { "label": "שם החודש/תלוש", "amount": 12345 }
+    { "label": "חודש/שנה", "amount": 12345 },
+    { "label": "חודש/שנה", "amount": 12345 },
+    { "label": "חודש/שנה", "amount": 12345 }
   ],
-  "notes": "הערות קצרות אם יש — למשל אם שורה לא נמצאה, או חריגות"
+  "notes": "הערות קצרות אם יש"
 }
 
-אם שורה לא נמצאת בתלוש מסוים, הכנס amount: 0.
-חשוב: החזר JSON תקני בלבד — ללא markdown, ללא \`\`\`json.`,
+חשוב: numbers only (ללא פסיקים, ללא ₪). JSON תקני בלבד — ללא markdown, ללא \`\`\`json.`,
     });
 
     let slipIndex = 0;
@@ -324,10 +338,21 @@ export const calculateReserve = async (req: Request, res: Response): Promise<voi
         try {
           const pdfData = await pdfParse(fileBuffer);
           const text = pdfData.text?.trim();
-          contentParts.push({
-            type: 'text',
-            text: `\n--- תלוש ${slipIndex}: ${doc.originalName} ---\n${text || '(לא נוצל טקסט)'}`,
-          });
+          if (text && text.length > 80) {
+            // Text-based PDF
+            contentParts.push({
+              type: 'text',
+              text: `\n--- תלוש ${slipIndex}: ${doc.originalName} ---\n${text}`,
+            });
+          } else {
+            // Scanned PDF — send via vision
+            const base64 = fileBuffer.toString('base64');
+            contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (PDF סרוק) ---` });
+            contentParts.push({
+              type: 'image_url',
+              image_url: { url: `data:application/pdf;base64,${base64}`, detail: 'high' },
+            } as OpenAI.Chat.ChatCompletionContentPart);
+          }
         } catch {
           contentParts.push({ type: 'text', text: `\n--- תלוש ${slipIndex}: ${doc.originalName} (שגיאה בקריאה) ---` });
         }
