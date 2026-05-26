@@ -27,6 +27,46 @@ CREATE TABLE IF NOT EXISTS people (
   INDEX idx_name (firstName, lastName)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS financial_calculations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  soldier_personal_number VARCHAR(50) NOT NULL,
+  soldier_name VARCHAR(200),
+  battalion VARCHAR(100) NOT NULL,
+  reserve_days INT NOT NULL,
+  estimated_compensation INT NOT NULL,
+  daily_average FLOAT NOT NULL,
+  months_json TEXT NOT NULL,
+  notes TEXT,
+  calculated_by_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_personal_number (soldier_personal_number),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS whatsapp_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  soldier_personal_number VARCHAR(50) NOT NULL,
+  soldier_name VARCHAR(200),
+  battalion VARCHAR(100),
+  phone VARCHAR(50) NOT NULL,
+  message_preview VARCHAR(160) NOT NULL,
+  sent_by_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_personal_number (soldier_personal_number),
+  INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS distribution_list (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  soldier_personal_number VARCHAR(50) NOT NULL UNIQUE,
+  soldier_name VARCHAR(200) NOT NULL,
+  battalion VARCHAR(100) NOT NULL,
+  phone VARCHAR(50) NOT NULL,
+  added_by_name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_personal_number (soldier_personal_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert admin user (password: admin123)
 INSERT INTO users (email, password, role) VALUES
 ('admin@crm.com', '$2a$10$9rgnVUJFpjyPoN9nMAGMk.WJDNYeBZPtiJ9PClo5AOTfhlp01URTi', 'admin');

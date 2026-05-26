@@ -169,22 +169,6 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
-    key: 'reserve',
-    title: 'מילואים',
-    emoji: '🪖',
-    color: 'border-green-500',
-    defaultOpen: true,
-    fields: [
-      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
-      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
-      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
-      { key: 'current_rotation', label: 'סבב נוכחי' },
-      { key: 'platoon', label: 'מחלקה' },
-      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
-    ],
-  },
-  {
     key: 'family',
     title: 'משפחה',
     emoji: '👨‍👩‍👧',
@@ -203,6 +187,7 @@ const SECTIONS: SectionDef[] = [
     title: 'מילואים',
     emoji: '🪖',
     color: 'border-green-500',
+    defaultOpen: true,
     fields: [
       { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
       { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
@@ -210,7 +195,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'current_rotation', label: 'סבב נוכחי' },
       { key: 'platoon', label: 'מחלקה' },
       { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'discharged', label: 'יצא לפטור', checkbox: true },
+      { key: 'discharged', label: 'חייל בפטור', checkbox: true },
       { key: 'discharge_date', label: 'תאריך פטור', datePicker: true, showIf: (fd) => fd.discharged === 'כן' },
       { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
@@ -348,6 +333,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [whatsappSending, setWhatsappSending] = useState(false);
   const [whatsappResult, setWhatsappResult] = useState<'success' | 'error' | null>(null);
+  const [wpCount, setWpCount] = useState(0);
+  const [distListToast, setDistListToast] = useState<string | null>(null);
 
   // Call summary
   const [callSummaryOpen, setCallSummaryOpen] = useState(false);
@@ -455,6 +442,14 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
       }).catch((err: any) => setSearchError(err.response?.data?.error || 'חייל לא נמצא'))
       .finally(() => setSearching(false));
   }, [initialBattalion, initialPersonalNumber]);
+
+  useEffect(() => {
+    if (soldier?.personal_number) {
+      api.get('/whatsapp/count', { params: { soldierPersonalNumber: soldier.personal_number } })
+        .then(({ data }) => setWpCount(data.count))
+        .catch(() => {});
+    }
+  }, [soldier?.personal_number]);
 
   const fetchChanges = async (battalion: string, soldierId: number) => {
     try {
@@ -931,9 +926,16 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                   setWhatsappSending(true);
                   setWhatsappResult(null);
                   try {
-                    await api.post('/whatsapp/send', { phone, message: full });
+                    await api.post('/whatsapp/send', {
+                      phone,
+                      message: full,
+                      soldierPersonalNumber: soldier.personal_number,
+                      soldierName: `${soldier.first_name} ${soldier.last_name}`,
+                      battalion: selectedBattalion,
+                    });
                     setWhatsappResult('success');
                     setWhatsappMessage('');
+                    setWpCount(prev => prev + 1);
                     setTimeout(() => { setWhatsappOpen(false); setWhatsappResult(null); }, 1500);
                   } catch {
                     setWhatsappResult('error');
@@ -971,12 +973,41 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                     </svg>
                     סכם שיחה
                   </button>
-                  <button onClick={() => { setWhatsappMessage(''); setWhatsappOpen(true); }} title="שלח WhatsApp"
-                    className="flex items-center gap-1.5 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
-                    WhatsApp
+                  <div className="relative">
+                    <button onClick={() => { setWhatsappMessage(''); setWhatsappOpen(true); }} title="שלח WhatsApp"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                      </svg>
+                      WhatsApp
+                    </button>
+                    {wpCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full text-white text-xs flex items-center justify-center font-bold">
+                        {wpCount > 9 ? '9+' : wpCount}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!soldier) return;
+                      const phone = soldier.mobile_phone?.replace(/\D/g, '').replace(/^0/, '972') || '';
+                      try {
+                        const { data } = await api.post('/api/distribution-list', {
+                          soldierPersonalNumber: soldier.personal_number,
+                          soldierName: `${soldier.first_name} ${soldier.last_name}`,
+                          battalion: selectedBattalion,
+                          phone,
+                        });
+                        setDistListToast(data.created ? '✅ נוסף לרשימת תפוצה' : 'כבר ברשימה');
+                      } catch {
+                        setDistListToast('שגיאה בהוספה לרשימה');
+                      }
+                      setTimeout(() => setDistListToast(null), 2500);
+                    }}
+                    title="הוסף לרשימת תפוצה"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    📢 תפוצה
                   </button>
                   {!readOnly && (
                     <button onClick={handleSave} disabled={saving}
@@ -1012,6 +1043,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                 </div>
               )}
               {saveSuccess && <div className="mt-3 p-3 bg-green-900/40 border border-green-700 rounded-lg text-sm text-green-300">הנתונים נשמרו בהצלחה</div>}
+              {distListToast && <div className="mt-3 p-3 bg-blue-900/40 border border-blue-700 rounded-lg text-sm text-blue-300">{distListToast}</div>}
               {saveError && <div className="mt-3 p-3 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300">{saveError}</div>}
               {callSuccess && <div className="mt-3 p-3 bg-indigo-900/40 border border-indigo-700 rounded-lg text-sm text-indigo-300">✅ סיכום השיחה נשמר בהצלחה</div>}
               {Object.keys(validationErrors).length > 0 && (

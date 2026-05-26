@@ -4,6 +4,8 @@ import { Request, Response } from 'express';
 import { sendBulkWhatsApp, sendWhatsAppMessage } from '../services/whatsappService';
 import { logger } from '../services/logger';
 import MessageCampaign from '../models/messageCampaign';
+import WhatsAppLog from '../models/whatsappLog';
+import User from '../models/user';
 
 const router = Router();
 router.use(authMiddleware);
@@ -64,6 +66,21 @@ router.post('/send', async (req: Request, res: Response): Promise<void> => {
     }
     const result = await sendWhatsAppMessage(phone, message.trim());
     if (result.success) {
+      try {
+        const user = await User.findByPk(req.userId, { attributes: ['firstName', 'lastName'] });
+        const senderName = user ? `${user.firstName} ${user.lastName}` : 'unknown';
+        const { soldierPersonalNumber, soldierName, battalion } = req.body;
+        if (soldierPersonalNumber) {
+          await WhatsAppLog.create({
+            soldierPersonalNumber,
+            soldierName: soldierName || null,
+            battalion: battalion || null,
+            phone,
+            messagePreview: message.trim().slice(0, 160),
+            sentByName: senderName,
+          });
+        }
+      } catch { /* non-fatal */ }
       res.json({ success: true });
     } else {
       res.status(500).json({ error: result.error || 'שגיאה בשליחה' });
@@ -71,6 +88,41 @@ router.post('/send', async (req: Request, res: Response): Promise<void> => {
   } catch (error: any) {
     logger.error('WhatsApp send error', { errorMessage: error.message });
     res.status(500).json({ error: error.message || 'שגיאה בשליחה' });
+  }
+});
+
+router.get('/count', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { soldierPersonalNumber } = req.query;
+    if (!soldierPersonalNumber) { res.json({ count: 0 }); return; }
+    const count = await WhatsAppLog.count({ where: { soldierPersonalNumber } });
+    const last = await WhatsAppLog.findOne({ where: { soldierPersonalNumber }, order: [['createdAt', 'DESC']] });
+    res.json({ count, lastSentAt: last?.createdAt || null });
+  } catch {
+    res.json({ count: 0 });
+  }
+});
+
+// Batch counts for multiple soldiers at once
+router.get('/counts', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { personalNumbers } = req.query;
+    if (!personalNumbers || typeof personalNumbers !== 'string') { res.json({ counts: {} }); return; }
+    const pnList = personalNumbers.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 500);
+    if (pnList.length === 0) { res.json({ counts: {} }); return; }
+    const rows = await WhatsAppLog.findAll({
+      where: { soldierPersonalNumber: pnList },
+      attributes: ['soldierPersonalNumber'],
+      raw: true,
+    });
+    const counts: Record<string, number> = {};
+    for (const row of rows as any[]) {
+      const pn = row.soldierPersonalNumber;
+      counts[pn] = (counts[pn] || 0) + 1;
+    }
+    res.json({ counts });
+  } catch {
+    res.json({ counts: {} });
   }
 });
 

@@ -11,7 +11,7 @@ interface Soldier {
 
 interface FinancialDoc {
   id: number;
-  type: 'payslip' | 'insurance';
+  type: 'payslip' | 'payslip_after' | 'insurance';
   originalName: string;
   soldierPersonalNumber: string;
   soldierName: string | null;
@@ -30,6 +30,20 @@ interface CalcResult {
   rawText: string;
 }
 
+interface CalcHistory {
+  id: number;
+  soldierPersonalNumber: string;
+  soldierName: string | null;
+  battalion: string;
+  reserveDays: number;
+  estimatedCompensation: number;
+  dailyAverage: number;
+  monthsJson: string;
+  notes: string | null;
+  calculatedByName: string;
+  createdAt: string;
+}
+
 export const FinancialPage: React.FC = () => {
   // Step tracking
   const [step, setStep] = useState<'select' | 'upload' | 'calc' | 'result'>('select');
@@ -42,20 +56,32 @@ export const FinancialPage: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Documents for selected soldier
+  // Documents for selected soldier (before reserve)
   const [docs, setDocs] = useState<FinancialDoc[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
 
-  // Upload
+  // Documents after reserve
+  const [docsAfter, setDocsAfter] = useState<FinancialDoc[]>([]);
+  const [loadingDocsAfter, setLoadingDocsAfter] = useState(false);
+
+  // Upload (before reserve)
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Upload (after reserve)
+  const [filesAfter, setFilesAfter] = useState<File[]>([]);
+  const [uploadProgressAfter, setUploadProgressAfter] = useState<{ done: number; total: number } | null>(null);
+  const fileAfterRef = useRef<HTMLInputElement>(null);
 
   // Reserve compensation calculator
   const [reserveDays, setReserveDays] = useState('');
   const [calculating, setCalculating] = useState(false);
   const [calcResult, setCalcResult] = useState<CalcResult | null>(null);
   const [calcError, setCalcError] = useState<string | null>(null);
+
+  // History
+  const [history, setHistory] = useState<CalcHistory[]>([]);
 
   // Feedback
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +119,19 @@ export const FinancialPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Load calculation history on mount
+  useEffect(() => {
+    api.get<{ history: CalcHistory[] }>('/financial/history')
+      .then(({ data }) => setHistory(data.history))
+      .catch(() => {});
+  }, []);
+
+  const reloadHistory = () => {
+    api.get<{ history: CalcHistory[] }>('/financial/history')
+      .then(({ data }) => setHistory(data.history))
+      .catch(() => {});
+  };
+
   const loadDocs = async (soldier: Soldier) => {
     setLoadingDocs(true);
     try {
@@ -107,17 +146,34 @@ export const FinancialPage: React.FC = () => {
     }
   };
 
+  const loadDocsAfter = async (soldier: Soldier) => {
+    setLoadingDocsAfter(true);
+    try {
+      const { data } = await api.get<{ documents: FinancialDoc[] }>('/financial', {
+        params: { type: 'payslip_after', soldierPersonalNumber: soldier.personal_number },
+      });
+      setDocsAfter(data.documents);
+    } catch {
+      /* non-fatal */
+    } finally {
+      setLoadingDocsAfter(false);
+    }
+  };
+
   const handleSelectSoldier = (soldier: Soldier) => {
     setSelectedSoldier(soldier);
     setSearchQuery(`${soldier.first_name} ${soldier.last_name}`);
     setShowDropdown(false);
     setDocs([]);
+    setDocsAfter([]);
     setFiles([]);
+    setFilesAfter([]);
     setCalcResult(null);
     setCalcError(null);
     setReserveDays('');
     setStep('upload');
     loadDocs(soldier);
+    loadDocsAfter(soldier);
   };
 
   const handleReset = () => {
@@ -125,13 +181,16 @@ export const FinancialPage: React.FC = () => {
     setSelectedSoldier(null);
     setSearchQuery('');
     setDocs([]);
+    setDocsAfter([]);
     setFiles([]);
+    setFilesAfter([]);
     setCalcResult(null);
     setCalcError(null);
     setReserveDays('');
     setError(null);
     setSuccess(null);
     if (fileRef.current) fileRef.current.value = '';
+    if (fileAfterRef.current) fileAfterRef.current.value = '';
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -173,6 +232,45 @@ export const FinancialPage: React.FC = () => {
     }
   };
 
+  const handleUploadAfter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!filesAfter.length || !selectedSoldier) return;
+    setUploadProgressAfter({ done: 0, total: filesAfter.length });
+    let done = 0;
+    let failed = 0;
+    for (const file of filesAfter) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'payslip_after');
+        fd.append('soldierPersonalNumber', selectedSoldier.personal_number);
+        fd.append('soldierName', `${selectedSoldier.first_name} ${selectedSoldier.last_name}`);
+        fd.append('battalion', selectedSoldier.battalionName);
+        await api.post('/financial/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        done++;
+        setUploadProgressAfter({ done, total: filesAfter.length });
+      } catch {
+        failed++;
+      }
+    }
+    setFilesAfter([]);
+    if (fileAfterRef.current) fileAfterRef.current.value = '';
+    setUploadProgressAfter(null);
+    if (failed > 0) setError(`${failed} קבצים נכשלו בהעלאה`);
+    else { setSuccess(`${done} תלושים הועלו בהצלחה`); setTimeout(() => setSuccess(null), 3000); }
+    await loadDocsAfter(selectedSoldier);
+  };
+
+  const handleDeleteDocAfter = async (id: number) => {
+    if (!window.confirm('למחוק תלוש זה?')) return;
+    try {
+      await api.delete(`/financial/${id}`);
+      if (selectedSoldier) await loadDocsAfter(selectedSoldier);
+    } catch {
+      setError('שגיאה במחיקת המסמך');
+    }
+  };
+
   const handleCalculate = async () => {
     const payslips = docs.filter((d) => d.type === 'payslip');
     if (payslips.length < 3) return;
@@ -188,6 +286,7 @@ export const FinancialPage: React.FC = () => {
       });
       setCalcResult(data);
       setStep('result');
+      reloadHistory();
     } catch (err: any) {
       setCalcError(err.response?.data?.error || 'שגיאה בחישוב');
     } finally {
@@ -365,6 +464,77 @@ export const FinancialPage: React.FC = () => {
         </div>
       )}
 
+      {/* ── AFTER-RESERVE PAYSLIPS (no step gate, future use) ── */}
+      {(step === 'upload' || step === 'calc' || step === 'result') && (
+        <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 mb-4">
+          <h2 className="text-white font-semibold mb-1 text-sm flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center text-xs font-bold text-gray-300">📂</span>
+            תלושי שכר אחרי המילואים
+          </h2>
+          <p className="text-gray-500 text-xs mb-4">לשימוש עתידי — תלושים אלו אינם נכנסים לחישוב כרגע</p>
+
+          {/* Upload form */}
+          <form onSubmit={handleUploadAfter} className="mb-4 bg-gray-800 border border-gray-700 rounded-xl p-4 space-y-3">
+            <label className="block text-gray-400 text-xs mb-1">
+              בחר תלושי שכר (PDF / תמונה) מהחודשים <span className="text-amber-400 font-medium">אחרי המילואים</span>
+            </label>
+            <input
+              ref={fileAfterRef}
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setFilesAfter(Array.from(e.target.files || []))}
+              className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 text-sm file:mr-3 file:bg-amber-700 file:text-white file:border-0 file:rounded file:px-2 file:py-1 file:text-xs"
+            />
+            {filesAfter.length > 0 && (
+              <p className="text-amber-300 text-xs">{filesAfter.length} קבצים נבחרו: {filesAfter.map((f) => f.name).join(', ')}</p>
+            )}
+            {uploadProgressAfter && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>מעלה {uploadProgressAfter.done}/{uploadProgressAfter.total}...</span>
+                  <span>{Math.round((uploadProgressAfter.done / uploadProgressAfter.total) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-1.5">
+                  <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${(uploadProgressAfter.done / uploadProgressAfter.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={!!uploadProgressAfter || !filesAfter.length}
+                className="px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+              >
+                {uploadProgressAfter ? `מעלה ${uploadProgressAfter.done}/${uploadProgressAfter.total}...` : `העלה${filesAfter.length > 0 ? ` (${filesAfter.length})` : ''}`}
+              </button>
+            </div>
+          </form>
+
+          {/* Uploaded after-reserve docs list */}
+          {loadingDocsAfter ? (
+            <div className="flex justify-center py-4">
+              <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : docsAfter.length > 0 ? (
+            <div className="space-y-2">
+              {docsAfter.map((d) => (
+                <div key={d.id} className="flex items-center justify-between bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-amber-400 text-xs">📄</span>
+                    <span className="text-gray-200 text-sm truncate">{d.originalName}</span>
+                    <span className="text-gray-500 text-xs hidden sm:block">{new Date(d.createdAt).toLocaleDateString('he-IL')}</span>
+                  </div>
+                  <button onClick={() => handleDeleteDocAfter(d.id)} className="mr-3 px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors flex-shrink-0">מחק</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm text-center py-3">אין תלושים אחרי מילואים עדיין</p>
+          )}
+        </div>
+      )}
+
       {/* ── STEP 3: חישוב ── */}
       {(step === 'calc' || step === 'result') && (
         <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 mb-4">
@@ -468,6 +638,41 @@ export const FinancialPage: React.FC = () => {
           >
             ✓ סיים וחזור לתחילה
           </button>
+        </div>
+      )}
+
+      {/* ── HISTORY ── */}
+      {history.length > 0 && (
+        <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 mt-4">
+          <h2 className="text-white font-semibold text-sm mb-3 flex items-center gap-2">
+            <span>📋</span> היסטוריית חישובים ({history.length})
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" dir="rtl">
+              <thead>
+                <tr className="text-gray-400 text-xs border-b border-gray-700">
+                  <th className="text-right py-2 pr-2">חייל</th>
+                  <th className="text-right py-2">גדוד</th>
+                  <th className="text-right py-2">ימי מילואים</th>
+                  <th className="text-right py-2">תגמול משוער</th>
+                  <th className="text-right py-2">חישב</th>
+                  <th className="text-right py-2">תאריך</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h) => (
+                  <tr key={h.id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                    <td className="py-2 pr-2 text-white font-medium">{h.soldierName || h.soldierPersonalNumber}</td>
+                    <td className="py-2 text-gray-400 text-xs">{h.battalion}</td>
+                    <td className="py-2 text-gray-300">{h.reserveDays} ימים</td>
+                    <td className="py-2 text-emerald-400 font-semibold">₪{h.estimatedCompensation.toLocaleString('he-IL')}</td>
+                    <td className="py-2 text-gray-400 text-xs">{h.calculatedByName}</td>
+                    <td className="py-2 text-gray-500 text-xs">{new Date(h.createdAt).toLocaleDateString('he-IL')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
