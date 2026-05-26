@@ -168,6 +168,22 @@ const SECTIONS: SectionDef[] = [
     ],
   },
   {
+    key: 'reserve',
+    title: 'מילואים',
+    emoji: '🪖',
+    color: 'border-green-500',
+    defaultOpen: true,
+    fields: [
+      { key: 'reserve_days_2025', label: 'ימי מילואים 2025' },
+      { key: 'reserve_days_2026', label: 'ימי מילואים 2026' },
+      { key: 'mobilization_dates', label: 'תאריכי גיוס/סבבים', multiline: true },
+      { key: 'current_rotation', label: 'סבב נוכחי' },
+      { key: 'platoon', label: 'מחלקה' },
+      { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
+      { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
+    ],
+  },
+  {
     key: 'family',
     title: 'משפחה',
     emoji: '👨‍👩‍👧',
