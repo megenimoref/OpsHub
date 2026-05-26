@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import OpenAI from 'openai';
-import pdfParse from 'pdf-parse';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
 import FinancialDocument from '../models/financialDocument';
 import User from '../models/user';
 
