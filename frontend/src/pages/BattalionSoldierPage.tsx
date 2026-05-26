@@ -487,11 +487,13 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   };
 
   const isUnavailable = (formData.request_status || '') === 'חייל לא זמין';
+  const isPending = (formData.request_status || '') === 'ממתין לטיפול';
+  const skipRequiredValidation = isUnavailable || isPending;
 
   const validate = (): boolean => {
     const errors: Partial<Record<keyof Soldier, string>> = {};
-    // Required fields — skip all if soldier is unavailable
-    if (!isUnavailable) {
+    // Required fields — skip all if soldier is unavailable or pending
+    if (!skipRequiredValidation) {
       if (!formData.marital_status) errors.marital_status = 'שדה חובה';
     }
     if (!formData.request_status) errors.request_status = 'שדה חובה';
@@ -543,7 +545,7 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
 
   const renderField = (field: FieldDef) => {
     const { key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
-    const required = field.required && !isUnavailable;
+    const required = field.required && !skipRequiredValidation;
     if (showIf && !showIf(formData as Partial<Soldier>)) return null;
     const fieldChanges = changes.filter((c) => c.field_name === key);
     const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
