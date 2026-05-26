@@ -3,7 +3,7 @@ import sequelize from '../config/database';
 
 class FinancialDocument extends Model {
   public id!: number;
-  public type!: 'payslip' | 'insurance';
+  public type!: 'payslip' | 'payslip_after' | 'insurance';
   public originalName!: string;
   public fileName!: string; // stored file name on disk
   public soldierPersonalNumber!: string;
@@ -22,7 +22,7 @@ FinancialDocument.init(
       primaryKey: true,
     },
     type: {
-      type: DataTypes.ENUM('payslip', 'insurance'),
+      type: DataTypes.ENUM('payslip', 'payslip_after', 'insurance'),
       allowNull: false,
     },
     originalName: {
