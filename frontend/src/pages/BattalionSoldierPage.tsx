@@ -129,6 +129,7 @@ interface FieldDef {
   userSelect?: boolean;
   selectWithDetail?: { options: string[]; detailOn: string[] };
   yesNo?: boolean; // renders כן/לא select
+  checkbox?: boolean; // renders a styled checkbox (stores 'כן'/'')
   placeholder?: string;
   archived?: boolean; // show grayed out, not editable
   showIf?: (fd: Partial<Soldier>) => boolean;
@@ -209,7 +210,7 @@ const SECTIONS: SectionDef[] = [
       { key: 'current_rotation', label: 'סבב נוכחי' },
       { key: 'platoon', label: 'מחלקה' },
       { key: 'command_role', label: 'תפקיד פיקודי', options: ['ללא', 'מג"ד', 'סמג"ד', 'מ"פ', 'סמ"פ', 'מ"מ'] },
-      { key: 'discharged', label: 'יצא לפטור', yesNo: true },
+      { key: 'discharged', label: 'יצא לפטור', checkbox: true },
       { key: 'discharge_date', label: 'תאריך פטור', datePicker: true, showIf: (fd) => fd.discharged === 'כן' },
       { key: 'notes_reserve', label: 'פירוט / הערות', multiline: true },
     ],
@@ -503,11 +504,13 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   };
 
   const isUnavailable = (formData.request_status || '') === 'חייל לא זמין';
+  const isPending = (formData.request_status || '') === 'ממתין לטיפול';
+  const skipRequiredValidation = isUnavailable || isPending;
 
   const validate = (): boolean => {
     const errors: Partial<Record<keyof Soldier, string>> = {};
-    // Required fields — skip all if soldier is unavailable
-    if (!isUnavailable) {
+    // Required fields — skip all if soldier is unavailable or pending
+    if (!skipRequiredValidation) {
       if (!formData.marital_status) errors.marital_status = 'שדה חובה';
     }
     if (!formData.request_status) errors.request_status = 'שדה חובה';
@@ -558,8 +561,8 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
   const showDivorcedReminder = isDivorced(maritalVal);
 
   const renderField = (field: FieldDef) => {
-    const { key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, placeholder, archived, showIf } = field;
-    const required = field.required && !isUnavailable;
+    const { key, label, multiline, options, datePicker, statusSelect, userSelect, selectWithDetail, yesNo, checkbox, placeholder, archived, showIf } = field;
+    const required = field.required && !skipRequiredValidation;
     if (showIf && !showIf(formData as Partial<Soldier>)) return null;
     const fieldChanges = changes.filter((c) => c.field_name === key);
     const parsed = selectWithDetail ? parseSelectWithDetail((formData[key] as string) || '', selectWithDetail.options) : null;
@@ -579,6 +582,29 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
           <div className={`w-full px-3 py-2 bg-gray-800/40 border border-gray-700/40 text-gray-500 rounded-lg text-sm ${multiline ? 'min-h-[72px] whitespace-pre-wrap' : ''}`}>
             {val}
           </div>
+        </div>
+      );
+    }
+
+    if (checkbox) {
+      const checked = (formData[key] as string) === 'כן';
+      return (
+        <div key={key} className="flex items-center gap-3 py-1">
+          <button
+            type="button"
+            onClick={() => !isDisabled && handleChange(key, checked ? '' : 'כן')}
+            disabled={isDisabled}
+            className={`relative w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0
+              ${checked ? 'bg-indigo-600 border-indigo-600' : 'bg-gray-700 border-gray-500'}
+              ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-indigo-400'}`}
+          >
+            {checked && (
+              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+              </svg>
+            )}
+          </button>
+          <span className={`text-sm font-medium ${checked ? 'text-indigo-300' : 'text-gray-300'}`}>{label}</span>
         </div>
       );
     }

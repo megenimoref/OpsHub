@@ -47,6 +47,11 @@ export const FinancialPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // GPT Analysis
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+
   // Search soldiers with debounce
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
@@ -155,6 +160,22 @@ export const FinancialPage: React.FC = () => {
       if (selectedSoldier) loadDocs(selectedSoldier, activeTab);
     } catch {
       setError('שגיאה במחיקת המסמך');
+    }
+  };
+
+  const handleAnalyze = async () => {
+    const payslips = docs.filter((d) => d.type === 'payslip');
+    if (payslips.length < 3) return;
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    try {
+      const { data } = await api.post('/financial/analyze', { documentIds: payslips.map((d) => d.id) });
+      setAnalysisResult(data.analysis);
+    } catch (err: any) {
+      setAnalysisError(err.response?.data?.error || 'שגיאה בניתוח GPT');
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -340,6 +361,70 @@ export const FinancialPage: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* GPT Analysis panel — only for payslip tab */}
+          {activeTab === 'payslip' && !loadingDocs && (
+            <div className="mt-5 border-t border-gray-700 pt-5">
+              {(() => {
+                const payslipCount = docs.filter((d) => d.type === 'payslip').length;
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                          🤖 ניתוח GPT — תלושי שכר
+                        </h3>
+                        {payslipCount < 3 ? (
+                          <p className="text-yellow-400 text-xs mt-0.5">
+                            נדרשים לפחות 3 תלושי שכר ({payslipCount}/3 הועלו)
+                          </p>
+                        ) : (
+                          <p className="text-gray-400 text-xs mt-0.5">
+                            {payslipCount} תלושים מוכנים לניתוח
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={payslipCount < 3 || analyzing}
+                        className="px-4 py-2 bg-violet-700 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2"
+                      >
+                        {analyzing ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            מנתח...
+                          </>
+                        ) : (
+                          <>🔍 נתח תלושים</>
+                        )}
+                      </button>
+                    </div>
+
+                    {analysisError && (
+                      <div className="p-3 bg-red-900/40 border border-red-700 text-red-300 rounded-lg text-sm">
+                        {analysisError}
+                      </div>
+                    )}
+
+                    {analysisResult && (
+                      <div className="bg-gray-800 border border-violet-700/50 rounded-xl p-5">
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-violet-400 text-sm font-semibold">תוצאות ניתוח GPT-4o</span>
+                          <button
+                            onClick={() => setAnalysisResult(null)}
+                            className="mr-auto text-gray-500 hover:text-white text-xs transition-colors"
+                          >✕</button>
+                        </div>
+                        <div className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
+                          {analysisResult}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
