@@ -2,13 +2,18 @@
 set -e
 
 PROJECT_DIR="$HOME/crm/OpsHub"
+COMPOSE="sudo docker compose --env-file .env -f docker-compose.prod.yml"
 
-echo "=== [1/2] Build & restart containers ==="
 cd "$PROJECT_DIR"
-sudo docker compose --env-file .env -f docker-compose.prod.yml up -d --build
 
-echo "=== [2/2] Health check ==="
+echo "=== [1/3] Remove orphan containers ==="
+$COMPOSE down --remove-orphans 2>/dev/null || true
+
+echo "=== [2/3] Build & start ==="
+$COMPOSE up -d --build
+
+echo "=== [3/3] Health check ==="
 sleep 15
-sudo docker compose -f docker-compose.prod.yml ps
+$COMPOSE ps
 
 echo "Deploy complete"
