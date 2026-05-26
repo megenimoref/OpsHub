@@ -400,3 +400,16 @@ export const getCalculationHistory = async (req: Request, res: Response): Promis
     res.status(500).json({ error: 'שגיאה בטעינת ההיסטוריה' });
   }
 };
+
+export const deleteCalculationHistory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!isAllowed(req.userRole || '')) { res.status(403).json({ error: 'אין הרשאה' }); return; }
+    const { id } = req.params;
+    const row = await FinancialCalculation.findByPk(id);
+    if (!row) { res.status(404).json({ error: 'רשומה לא נמצאה' }); return; }
+    await row.destroy();
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: 'שגיאה במחיקת הרשומה' });
+  }
+};

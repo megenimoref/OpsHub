@@ -160,6 +160,31 @@ export const FinancialPage: React.FC = () => {
     }
   };
 
+  const handleReopenFromHistory = (h: CalcHistory) => {
+    const nameParts = (h.soldierName || '').trim().split(' ');
+    const soldier: Soldier = {
+      personal_number: h.soldierPersonalNumber,
+      first_name: nameParts[0] || h.soldierPersonalNumber,
+      last_name: nameParts.slice(1).join(' ') || '',
+      mobile_phone: '',
+      battalionName: h.battalion,
+    };
+    setSelectedSoldier(soldier);
+    setSearchQuery(h.soldierName || h.soldierPersonalNumber);
+    setShowDropdown(false);
+    setDocs([]);
+    setDocsAfter([]);
+    setFiles([]);
+    setFilesAfter([]);
+    setCalcResult(null);
+    setCalcError(null);
+    setReserveDays(h.reserveDays.toString());
+    setStep('upload');
+    loadDocs(soldier);
+    loadDocsAfter(soldier);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSelectSoldier = (soldier: Soldier) => {
     setSelectedSoldier(soldier);
     setSearchQuery(`${soldier.first_name} ${soldier.last_name}`);
@@ -449,14 +474,6 @@ export const FinancialPage: React.FC = () => {
                   <button onClick={() => handleDeleteDoc(d.id)} className="mr-3 px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors flex-shrink-0">מחק</button>
                 </div>
               ))}
-              {payslipDocs.length >= 3 && step === 'upload' && (
-                <button
-                  onClick={() => setStep('calc')}
-                  className="w-full mt-2 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  המשך לחישוב ←
-                </button>
-              )}
             </div>
           ) : (
             <p className="text-gray-500 text-sm text-center py-3">אין תלושים עדיין — העלה לפחות 3</p>
@@ -533,6 +550,16 @@ export const FinancialPage: React.FC = () => {
             <p className="text-gray-500 text-sm text-center py-3">אין תלושים אחרי מילואים עדיין</p>
           )}
         </div>
+      )}
+
+      {/* ── המשך לחישוב — מופיע אחרי שני סקשני התלושים ── */}
+      {step === 'upload' && payslipDocs.length >= 3 && (
+        <button
+          onClick={() => setStep('calc')}
+          className="w-full mb-4 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl text-sm font-medium transition-colors"
+        >
+          המשך לחישוב ←
+        </button>
       )}
 
       {/* ── STEP 3: חישוב ── */}
@@ -657,6 +684,7 @@ export const FinancialPage: React.FC = () => {
                   <th className="text-right py-2">תגמול משוער</th>
                   <th className="text-right py-2">חישב</th>
                   <th className="text-right py-2">תאריך</th>
+                  <th className="py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -668,6 +696,31 @@ export const FinancialPage: React.FC = () => {
                     <td className="py-2 text-emerald-400 font-semibold">₪{h.estimatedCompensation.toLocaleString('he-IL')}</td>
                     <td className="py-2 text-gray-400 text-xs">{h.calculatedByName}</td>
                     <td className="py-2 text-gray-500 text-xs">{new Date(h.createdAt).toLocaleDateString('he-IL')}</td>
+                    <td className="py-2 pl-2">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleReopenFromHistory(h)}
+                          className="px-2 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 rounded text-xs transition-colors whitespace-nowrap"
+                          title="טען מחדש לעריכה"
+                        >
+                          ✏️ פתח
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('למחוק רשומה זו מההיסטוריה?')) return;
+                            try {
+                              await api.delete(`/financial/history/${h.id}`);
+                              setHistory((prev) => prev.filter((r) => r.id !== h.id));
+                            } catch {
+                              setError('שגיאה במחיקת הרשומה');
+                            }
+                          }}
+                          className="px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors whitespace-nowrap"
+                        >
+                          הסר
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
