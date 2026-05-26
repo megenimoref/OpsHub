@@ -111,6 +111,8 @@ CREATE TABLE IF NOT EXISTS soldiers (
   nonprofit_assistance TEXT,
   fighter TEXT,
   vacation_break TEXT,
+  discharged VARCHAR(10) DEFAULT NULL,
+  discharge_date DATE DEFAULT NULL,
   notes_personal TEXT,
   notes_family TEXT,
   notes_employment TEXT,
@@ -136,6 +138,7 @@ const NEW_SOLDIER_COLUMNS = [
   'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
   'legal_advice', 'nonprofit_assistance',
   'fighter', 'vacation_break',
+  'discharged', 'discharge_date',
   'notes_personal', 'notes_family', 'notes_employment', 'notes_welfare',
   'notes_reserve', 'notes_rights', 'notes_general',
 ];
