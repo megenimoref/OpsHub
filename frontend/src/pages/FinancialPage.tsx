@@ -657,6 +657,7 @@ export const FinancialPage: React.FC = () => {
                   <th className="text-right py-2">תגמול משוער</th>
                   <th className="text-right py-2">חישב</th>
                   <th className="text-right py-2">תאריך</th>
+                  <th className="py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -668,6 +669,22 @@ export const FinancialPage: React.FC = () => {
                     <td className="py-2 text-emerald-400 font-semibold">₪{h.estimatedCompensation.toLocaleString('he-IL')}</td>
                     <td className="py-2 text-gray-400 text-xs">{h.calculatedByName}</td>
                     <td className="py-2 text-gray-500 text-xs">{new Date(h.createdAt).toLocaleDateString('he-IL')}</td>
+                    <td className="py-2 pl-2">
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm('למחוק רשומה זו מההיסטוריה?')) return;
+                          try {
+                            await api.delete(`/financial/history/${h.id}`);
+                            setHistory((prev) => prev.filter((r) => r.id !== h.id));
+                          } catch {
+                            setError('שגיאה במחיקת הרשומה');
+                          }
+                        }}
+                        className="px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors whitespace-nowrap"
+                      >
+                        הסר
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
