@@ -160,6 +160,31 @@ export const FinancialPage: React.FC = () => {
     }
   };
 
+  const handleReopenFromHistory = (h: CalcHistory) => {
+    const nameParts = (h.soldierName || '').trim().split(' ');
+    const soldier: Soldier = {
+      personal_number: h.soldierPersonalNumber,
+      first_name: nameParts[0] || h.soldierPersonalNumber,
+      last_name: nameParts.slice(1).join(' ') || '',
+      mobile_phone: '',
+      battalionName: h.battalion,
+    };
+    setSelectedSoldier(soldier);
+    setSearchQuery(h.soldierName || h.soldierPersonalNumber);
+    setShowDropdown(false);
+    setDocs([]);
+    setDocsAfter([]);
+    setFiles([]);
+    setFilesAfter([]);
+    setCalcResult(null);
+    setCalcError(null);
+    setReserveDays(h.reserveDays.toString());
+    setStep('upload');
+    loadDocs(soldier);
+    loadDocsAfter(soldier);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSelectSoldier = (soldier: Soldier) => {
     setSelectedSoldier(soldier);
     setSearchQuery(`${soldier.first_name} ${soldier.last_name}`);
@@ -672,20 +697,29 @@ export const FinancialPage: React.FC = () => {
                     <td className="py-2 text-gray-400 text-xs">{h.calculatedByName}</td>
                     <td className="py-2 text-gray-500 text-xs">{new Date(h.createdAt).toLocaleDateString('he-IL')}</td>
                     <td className="py-2 pl-2">
-                      <button
-                        onClick={async () => {
-                          if (!window.confirm('למחוק רשומה זו מההיסטוריה?')) return;
-                          try {
-                            await api.delete(`/financial/history/${h.id}`);
-                            setHistory((prev) => prev.filter((r) => r.id !== h.id));
-                          } catch {
-                            setError('שגיאה במחיקת הרשומה');
-                          }
-                        }}
-                        className="px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors whitespace-nowrap"
-                      >
-                        הסר
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleReopenFromHistory(h)}
+                          className="px-2 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 rounded text-xs transition-colors whitespace-nowrap"
+                          title="טען מחדש לעריכה"
+                        >
+                          ✏️ פתח
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!window.confirm('למחוק רשומה זו מההיסטוריה?')) return;
+                            try {
+                              await api.delete(`/financial/history/${h.id}`);
+                              setHistory((prev) => prev.filter((r) => r.id !== h.id));
+                            } catch {
+                              setError('שגיאה במחיקת הרשומה');
+                            }
+                          }}
+                          className="px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs transition-colors whitespace-nowrap"
+                        >
+                          הסר
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
