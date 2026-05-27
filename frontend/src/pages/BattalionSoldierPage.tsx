@@ -987,28 +987,6 @@ export const BattalionSoldierPage: React.FC<BattalionSoldierPageProps> = ({
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={async () => {
-                      if (!soldier) return;
-                      const phone = soldier.mobile_phone?.replace(/\D/g, '').replace(/^0/, '972') || '';
-                      try {
-                        const { data } = await api.post('/api/distribution-list', {
-                          soldierPersonalNumber: soldier.personal_number,
-                          soldierName: `${soldier.first_name} ${soldier.last_name}`,
-                          battalion: selectedBattalion,
-                          phone,
-                        });
-                        setDistListToast(data.created ? '✅ נוסף לרשימת תפוצה' : 'כבר ברשימה');
-                      } catch {
-                        setDistListToast('שגיאה בהוספה לרשימה');
-                      }
-                      setTimeout(() => setDistListToast(null), 2500);
-                    }}
-                    title="הוסף לרשימת תפוצה"
-                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    📢 תפוצה
-                  </button>
                   {!readOnly && (
                     <button onClick={handleSave} disabled={saving}
                       className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors">
