@@ -125,23 +125,45 @@ CREATE TABLE IF NOT EXISTS soldiers (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `;
 
-const NEW_SOLDIER_COLUMNS = [
-  'reserve_days_2025', 'reserve_days_2026', 'command_role', 'children_ages',
-  'age', 'platoon', 'current_rotation', 'special_family_status',
-  'spouse_call_doc', 'whatsapp_battalion', 'whatsapp_family',
-  'divorced_assistance', 'birth_assistance', 'moving_assistance',
-  'household_assistance', 'complex_problems', 'resilience_treatment',
-  'followup_1', 'followup_2', 'personal_equipment', 'aid_fund_submission', 'mobilization_dates',
-  'route_6', 'professional',
-  'has_children', 'summer_camp', 'birth_grant', 'spouse_student', 'private_lessons',
-  'study_grants', 'spouse_employment_status', 'income_loss', 'pet', 'resilience_couples',
-  'repairs', 'vacation_compensation', 'flight_compensation', 'income_tax',
-  'legal_advice', 'nonprofit_assistance',
-  'fighter', 'vacation_break',
-  'discharged', 'discharge_date',
-  'notes_personal', 'notes_family', 'notes_employment', 'notes_welfare',
-  'notes_reserve', 'notes_rights', 'notes_general',
-];
+/**
+ * Parse column name → full SQL definition from SOLDIERS_TABLE_DDL.
+ * This replaces the old hand-maintained NEW_SOLDIER_COLUMNS list so that
+ * any column added to the DDL is automatically migrated to all existing
+ * battalion DBs — no manual list to keep in sync.
+ *
+ * Columns always present in the original schema (id, created_at, updated_at,
+ * and the original "core" columns) are excluded from auto-migration because
+ * those DBs already have them.
+ */
+const DDL_BASELINE_COLUMNS = new Set([
+  'id', 'personal_number', 'last_name', 'first_name', 'mobile_phone',
+  'request_status', 'marital_status', 'children_count', 'student_indicator',
+  'spouse', 'spouse_phone', 'data_indicators', 'contact_by', 'contact_date',
+  'contact_with', 'employment_status', 'welfare_fund', 'aid_fund_submission',
+  'national_insurance', 'other_assistance', 'applications_needed', 'notes',
+  'created_at', 'updated_at',
+]);
+
+function getDDLColumnDefs(ddl: string): Map<string, string> {
+  const defs = new Map<string, string>();
+  for (const rawLine of ddl.split('\n')) {
+    const line = rawLine.trim().replace(/,\s*$/, '');
+    // Skip empty, constraint, or ENGINE/CHARSET lines
+    if (!line || /^(CREATE|PRIMARY|UNIQUE|INDEX|KEY|ENGINE|CHARSET|\))/i.test(line)) continue;
+    // Match: optional backtick + column_name + whitespace + rest (type + modifiers)
+    const m = line.match(/^`?([a-zA-Z_][a-zA-Z0-9_]*)`?\s+(.+)$/);
+    if (!m) continue;
+    const colName = m[1].toLowerCase();
+    const colDef  = m[2].trim();
+    if (DDL_BASELINE_COLUMNS.has(colName)) continue;
+    defs.set(colName, colDef);
+  }
+  return defs;
+}
+
+// Derived at module load — any column added to SOLDIERS_TABLE_DDL above is
+// automatically included here, so no manual list is ever needed again.
+const DDL_COLUMN_DEFS = getDDLColumnDefs(SOLDIERS_TABLE_DDL);
 
 export async function ensureBattalionDatabase(battalionName: string): Promise<void> {
   const dbName = getBattalionDbName(battalionName);
@@ -173,10 +195,12 @@ export async function ensureBattalionDatabase(battalionName: string): Promise<vo
       }
     }
 
-    // Add new columns to existing tables if missing
-    for (const col of NEW_SOLDIER_COLUMNS) {
+    // Add any column defined in the DDL that is missing from the existing table.
+    // Using DDL_COLUMN_DEFS (auto-derived from SOLDIERS_TABLE_DDL) means we never
+    // have to maintain a separate column list — just edit the DDL above.
+    for (const [col, def] of DDL_COLUMN_DEFS) {
       if (!existingCols.has(col)) {
-        await dbConn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
+        await dbConn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` ${def}`);
       }
     }
 
@@ -1056,9 +1080,10 @@ async function ensureSoldiersColumns(conn: mysql.Connection, dbName: string): Pr
     [dbName]
   );
   const existingCols = new Set(cols.map((c) => c.COLUMN_NAME as string));
-  for (const col of NEW_SOLDIER_COLUMNS) {
+  // Use DDL_COLUMN_DEFS so any new DDL column is auto-added on next save
+  for (const [col, def] of DDL_COLUMN_DEFS) {
     if (!existingCols.has(col)) {
-      await conn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` TEXT`);
+      await conn.query(`ALTER TABLE soldiers ADD COLUMN \`${col}\` ${def}`);
     }
   }
 }
