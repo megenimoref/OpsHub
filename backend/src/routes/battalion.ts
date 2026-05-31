@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
-import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, refreshAllAllocations, cleanOrphanAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler, verifyExcelDetails, syncExcelDetails } from '../controllers/battalionController';
+import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, getAssistanceBreakdown, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, refreshAllAllocations, cleanOrphanAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler, verifyExcelDetails, syncExcelDetails } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats, deallocateSoldiers, assignSoldiers } from '../controllers/allocationController';
 import { getSheagatHaariStats } from '../services/sheagatHaariService';
 import { logger } from '../services/logger';
@@ -34,6 +34,7 @@ router.get('/dashboard', authMiddleware, getDashboard);
 // "שאגת הארי" — battalion-level statistics with category breakdown.
 // Heavy query (touches every battalion DB once); cache layer can be added
 // later if it becomes a hot endpoint.
+router.get('/assistance-breakdown', authMiddleware, getAssistanceBreakdown);
 router.get('/sheagat-haari', authMiddleware, async (req, res) => {
   try {
     const data = await getSheagatHaariStats();

@@ -970,6 +970,141 @@ const REVERSE_COLUMN_MAP: Record<string, string> = Object.entries(COLUMN_MAP).re
 
 const EXPORT_SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
 
+// ── Detailed assistance breakdown (field-based, not text-search) ─────────────
+// Each field is counted precisely by its actual stored value, avoiding the
+// "false positive" problem of free-text keyword search (שאגת הארי).
+export const getAssistanceBreakdown = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalionFilter = req.query.battalion ? String(req.query.battalion) : undefined;
+
+    // All assistance fields with their label and counting logic
+    const FIELDS: { key: string; label: string; mode: 'nadresh' | 'yes' | 'nonempty' | 'received' }[] = [
+      { key: 'national_insurance',   label: 'ביטוח לאומי',              mode: 'nadresh' },
+      { key: 'household_assistance', label: 'בייביסיטר / עוזרת בית',    mode: 'nadresh' },
+      { key: 'route_6',              label: 'כביש 6',                   mode: 'nadresh' },
+      { key: 'income_loss',          label: 'אובדן הכנסה',              mode: 'nadresh' },
+      { key: 'nonprofit_assistance', label: 'עמית (טיפולים)',           mode: 'nadresh' },
+      { key: 'income_tax',           label: 'מס הכנסה / נזק עקיף',      mode: 'nadresh' },
+      { key: 'resilience_treatment', label: 'טיפול רגשי',               mode: 'nadresh' },
+      { key: 'resilience_couples',   label: 'טיפול זוגי',               mode: 'nadresh' },
+      { key: 'legal_advice',         label: 'ייעוץ משפטי / עו"ד',       mode: 'nadresh' },
+      { key: 'pet',                  label: 'כלב פנסיון / בעלי חיים',   mode: 'nonempty' },
+      { key: 'student_indicator',    label: 'סטודנטים',                 mode: 'yes' },
+      { key: 'fighter',              label: 'פייטר (כרטיס)',             mode: 'received' },
+      { key: 'vacation_break',       label: 'שובר חופשה',               mode: 'received' },
+      { key: 'repairs',              label: 'תקלות / הנדימן',           mode: 'nadresh' },
+      { key: 'moving_assistance',    label: 'מעבר דירה / הובלה',        mode: 'nadresh' },
+      { key: 'divorced_assistance',  label: 'גרושים/ות — חליף משמורת', mode: 'nonempty' },
+      { key: 'personal_equipment',   label: 'ציוד אישי',                mode: 'nadresh' },
+      { key: 'summer_camp',          label: 'קייטנות',                  mode: 'nadresh' },
+      { key: 'flight_compensation',  label: 'נסיעות / טיסות',          mode: 'nonempty' },
+      { key: 'welfare_fund',         label: 'קרן הסיוע',               mode: 'nadresh' },
+      { key: 'birth_grant',          label: 'מענק לידה',               mode: 'nadresh' },
+      { key: 'vacation_compensation',label: 'שובר חופשה — פיצוי',      mode: 'nonempty' },
+      { key: 'command_role',         label: 'מעמד מפקד',               mode: 'nonempty' },
+    ];
+
+    // Determine which DBs to query
+    const conn0 = await mysql.createConnection(dbConfig);
+    let dbNames: string[] = [];
+    try {
+      if (battalionFilter) {
+        dbNames = [getBattalionDbName(battalionFilter)];
+      } else {
+        const [rows] = await conn0.execute<mysql.RowDataPacket[]>(
+          `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+        );
+        dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+      }
+    } finally {
+      await conn0.end();
+    }
+
+    // Build SQL expression for each mode
+    function buildExpr(key: string, mode: string): string {
+      switch (mode) {
+        case 'nadresh':
+          return `SUM(CASE WHEN TRIM(\`${key}\`) = 'נדרש' OR TRIM(\`${key}\`) LIKE 'נדרש - %' THEN 1 ELSE 0 END)`;
+        case 'yes':
+          return `SUM(CASE WHEN TRIM(\`${key}\`) = 'כן' THEN 1 ELSE 0 END)`;
+        case 'received':
+          // count soldiers where value is set AND is NOT 'קיבל' (i.e. still pending or לא קיבל)
+          return `SUM(CASE WHEN TRIM(\`${key}\`) = 'לא קיבל' THEN 1 ELSE 0 END)`;
+        case 'nonempty':
+        default:
+          return `SUM(CASE WHEN \`${key}\` IS NOT NULL AND TRIM(\`${key}\`) != '' AND TRIM(\`${key}\`) NOT IN ('לא','אין','לא נדרש','לא רלוונטי') THEN 1 ELSE 0 END)`;
+      }
+    }
+
+    // Per battalion totals
+    interface BnResult { battalion: string; total: number; fields: Record<string, number> }
+    const battalionResults: BnResult[] = [];
+
+    for (const dbName of dbNames) {
+      const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+      try {
+        // Probe existing columns
+        const [colRows] = await c.execute<mysql.RowDataPacket[]>(
+          `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+          [dbName]
+        );
+        const existingCols = new Set((colRows as any[]).map((r: any) => r.COLUMN_NAME as string));
+
+        const presentFields = FIELDS.filter((f) => existingCols.has(f.key));
+        if (presentFields.length === 0) continue;
+
+        const selects = [
+          'COUNT(*) AS _total',
+          ...presentFields.map((f) => `${buildExpr(f.key, f.mode)} AS \`${f.key}\``),
+        ];
+
+        const [rows] = await c.execute<mysql.RowDataPacket[]>(`SELECT ${selects.join(', ')} FROM soldiers`);
+        const row = rows[0] || {};
+        const fieldCounts: Record<string, number> = {};
+        for (const f of FIELDS) {
+          fieldCounts[f.key] = Number(row[f.key]) || 0;
+        }
+        battalionResults.push({
+          battalion: dbName.replace(/^battalion_/, ''),
+          total: Number(row._total) || 0,
+          fields: fieldCounts,
+        });
+      } catch {
+        // skip inaccessible DBs
+      } finally {
+        await c.end();
+      }
+    }
+
+    // Aggregate totals across all battalions
+    const aggregate: Record<string, number> = {};
+    let totalSoldiers = 0;
+    for (const bn of battalionResults) {
+      totalSoldiers += bn.total;
+      for (const f of FIELDS) {
+        aggregate[f.key] = (aggregate[f.key] || 0) + (bn.fields[f.key] || 0);
+      }
+    }
+
+    const fieldMeta = FIELDS.map((f) => ({
+      key: f.key,
+      label: f.label,
+      total: aggregate[f.key] || 0,
+      pct: totalSoldiers ? Math.round(((aggregate[f.key] || 0) / totalSoldiers) * 1000) / 10 : 0,
+    })).sort((a, b) => b.total - a.total);
+
+    res.json({
+      totalSoldiers,
+      totalBattalions: battalionResults.length,
+      fields: fieldMeta,
+      battalions: battalionResults,
+    });
+  } catch (error: any) {
+    logger.error('Assistance breakdown failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בפילוח מענים' });
+  }
+};
+
 export const exportBattalion = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionName = decodeURIComponent(req.params.name || '');

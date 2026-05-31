@@ -25,6 +25,7 @@ import { CommunityPage } from './pages/CommunityPage';
 import { FieldTeamPage } from './pages/FieldTeamPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { FinancialPage } from './pages/FinancialPage';
+import { AssistanceBreakdownPage } from './pages/AssistanceBreakdownPage';
 import { authService } from './services/authService';
 import { ChatBot } from './components/ChatBot';
 import { NotificationBell } from './components/NotificationBell';
@@ -290,6 +291,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               לוח נתונים
             </NavLink>
 
+            <NavLink to="/assistance-breakdown" onClick={closeMenu}>
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+              </svg>
+              פילוח מענים
+            </NavLink>
+
             <NavLink to="/users/new" onClick={closeMenu}>
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -462,6 +473,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/assistance-breakdown" element={<ProtectedRoute><AssistanceBreakdownPage /></ProtectedRoute>} />
           <Route
             path="/users/new"
             element={
