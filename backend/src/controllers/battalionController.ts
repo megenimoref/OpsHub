@@ -1455,3 +1455,64 @@ export const refreshAllAllocations = async (req: Request, res: Response): Promis
     res.status(500).json({ error: error.message || 'שגיאה ברענון הקצאות' });
   }
 };
+
+// ── Clean orphan allocations (soldiers deleted from battalion DB) ─────────────
+export const cleanOrphanAllocations = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalions = await listBattalions();
+    let totalRemoved = 0;
+    const results: { battalion: string; removed: number }[] = [];
+
+    for (const battalionName of battalions) {
+      const dbName = getBattalionDbName(battalionName);
+      try {
+        // Get all personal_numbers actually present in this battalion
+        const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+        let existingNumbers: Set<string> = new Set();
+        try {
+          const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+            'SELECT personal_number FROM soldiers WHERE personal_number IS NOT NULL AND personal_number != \'\''
+          );
+          rows.forEach((r) => existingNumbers.add(r.personal_number));
+        } finally {
+          await conn.end();
+        }
+
+        // Get all allocations for this battalion
+        const allocations = await SoldierAllocation.findAll({
+          where: { battalion_name: battalionName },
+          attributes: ['id', 'soldier_personal_number'],
+        });
+
+        // Find orphans — allocated but not in battalion DB anymore
+        const orphanIds = allocations
+          .filter((a) => !existingNumbers.has(a.soldier_personal_number))
+          .map((a) => a.id);
+
+        if (orphanIds.length > 0) {
+          await SoldierAllocation.destroy({ where: { id: orphanIds } });
+          totalRemoved += orphanIds.length;
+        }
+
+        results.push({ battalion: battalionName, removed: orphanIds.length });
+        logger.info('Clean orphan allocations — battalion done', { battalionName, removed: orphanIds.length });
+      } catch (err: any) {
+        logger.warn('Clean orphan allocations — battalion skipped', { battalionName, error: err.message });
+        results.push({ battalion: battalionName, removed: 0 });
+      }
+    }
+
+    logger.info('Clean orphan allocations completed', { totalBattalions: battalions.length, totalRemoved });
+
+    res.json({
+      success: true,
+      totalBattalions: battalions.length,
+      totalRemoved,
+      results,
+      message: `הוסרו ${totalRemoved} הקצאות ישנות שהחייל כבר לא קיים בגדוד`,
+    });
+  } catch (error: any) {
+    logger.error('Clean orphan allocations failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה בניקוי הקצאות ישנות' });
+  }
+};

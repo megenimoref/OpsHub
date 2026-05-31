@@ -36,6 +36,10 @@ export const AllocationPage: React.FC = () => {
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncResult, setSyncResult] = useState<{ totalUpdated: number; unmatchedNames: string[]; totalBattalions: number } | null>(null);
 
+  // Clean orphan allocations state
+  const [cleaningOrphans, setCleaningOrphans] = useState(false);
+  const [cleanResult, setCleanResult] = useState<{ totalRemoved: number; totalBattalions: number } | null>(null);
+
   // Load battalions and staff users on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -150,6 +154,19 @@ export const AllocationPage: React.FC = () => {
     }
   };
 
+  const handleCleanOrphans = async () => {
+    setCleaningOrphans(true);
+    setCleanResult(null);
+    try {
+      const res = await api.post('/battalion/clean-orphan-allocations');
+      setCleanResult({ totalRemoved: res.data.totalRemoved, totalBattalions: res.data.totalBattalions });
+    } catch {
+      setCleanResult({ totalRemoved: -1, totalBattalions: 0 });
+    } finally {
+      setCleaningOrphans(false);
+    }
+  };
+
   const handleSyncAll = async () => {
     setSyncingAll(true);
     setSyncResult(null);
@@ -206,15 +223,34 @@ export const AllocationPage: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-3xl font-bold text-white">הקצאת חיילים</h1>
-            <button
-              onClick={handleSyncAll}
-              disabled={syncingAll}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
-            >
-              {syncingAll ? '⏳ מסנכרן...' : '🔄 סנכרן כל הגדודים לפי "מי יצרה קשר"'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCleanOrphans}
+                disabled={cleaningOrphans}
+                className="flex items-center gap-2 px-4 py-2 bg-red-800 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {cleaningOrphans ? '⏳ מנקה...' : '🗑️ נקה הקצאות ישנות (מינוס)'}
+              </button>
+              <button
+                onClick={handleSyncAll}
+                disabled={syncingAll}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+              >
+                {syncingAll ? '⏳ מסנכרן...' : '🔄 סנכרן כל הגדודים לפי "מי יצרה קשר"'}
+              </button>
+            </div>
           </div>
           <p className="text-gray-400 mb-4">בחר גדוד ומשתמש להקצאת חיילים</p>
+
+          {cleanResult && (
+            <div className={`mb-4 p-4 rounded-lg border ${cleanResult.totalRemoved === -1 ? 'bg-red-900/40 border-red-700 text-red-300' : 'bg-orange-900/40 border-orange-700 text-orange-300'}`}>
+              {cleanResult.totalRemoved === -1 ? (
+                <p>שגיאה בניקוי הקצאות ישנות</p>
+              ) : (
+                <p className="font-semibold">🗑️ הוסרו {cleanResult.totalRemoved} הקצאות ישנות של חיילים שנמחקו מהגדודים</p>
+              )}
+            </div>
+          )}
 
           {syncResult && (
             <div className={`mb-6 p-4 rounded-lg border ${syncResult.totalUpdated === -1 ? 'bg-red-900/40 border-red-700 text-red-300' : 'bg-emerald-900/40 border-emerald-700 text-emerald-300'}`}>

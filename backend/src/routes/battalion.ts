@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authMiddleware, adminMiddleware, adminOrSuperMiddleware, allocateMiddleware } from '../middleware/auth';
-import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, refreshAllAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler, verifyExcelDetails, syncExcelDetails } from '../controllers/battalionController';
+import { createBattalion, importBattalion, getBattalions, getBattalionSoldiers, searchSoldier, searchSoldierGlobalHandler, updateSoldierHandler, getSoldierChangesHandler, getDashboard, getAssistanceSoldiers, downloadTemplate, deleteBattalion, exportBattalion, refreshAllocations, refreshAllAllocations, cleanOrphanAllocations, searchFieldTeam, getDuplicateSoldiersHandler, deleteSoldierHandler, verifyExcelDetails, syncExcelDetails } from '../controllers/battalionController';
 import { allocateSoldiers, getMySoldiers, getAllocationsByBattalion, getUserAllocationStats, deallocateSoldiers, assignSoldiers } from '../controllers/allocationController';
 import { getSheagatHaariStats } from '../services/sheagatHaariService';
 import { logger } from '../services/logger';
@@ -56,6 +56,7 @@ router.get('/duplicate-soldiers', authMiddleware, adminMiddleware, getDuplicateS
 router.get('/my-soldiers', authMiddleware, getMySoldiers);
 router.get('/allocations/:name', authMiddleware, getAllocationsByBattalion);
 router.post('/refresh-all-allocations', authMiddleware, allocateMiddleware, refreshAllAllocations);
+router.post('/clean-orphan-allocations', authMiddleware, allocateMiddleware, cleanOrphanAllocations);
 router.post('/:name/refresh-allocations', authMiddleware, allocateMiddleware, refreshAllocations);
 router.get('/:name/export', authMiddleware, exportBattalion);
 router.get('/:name/assistance-soldiers', authMiddleware, getAssistanceSoldiers);
