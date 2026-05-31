@@ -32,6 +32,10 @@ export const AllocationPage: React.FC = () => {
   const [allocating, setAllocating] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Sync all battalions state
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ totalUpdated: number; unmatchedNames: string[]; totalBattalions: number } | null>(null);
+
   // Load battalions and staff users on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -146,6 +150,23 @@ export const AllocationPage: React.FC = () => {
     }
   };
 
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    setSyncResult(null);
+    try {
+      const res = await api.post('/battalion/refresh-all-allocations');
+      setSyncResult({
+        totalUpdated: res.data.totalUpdated,
+        unmatchedNames: res.data.unmatchedNames || [],
+        totalBattalions: res.data.totalBattalions,
+      });
+    } catch (err: any) {
+      setSyncResult({ totalUpdated: -1, unmatchedNames: [], totalBattalions: 0 });
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   const selectedUserName = selectedUser
     ? staffUsers.find((u) => u.id === selectedUser)
       ? `${staffUsers.find((u) => u.id === selectedUser)?.firstName} ${staffUsers.find((u) => u.id === selectedUser)?.lastName}`
@@ -183,8 +204,34 @@ export const AllocationPage: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-2">הקצאת חיילים</h1>
-          <p className="text-gray-400 mb-6">בחר גדוד ומשתמש להקצאת חיילים</p>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl font-bold text-white">הקצאת חיילים</h1>
+            <button
+              onClick={handleSyncAll}
+              disabled={syncingAll}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
+            >
+              {syncingAll ? '⏳ מסנכרן...' : '🔄 סנכרן כל הגדודים לפי "מי יצרה קשר"'}
+            </button>
+          </div>
+          <p className="text-gray-400 mb-4">בחר גדוד ומשתמש להקצאת חיילים</p>
+
+          {syncResult && (
+            <div className={`mb-6 p-4 rounded-lg border ${syncResult.totalUpdated === -1 ? 'bg-red-900/40 border-red-700 text-red-300' : 'bg-emerald-900/40 border-emerald-700 text-emerald-300'}`}>
+              {syncResult.totalUpdated === -1 ? (
+                <p>שגיאה בסנכרון הגדודים</p>
+              ) : (
+                <>
+                  <p className="font-semibold">✅ סנכרון הושלם — עודכנו {syncResult.totalUpdated} הקצאות בסך הכל עבור {syncResult.totalBattalions} גדודים</p>
+                  {syncResult.unmatchedNames.length > 0 && (
+                    <p className="text-yellow-300 mt-2 text-sm">
+                      ⚠️ שמות שלא נמצאו במערכת: {syncResult.unmatchedNames.join(', ')}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Battalion Selection Grid */}
           <div className="bg-gray-900 rounded-lg border border-gray-700 p-6 mb-6">

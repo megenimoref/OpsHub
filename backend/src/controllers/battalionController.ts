@@ -1363,3 +1363,95 @@ export const syncExcelDetails = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ error: error.message || 'שגיאה בסנכרון פרטים' });
   }
 };
+
+// ── Refresh allocations for ALL battalions ───────────────────────────────────
+export const refreshAllAllocations = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const battalions = await listBattalions();
+
+    const allUsers = await User.findAll({ attributes: ['id', 'firstName', 'lastName'], raw: true });
+    const nameToUserId: Record<string, number> = {};
+    (allUsers as any[]).forEach((u: any) => {
+      if (u.firstName) nameToUserId[u.firstName.trim()] = u.id;
+      const fullName = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+      if (fullName) nameToUserId[fullName] = u.id;
+    });
+
+    const resolveContactBy = (contactBy: string): number | undefined => {
+      const full = contactBy.trim();
+      if (nameToUserId[full]) return nameToUserId[full];
+      const parts = full.split('/').map((p) => p.trim()).filter(Boolean);
+      for (const part of parts) {
+        if (nameToUserId[part]) return nameToUserId[part];
+      }
+      return undefined;
+    };
+
+    let totalUpdated = 0;
+    const allUnmatched: string[] = [];
+    const results: { battalion: string; updated: number; unmatched: string[] }[] = [];
+
+    for (const battalionName of battalions) {
+      const dbName = getBattalionDbName(battalionName);
+      try {
+        const conn = await mysql.createConnection({ ...dbConfig, database: dbName });
+        let soldiers: { personal_number: string; contact_by: string | null }[] = [];
+        try {
+          const [rows] = await conn.execute<mysql.RowDataPacket[]>(
+            'SELECT personal_number, contact_by FROM soldiers'
+          );
+          soldiers = rows as { personal_number: string; contact_by: string | null }[];
+        } finally {
+          await conn.end();
+        }
+
+        const allocationsToUpsert: { user_id: number; battalion_name: string; soldier_personal_number: string }[] = [];
+        const unmatched: string[] = [];
+
+        for (const s of soldiers) {
+          const contactBy = s.contact_by?.trim();
+          if (!contactBy || !s.personal_number) continue;
+          const userId = resolveContactBy(contactBy);
+          if (userId) {
+            allocationsToUpsert.push({
+              user_id: userId,
+              battalion_name: battalionName,
+              soldier_personal_number: s.personal_number,
+            });
+          } else {
+            if (!unmatched.includes(contactBy)) unmatched.push(contactBy);
+          }
+        }
+
+        if (allocationsToUpsert.length > 0) {
+          await SoldierAllocation.bulkCreate(allocationsToUpsert, {
+            updateOnDuplicate: ['user_id', 'updatedAt'],
+          });
+        }
+
+        totalUpdated += allocationsToUpsert.length;
+        unmatched.forEach((n) => { if (!allUnmatched.includes(n)) allUnmatched.push(n); });
+        results.push({ battalion: battalionName, updated: allocationsToUpsert.length, unmatched });
+
+        logger.info('Refresh all allocations — battalion done', { battalionName, updated: allocationsToUpsert.length });
+      } catch (err: any) {
+        logger.warn('Refresh all allocations — battalion skipped', { battalionName, error: err.message });
+        results.push({ battalion: battalionName, updated: 0, unmatched: [] });
+      }
+    }
+
+    logger.info('Refresh all allocations completed', { totalBattalions: battalions.length, totalUpdated, unmatchedNames: allUnmatched });
+
+    res.json({
+      success: true,
+      totalBattalions: battalions.length,
+      totalUpdated,
+      unmatchedNames: allUnmatched,
+      results,
+      message: `עודכנו ${totalUpdated} הקצאות בסך הכל עבור ${battalions.length} גדודים`,
+    });
+  } catch (error: any) {
+    logger.error('Refresh all allocations failed', { errorMessage: error.message, stack: error.stack });
+    res.status(500).json({ error: error.message || 'שגיאה ברענון הקצאות' });
+  }
+};
