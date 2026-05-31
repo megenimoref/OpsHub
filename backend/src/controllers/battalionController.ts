@@ -1105,6 +1105,72 @@ export const getAssistanceBreakdown = async (req: Request, res: Response): Promi
   }
 };
 
+// ── Field value inspector: show distinct values per assistance field ──────────
+export const getAssistanceFieldValues = async (req: Request, res: Response): Promise<void> => {
+  const FIELDS = [
+    'national_insurance','household_assistance','route_6','income_loss',
+    'nonprofit_assistance','income_tax','resilience_treatment','resilience_couples',
+    'legal_advice','pet','student_indicator','fighter','vacation_break',
+    'repairs','moving_assistance','divorced_assistance','personal_equipment',
+    'summer_camp','flight_compensation','welfare_fund','birth_grant',
+    'vacation_compensation','command_role',
+  ];
+
+  try {
+    const conn0 = await mysql.createConnection(dbConfig);
+    let dbNames: string[] = [];
+    try {
+      const [rows] = await conn0.execute<mysql.RowDataPacket[]>(
+        `SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE 'battalion_%'`
+      );
+      dbNames = rows.map((r) => r.SCHEMA_NAME as string);
+    } finally {
+      await conn0.end();
+    }
+
+    // Collect distinct values per field across all battalions
+    const valueMap: Record<string, Record<string, number>> = {};
+    for (const f of FIELDS) valueMap[f] = {};
+
+    for (const dbName of dbNames) {
+      const c = await mysql.createConnection({ ...dbConfig, database: dbName });
+      try {
+        const [colRows] = await c.execute<mysql.RowDataPacket[]>(
+          `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'soldiers'`,
+          [dbName]
+        );
+        const existingCols = new Set((colRows as any[]).map((r: any) => r.COLUMN_NAME as string));
+        const presentFields = FIELDS.filter((f) => existingCols.has(f));
+        if (presentFields.length === 0) continue;
+
+        const selects = presentFields.map((f) => `\`${f}\``).join(', ');
+        const [rows] = await c.execute<mysql.RowDataPacket[]>(`SELECT ${selects} FROM soldiers`);
+        for (const row of rows as any[]) {
+          for (const f of presentFields) {
+            const raw = (row[f] ?? '').toString().trim();
+            if (raw === '') continue;
+            valueMap[f][raw] = (valueMap[f][raw] || 0) + 1;
+          }
+        }
+      } catch { /* skip */ } finally {
+        await c.end();
+      }
+    }
+
+    // Format as sorted list per field
+    const result = FIELDS.map((f) => ({
+      field: f,
+      values: Object.entries(valueMap[f])
+        .sort((a, b) => b[1] - a[1])
+        .map(([value, count]) => ({ value, count })),
+    }));
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const exportBattalion = async (req: Request, res: Response): Promise<void> => {
   try {
     const battalionName = decodeURIComponent(req.params.name || '');
