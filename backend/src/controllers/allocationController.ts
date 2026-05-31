@@ -476,21 +476,41 @@ export const assignSoldiers = async (req: Request, res: Response): Promise<void>
 // Returns total allocated soldiers per user (global, across all battalions)
 export const getUserAllocationStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const stats = await SoldierAllocation.findAll({
+    // Count allocations per user + battalion
+    const rows = await SoldierAllocation.findAll({
       attributes: [
         'user_id',
+        'battalion_name',
         [fn('COUNT', col('soldier_personal_number')), 'count'],
       ],
-      group: ['user_id'],
+      group: ['user_id', 'battalion_name'],
       raw: true,
     });
 
-    res.json(
-      stats.map((s: any) => ({
-        userId: s.user_id,
-        count: parseInt(s.count, 10) || 0,
-      }))
-    );
+    // Fetch all users for name resolution
+    const users = await User.findAll({ attributes: ['id', 'firstName', 'lastName', 'role'], raw: true });
+    const userMap: Record<number, { firstName: string; lastName: string; role: string }> = {};
+    (users as any[]).forEach((u: any) => { userMap[u.id] = { firstName: u.firstName || '', lastName: u.lastName || '', role: u.role || '' }; });
+
+    // Group by user
+    const byUser: Record<number, { userId: number; firstName: string; lastName: string; role: string; total: number; battalions: { name: string; count: number }[] }> = {};
+    for (const row of rows as any[]) {
+      const uid = row.user_id;
+      const cnt = parseInt(row.count, 10) || 0;
+      if (!byUser[uid]) {
+        const u = userMap[uid] || { firstName: 'לא ידוע', lastName: '', role: '' };
+        byUser[uid] = { userId: uid, firstName: u.firstName, lastName: u.lastName, role: u.role, total: 0, battalions: [] };
+      }
+      byUser[uid].total += cnt;
+      byUser[uid].battalions.push({ name: row.battalion_name, count: cnt });
+    }
+
+    // Sort each user's battalions by count desc
+    const result = Object.values(byUser)
+      .map((u) => ({ ...u, battalions: u.battalions.sort((a, b) => b.count - a.count) }))
+      .sort((a, b) => b.total - a.total);
+
+    res.json(result);
   } catch (error: any) {
     logger.error('Get user allocation stats failed', { errorMessage: error.message });
     res.status(500).json({ error: error.message || 'שגיאה בשליפת סטטיסטיקות הקצאות' });

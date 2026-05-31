@@ -14,6 +14,15 @@ interface BattalionStats {
   unallocated: number;
 }
 
+interface UserAllocStat {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  role: string;
+  total: number;
+  battalions: { name: string; count: number }[];
+}
+
 export const AllocationPage: React.FC = () => {
   // Data states
   const [battalions, setBattalions] = useState<string[]>([]);
@@ -40,6 +49,23 @@ export const AllocationPage: React.FC = () => {
   const [cleaningOrphans, setCleaningOrphans] = useState(false);
   const [cleanResult, setCleanResult] = useState<{ totalRemoved: number; totalBattalions: number } | null>(null);
 
+  // Per-user allocation stats
+  const [userStats, setUserStats] = useState<UserAllocStat[]>([]);
+  const [expandedUser, setExpandedUser] = useState<number | null>(null);
+  const [loadingUserStats, setLoadingUserStats] = useState(false);
+
+  const fetchUserStats = async () => {
+    setLoadingUserStats(true);
+    try {
+      const res = await api.get<UserAllocStat[]>('/battalion/allocation-stats');
+      setUserStats(res.data || []);
+    } catch (err) {
+      console.error('Failed to load user stats:', err);
+    } finally {
+      setLoadingUserStats(false);
+    }
+  };
+
   // Load battalions and staff users on mount
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +85,7 @@ export const AllocationPage: React.FC = () => {
     };
 
     fetchData();
+    fetchUserStats();
   }, []);
 
   // Load battalion stats when a battalion is selected
@@ -164,6 +191,7 @@ export const AllocationPage: React.FC = () => {
       setCleanResult({ totalRemoved: -1, totalBattalions: 0 });
     } finally {
       setCleaningOrphans(false);
+      fetchUserStats();
     }
   };
 
@@ -181,6 +209,7 @@ export const AllocationPage: React.FC = () => {
       setSyncResult({ totalUpdated: -1, unmatchedNames: [], totalBattalions: 0 });
     } finally {
       setSyncingAll(false);
+      fetchUserStats();
     }
   };
 
@@ -268,6 +297,55 @@ export const AllocationPage: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* Per-user allocation summary table */}
+          <div className="bg-gray-900 rounded-lg border border-gray-700 p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">הקצאות לפי משתמש</h2>
+              <button onClick={fetchUserStats} disabled={loadingUserStats} className="text-xs text-gray-400 hover:text-white transition-colors disabled:opacity-50">
+                {loadingUserStats ? '⏳' : '↻ רענן'}
+              </button>
+            </div>
+            {loadingUserStats ? (
+              <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+            ) : userStats.length === 0 ? (
+              <p className="text-gray-400 text-sm">אין נתוני הקצאות</p>
+            ) : (
+              <div className="space-y-2">
+                {userStats.map((u) => (
+                  <div key={u.userId} className="rounded-lg border border-gray-700 overflow-hidden">
+                    <button
+                      onClick={() => setExpandedUser(expandedUser === u.userId ? null : u.userId)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-800 hover:bg-gray-750 transition-colors text-right"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-white font-semibold">{u.firstName} {u.lastName}</span>
+                        <span className="text-xs text-gray-500">{u.role}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="bg-blue-700 text-white text-sm font-bold px-3 py-0.5 rounded-full">{u.total} חיילים</span>
+                        <span className="text-gray-400 text-xs">{expandedUser === u.userId ? '▲' : '▼'} {u.battalions.length} גדודים</span>
+                      </div>
+                    </button>
+                    {expandedUser === u.userId && (
+                      <div className="bg-gray-850 border-t border-gray-700 px-4 py-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {u.battalions.map((b) => (
+                          <div key={b.name} className="flex justify-between items-center bg-gray-700 rounded px-3 py-1.5 text-sm">
+                            <span className="text-gray-200 truncate">{b.name}</span>
+                            <span className="text-blue-300 font-bold ml-2">{b.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="flex justify-between items-center pt-2 border-t border-gray-700 text-sm">
+                  <span className="text-gray-400">סה"כ הקצאות במערכת</span>
+                  <span className="text-white font-bold">{userStats.reduce((s, u) => s + u.total, 0)}</span>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Battalion Selection Grid */}
           <div className="bg-gray-900 rounded-lg border border-gray-700 p-6 mb-6">
